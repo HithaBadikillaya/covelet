@@ -34,7 +34,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
         <View style={styles.container}>
             <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
                 <Image
-                    source={require('@/assets/images/icon.png')}
+                    source={require('@/assets/images/logo.png')}
                     style={styles.logo}
                     contentFit="contain"
                 />
