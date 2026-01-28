@@ -1,11 +1,13 @@
 import { CoveCard } from '@/components/Dashboard/CoveCard';
 import { CreateCoveModal } from '@/components/Dashboard/CreateCoveModal';
 import { JoinCoveModal } from '@/components/Dashboard/JoinCoveModal';
+import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { Colors, Fonts } from '@/constants/theme';
-import { auth, db } from '@/firebaseConfig';
+import { db } from '@/firebaseConfig';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router } from 'expo-router';
+import { User } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -31,40 +33,45 @@ const DashboardScreen = () => {
     const [joinModalVisible, setJoinModalVisible] = useState(false);
 
     useEffect(() => {
-        const user = auth.currentUser;
-        if (!user) {
-            router.replace('/login');
-            return;
-        }
+        const unsubscribeAuth = subscribeToAuthChanges((user: User | null) => {
+            if (!user) {
+                router.replace('/login');
+                return;
+            }
 
-        // Real-time listener for Coves where the user is a member
-        // Simplified query to avoid requiring composite indexes immediately
-        const q = query(
-            collection(db, 'coves'),
-            where('memberIds', 'array-contains', user.uid)
-        );
+            // Real-time listener for Coves where the user is a member
+            const q = query(
+                collection(db, 'coves'),
+                where('memberIds', 'array-contains', user.uid)
+            );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const covesList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...(doc.data() as any)
-            })) as Cove[];
+            const unsubscribeCoves = onSnapshot(q, (snapshot) => {
+                const covesList = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...(doc.data() as any)
+                })) as Cove[];
 
-            // Sort client-side for now to avoid Firestore index requirement
-            const sortedCoves = covesList.sort((a, b) => {
-                const dateA = a.createdAt?.seconds || 0;
-                const dateB = b.createdAt?.seconds || 0;
-                return dateB - dateA;
+                const sortedCoves = covesList.sort((a, b) => {
+                    const dateA = a.createdAt?.seconds || 0;
+                    const dateB = b.createdAt?.seconds || 0;
+                    return dateB - dateA;
+                });
+
+                setCoves(sortedCoves);
+                setLoading(false);
+                setError(null);
+            }, (error) => {
+                console.error("Error listening to coves:", error);
+                if (error.message.includes('permissions')) {
+                    setError("Firestore Permission Denied. Please ensure your Firestore Rules allow 'read' for authenticated users.");
+                }
+                setLoading(false);
             });
 
-            setCoves(sortedCoves);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error listening to coves:", error);
-            setLoading(false);
+            return () => unsubscribeCoves();
         });
 
-        return () => unsubscribe();
+        return () => unsubscribeAuth();
     }, []);
 
     const handleCovePress = (id: string) => {

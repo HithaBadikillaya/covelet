@@ -12,7 +12,7 @@ import { Navbar } from '@/components/Navbar';
 import { SplashScreen as CustomSplashScreen } from '@/components/SplashScreen/SplashScreen';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { subscribeToAuthChanges } from '@/backend/auth/authService';
+import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { User } from 'firebase/auth';
 
 // Keep the splash screen visible while we fetch resources

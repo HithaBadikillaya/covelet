@@ -1,4 +1,4 @@
-import { subscribeToAuthChanges } from '@/backend/auth/authService';
+import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth } from '@/firebaseConfig';
 import { useColorScheme } from '@/hooks/use-color-scheme';

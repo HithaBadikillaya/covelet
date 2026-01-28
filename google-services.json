@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1070561035950",
+    "project_id": "covelet-a8121",
+    "storage_bucket": "covelet-a8121.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1070561035950:android:ecc6947a7aca52229a8f3f",
+        "android_client_info": {
+          "package_name": "com.hitha.covelet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1070561035950-cjfprkfddtaos6il4cit8bp3u42chkv2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyWdWJz1DgAXcJdruGGSzBZFMuyuwnYWk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1070561035950-cjfprkfddtaos6il4cit8bp3u42chkv2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

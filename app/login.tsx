@@ -1,4 +1,4 @@
-import { resetPassword, signIn, signUp } from '@/backend/auth/authService';
+import { resetPassword, signIn, signUp } from '@/components/auth/authService';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
