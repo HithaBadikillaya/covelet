@@ -46,3 +46,4 @@ app-example
 # Firebase config
 google-services.json
 GoogleService-Info.plist
+firestore.rules

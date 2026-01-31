@@ -57,7 +57,12 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
             setDescription('');
             onClose();
         } catch (err: any) {
-            setError(err.message || 'Failed to create Cove.');
+            console.error('Error creating cove:', err);
+            if (err.code === 'permission-denied') {
+                setError('Security Restriction: You do not have permission to create this Cove. Please check your Firestore rules.');
+            } else {
+                setError(err.message || 'Failed to create Cove.');
+            }
         } finally {
             setLoading(false);
         }

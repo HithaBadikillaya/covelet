@@ -103,7 +103,16 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
             onJoin(coveId);
         } catch (error: any) {
             console.error("Error joining cove:", error);
-            Alert.alert("Join Failed", "Something went wrong. Please try again later.");
+
+            // Handle permission denied specifically (Security Rules check)
+            if (error.code === 'permission-denied' || error.message?.includes('permissions')) {
+                Alert.alert(
+                    "Security Restriction",
+                    "You don't have permission to search for this Cove. Please ensure you have the correct code"
+                );
+            } else {
+                Alert.alert("Join Failed", "Something went wrong. Please try again later.");
+            }
             setLoading(false);
         }
     };

@@ -96,8 +96,13 @@ export default function CoveDetailsScreen() {
                             await deleteDoc(doc(db, 'coves', cove.id));
 
                             router.replace('/(tabs)/dashboard');
-                        } catch {
-                            Alert.alert('Error', 'Failed to delete Cove.');
+                        } catch (err: any) {
+                            console.error('Error deleting cove:', err);
+                            if (err.code === 'permission-denied') {
+                                Alert.alert('Permission Denied', 'Only the creator of this Cove can delete it.');
+                            } else {
+                                Alert.alert('Error', 'Failed to delete Cove.');
+                            }
                         }
                     },
                 },
