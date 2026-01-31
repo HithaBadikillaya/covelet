@@ -31,7 +31,7 @@ export const ActionSection: React.FC<ActionSectionProps> = ({ onExplorePress }) 
                 style={[styles.buttonSecondary, { borderColor: themeColors.ocean }]}
             >
                 <Text style={[styles.buttonTextSecondary, { color: themeColors.ocean }]}>
-                    Invite to your Circle
+                    Core Features Below
                 </Text>
             </TouchableOpacity>
         </View>

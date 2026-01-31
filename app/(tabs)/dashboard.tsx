@@ -1,16 +1,16 @@
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { CoveCard } from '@/components/Dashboard/CoveCard';
 import { CreateCoveModal } from '@/components/Dashboard/CreateCoveModal';
 import { JoinCoveModal } from '@/components/Dashboard/JoinCoveModal';
-import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { Colors, Fonts } from '@/constants/theme';
 import { db } from '@/firebaseConfig';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { User } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface Cove {
     id: string;
@@ -22,9 +22,7 @@ interface Cove {
 }
 
 const DashboardScreen = () => {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const themeColors = Colors[isDark ? 'dark' : 'light'];
+    const themeColors = Colors.light; // Single theme
 
     const [coves, setCoves] = useState<Cove[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,8 +33,7 @@ const DashboardScreen = () => {
     useEffect(() => {
         const unsubscribeAuth = subscribeToAuthChanges((user: User | null) => {
             if (!user) {
-                router.replace('/login');
-                return;
+                return; // AuthGuard handles redirect
             }
 
             // Real-time listener for Coves where the user is a member
@@ -80,92 +77,88 @@ const DashboardScreen = () => {
     };
 
     return (
-        <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
+        <AuthGuard>
+            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+                <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
 
-            <ImageBackground
-                source={require('@/assets/images/beach.jpg')}
-                style={styles.headerBackground}
-                resizeMode="cover"
-            >
-                <View style={[styles.headerOverlay, { backgroundColor: isDark ? 'rgba(26, 42, 56, 0.8)' : 'rgba(248, 251, 255, 0.7)' }]}>
+                <View style={[styles.header, { backgroundColor: themeColors.card }]}>
                     <View style={styles.headerContent}>
                         <Text style={[styles.greeting, { color: themeColors.text }]}>
                             Your Sanctuaries
                         </Text>
-                        <Text style={[styles.subGreeting, { color: themeColors.text }]}>
+                        <Text style={[styles.subGreeting, { color: themeColors.textMuted }]}>
                             Manage your circles and revisited memories.
                         </Text>
                     </View>
                 </View>
-            </ImageBackground>
 
-            <View style={[styles.content, { backgroundColor: themeColors.background }]}>
-                <View style={styles.actionRow}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: themeColors.ocean }]}
-                        onPress={() => setCreateModalVisible(true)}
-                    >
-                        <Ionicons name="add" size={24} color="#FFFFFF" />
-                        <Text style={styles.actionButtonText}>Create Cove</Text>
-                    </TouchableOpacity>
+                <View style={[styles.content, { backgroundColor: themeColors.background }]}>
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
+                            onPress={() => setCreateModalVisible(true)}
+                        >
+                            <Ionicons name="add" size={24} color={themeColors.background} />
+                            <Text style={[styles.actionButtonText, { color: themeColors.background }]}>Create Cove</Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.actionButtonSecondary, { borderColor: themeColors.ocean }]}
-                        onPress={() => setJoinModalVisible(true)}
-                    >
-                        <Ionicons name="enter-outline" size={24} color={themeColors.ocean} />
-                        <Text style={[styles.actionButtonTextSecondary, { color: themeColors.ocean }]}>Join Cove</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionButtonSecondary, { borderColor: themeColors.primary }]}
+                            onPress={() => setJoinModalVisible(true)}
+                        >
+                            <Ionicons name="enter-outline" size={24} color={themeColors.primary} />
+                            <Text style={[styles.actionButtonTextSecondary, { color: themeColors.primary }]}>Join Cove</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {error && (
+                        <View style={[styles.errorBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: themeColors.error }]}>
+                            <Ionicons name="alert-circle-outline" size={24} color={themeColors.error} />
+                            <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
+                        </View>
+                    )}
+
+                    {loading ? (
+                        <View style={styles.loaderBox}>
+                            <ActivityIndicator size="large" color={themeColors.primary} />
+                        </View>
+                    ) : coves.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <Ionicons name="boat-outline" size={64} color={themeColors.muted} />
+                            <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No Coves Yet</Text>
+                            <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
+                                Create your own circle or join one using a code shared by a friend.
+                            </Text>
+                        </View>
+                    ) : (
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.scrollList}
+                        >
+                            {coves.map((cove) => (
+                                <CoveCard
+                                    key={cove.id}
+                                    name={cove.name}
+                                    description={cove.description}
+                                    memberCount={cove.memberCount || 1}
+                                    code={cove.code}
+                                    onPress={() => handleCovePress(cove.id)}
+                                />
+                            ))}
+                        </ScrollView>
+                    )}
                 </View>
 
-                {error && (
-                    <View style={styles.errorBox}>
-                        <Ionicons name="alert-circle-outline" size={24} color="#FF6B6B" />
-                        <Text style={styles.errorText}>{error}</Text>
-                    </View>
-                )}
-
-                {loading ? (
-                    <View style={styles.loaderBox}>
-                        <ActivityIndicator size="large" color={themeColors.ocean} />
-                    </View>
-                ) : coves.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="boat-outline" size={64} color={themeColors.sand} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No Coves Yet</Text>
-                        <Text style={[styles.emptySubtitle, { color: themeColors.text }]}>
-                            Create your own circle or join one using a code shared by a friend.
-                        </Text>
-                    </View>
-                ) : (
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.scrollList}
-                    >
-                        {coves.map((cove) => (
-                            <CoveCard
-                                key={cove.id}
-                                name={cove.name}
-                                description={cove.description}
-                                memberCount={cove.memberCount || 1}
-                                code={cove.code}
-                                onPress={() => handleCovePress(cove.id)}
-                            />
-                        ))}
-                    </ScrollView>
-                )}
+                <CreateCoveModal
+                    visible={createModalVisible}
+                    onClose={() => setCreateModalVisible(false)}
+                />
+                <JoinCoveModal
+                    visible={joinModalVisible}
+                    onClose={() => setJoinModalVisible(false)}
+                />
             </View>
-
-            <CreateCoveModal
-                visible={createModalVisible}
-                onClose={() => setCreateModalVisible(false)}
-            />
-            <JoinCoveModal
-                visible={joinModalVisible}
-                onClose={() => setJoinModalVisible(false)}
-            />
-        </View>
+        </AuthGuard>
     );
 }
 
@@ -173,18 +166,13 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    headerBackground: {
-        height: 200,
-        justifyContent: 'flex-end',
-    },
-    headerOverlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        padding: 24,
+    header: {
+        paddingTop: 80,
+        paddingHorizontal: 24,
         paddingBottom: 32,
     },
     headerContent: {
-        marginTop: 60,
+        // No margin needed
     },
     greeting: {
         fontFamily: Fonts.heading,
@@ -228,7 +216,6 @@ const styles = StyleSheet.create({
     actionButtonText: {
         fontFamily: Fonts.heading,
         fontSize: 16,
-        color: '#FFFFFF',
     },
     actionButtonTextSecondary: {
         fontFamily: Fonts.heading,
@@ -264,13 +251,12 @@ const styles = StyleSheet.create({
     errorBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 107, 107, 0.1)',
         padding: 16,
         marginBottom: 24,
         gap: 12,
+        borderWidth: 1,
     },
     errorText: {
-        color: '#FF6B6B',
         fontFamily: Fonts.bodyMedium,
         fontSize: 14,
         flex: 1,

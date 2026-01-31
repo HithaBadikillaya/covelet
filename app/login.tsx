@@ -6,7 +6,6 @@ import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    ImageBackground,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -106,129 +105,120 @@ export default function LoginScreen() {
     };
 
     return (
-        <ImageBackground
-            source={require('@/assets/images/beach.jpg')}
-            style={styles.container}
-            resizeMode="cover"
-        >
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
             <Stack.Screen options={{ headerShown: false }} />
-            <View style={[
-                styles.overlay,
-                { backgroundColor: isDark ? 'rgba(26, 42, 56, 0.6)' : 'rgba(248, 251, 255, 0.4)' }
-            ]}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.keyboardView}
-                >
-                    <ScrollView contentContainerStyle={styles.scrollContent}>
-                        <View style={[styles.loginCard, { backgroundColor: isDark ? 'rgba(26, 42, 56, 0.9)' : 'rgba(255, 255, 255, 0.9)' }]}>
-                            <Text style={[styles.title, { color: themeColors.text }]}>
-                                {isLogin ? 'Welcome back' : 'Create an Account'}
-                            </Text>
-                            <Text style={[styles.subtitle, { color: themeColors.text, opacity: 0.7 }]}>
-                                {isLogin ? 'Enter your details to access your Coves.' : 'Join Covelet and start sharing memories.'}
-                            </Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardView}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <View style={[styles.loginCard, { backgroundColor: themeColors.card }]}>
+                        <Text style={[styles.title, { color: themeColors.text }]}>
+                            {isLogin ? 'Welcome back' : 'Create an Account'}
+                        </Text>
+                        <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
+                            {isLogin ? 'Enter your details to access your Coves.' : 'Join Covelet and start sharing memories.'}
+                        </Text>
 
-                            {error && (
-                                <View style={[styles.errorBox, { borderColor: '#E6A495' }]}>
-                                    <Text style={styles.errorText}>{error}</Text>
-                                </View>
-                            )}
-
-                            {success && (
-                                <View style={[styles.successBox, { borderColor: '#4ECDC4' }]}>
-                                    <Text style={styles.successText}>{success}</Text>
-                                </View>
-                            )}
-
-                            <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: themeColors.text }]}>Email</Text>
-                                <TextInput
-                                    style={[styles.input, { borderColor: themeColors.sand, color: themeColors.text }]}
-                                    placeholder="hello@example.com"
-                                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    autoCapitalize="none"
-                                    keyboardType="email-address"
-                                />
+                        {error && (
+                            <View style={[styles.errorBox, { borderColor: themeColors.error }]}>
+                                <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
                             </View>
+                        )}
 
-                            <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: themeColors.text }]}>Password</Text>
-                                <TextInput
-                                    style={[styles.input, { borderColor: themeColors.sand, color: themeColors.text }]}
-                                    placeholder="••••••••"
-                                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry
-                                />
+                        {success && (
+                            <View style={[styles.successBox, { borderColor: themeColors.success }]}>
+                                <Text style={[styles.successText, { color: themeColors.success }]}>{success}</Text>
                             </View>
+                        )}
 
-                            {isLogin && (
-                                <TouchableOpacity onPress={handleForgotPassword}>
-                                    <Text style={[styles.forgotPassword, { color: themeColors.ocean }]}>Forgot password?</Text>
-                                </TouchableOpacity>
-                            )}
-
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                style={[styles.button, { backgroundColor: themeColors.ocean }]}
-                                onPress={handleAuth}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color={themeColors.white} />
-                                ) : (
-                                    <Text style={[styles.buttonText, { color: themeColors.white }]}>
-                                        {isLogin ? 'Sign In' : 'Sign Up'}
-                                    </Text>
-                                )}
-                            </TouchableOpacity>
-
-                            <View style={styles.divider}>
-                                <View style={[styles.line, { backgroundColor: themeColors.sand }]} />
-                                <Text style={[styles.dividerText, { color: themeColors.text }]}>or</Text>
-                                <View style={[styles.line, { backgroundColor: themeColors.sand }]} />
-                            </View>
-
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                style={[styles.socialButton, { borderColor: themeColors.ocean }]}
-                                onPress={handleGoogleSignIn}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color={themeColors.ocean} />
-                                ) : (
-                                    <>
-                                        <Ionicons name="logo-google" size={20} color={themeColors.ocean} style={{ marginRight: 10 }} />
-                                        <Text style={[styles.socialButtonText, { color: themeColors.ocean }]}>Continue with Google</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setIsLogin(!isLogin);
-                                    setError(null);
-                                    setSuccess(null);
-                                }}
-                                style={styles.switchAuth}
-                            >
-                                <Text style={[styles.switchAuthText, { color: themeColors.text }]}>
-                                    {isLogin ? "Don't have an account? " : "Already have an account? "}
-                                    <Text style={{ fontFamily: Fonts.bodyBold, color: themeColors.ocean }}>
-                                        {isLogin ? 'Sign Up' : 'Sign In'}
-                                    </Text>
-                                </Text>
-                            </TouchableOpacity>
+                        <View style={styles.inputGroup}>
+                            <Text style={[styles.label, { color: themeColors.text }]}>Email</Text>
+                            <TextInput
+                                style={[styles.input, { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background }]}
+                                placeholder="hello@example.com"
+                                placeholderTextColor={themeColors.textMuted}
+                                value={email}
+                                onChangeText={setEmail}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                            />
                         </View>
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </View>
-        </ImageBackground>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={[styles.label, { color: themeColors.text }]}>Password</Text>
+                            <TextInput
+                                style={[styles.input, { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background }]}
+                                placeholder="••••••••"
+                                placeholderTextColor={themeColors.textMuted}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                            />
+                        </View>
+
+                        {isLogin && (
+                            <TouchableOpacity onPress={handleForgotPassword}>
+                                <Text style={[styles.forgotPassword, { color: themeColors.primary }]}>Forgot password?</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            style={[styles.button, { backgroundColor: themeColors.primary }]}
+                            onPress={handleAuth}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color={themeColors.background} />
+                            ) : (
+                                <Text style={[styles.buttonText, { color: themeColors.background }]}>
+                                    {isLogin ? 'Sign In' : 'Sign Up'}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+
+                        <View style={styles.divider}>
+                            <View style={[styles.line, { backgroundColor: themeColors.border }]} />
+                            <Text style={[styles.dividerText, { color: themeColors.textMuted }]}>or</Text>
+                            <View style={[styles.line, { backgroundColor: themeColors.border }]} />
+                        </View>
+
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            style={[styles.socialButton, { borderColor: themeColors.primary }]}
+                            onPress={handleGoogleSignIn}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color={themeColors.primary} />
+                            ) : (
+                                <>
+                                    <Ionicons name="logo-google" size={20} color={themeColors.primary} style={{ marginRight: 10 }} />
+                                    <Text style={[styles.socialButtonText, { color: themeColors.primary }]}>Continue with Google</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => {
+                                setIsLogin(!isLogin);
+                                setError(null);
+                                setSuccess(null);
+                            }}
+                            style={styles.switchAuth}
+                        >
+                            <Text style={[styles.switchAuthText, { color: themeColors.textMuted }]}>
+                                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                                <Text style={[styles.switchAuthLink, { color: themeColors.primary }]}>
+                                    {isLogin ? 'Sign Up' : 'Sign In'}
+                                </Text>
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </View>
     );
 }
 
@@ -333,14 +323,16 @@ const styles = StyleSheet.create({
         fontSize: 14,
         opacity: 0.8,
     },
+    switchAuthLink: {
+        fontFamily: Fonts.bodyBold,
+    },
     errorBox: {
         padding: 12,
         borderWidth: 1,
-        backgroundColor: 'rgba(230, 164, 149, 0.1)',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
         marginBottom: 24,
     },
     errorText: {
-        color: '#E6A495',
         fontFamily: Fonts.bodyMedium,
         fontSize: 14,
         textAlign: 'center',
@@ -348,11 +340,10 @@ const styles = StyleSheet.create({
     successBox: {
         padding: 12,
         borderWidth: 1,
-        backgroundColor: 'rgba(78, 205, 196, 0.1)',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
         marginBottom: 24,
     },
     successText: {
-        color: '#4ECDC4',
         fontFamily: Fonts.bodyMedium,
         fontSize: 14,
         textAlign: 'center',
