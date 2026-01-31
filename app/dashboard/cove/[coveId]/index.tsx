@@ -126,6 +126,21 @@ export default function CoveDetailsScreen() {
         ? new Date(cove.createdAt.seconds * 1000).toDateString()
         : '—';
 
+    /* ---------------- NAVIGATION HANDLERS ---------------- */
+    const navigateToFeature = (feature: string) => {
+        if (feature === 'time-capsule') {
+            router.push(`/dashboard/cove/${coveId}/time-capsule`);
+            return;
+        }
+        // Will implement other routes later
+        Alert.alert("Coming Soon", `${feature} is under construction!`);
+    };
+
+    const navigateToSettings = () => {
+        if (!isOwner) return;
+        router.push(`/dashboard/cove/${coveId}/settings`);
+    };
+
     return (
         <AuthGuard>
             <View style={[styles.container, { backgroundColor: themeColors.background }]}>
@@ -136,108 +151,176 @@ export default function CoveDetailsScreen() {
                         paddingBottom: 40,
                     }}
                 >
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
+                    {/* HEADER */}
+                    <View style={styles.headerRow}>
+                        <TouchableOpacity onPress={() => router.replace('/(tabs)/dashboard')}>
+                            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                        </TouchableOpacity>
+                        {isOwner && (
+                            <TouchableOpacity onPress={navigateToSettings}>
+                                <Ionicons name="settings-outline" size={24} color={themeColors.text} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
                     <Text style={[styles.title, { color: themeColors.text }]}>
                         {cove.name}
                     </Text>
 
-                    {isOwner && (
-                        <Text style={[styles.owner, { color: themeColors.primary }]}>
-                            OWNER
-                        </Text>
-                    )}
-
                     <Text style={[styles.description, { color: themeColors.textMuted }]}>
                         {cove.description || 'A digital sanctuary.'}
                     </Text>
 
-                    <View style={styles.info}>
-                        <Text style={styles.infoText}>Created: {createdDate}</Text>
-                        <Text style={styles.infoText}>
-                            Members: {cove.members.length}
-                        </Text>
+                    {/* FEATURE GRID */}
+                    <View style={styles.grid}>
+                        <FeatureCard
+                            title="Time Capsule"
+                            icon="hourglass-outline"
+                            color="#8B5CF6"
+                            onPress={() => navigateToFeature('time-capsule')}
+                        />
+                        <FeatureCard
+                            title="Humans"
+                            icon="people-outline"
+                            color="#EC4899"
+                            onPress={() => navigateToFeature('profiles')}
+                        />
+                        <FeatureCard
+                            title="The Wall"
+                            icon="chatbubble-ellipses-outline"
+                            color="#F59E0B"
+                            onPress={() => navigateToFeature('wall')}
+                        />
+                        <FeatureCard
+                            title="Memory Map"
+                            icon="map-outline"
+                            color="#10B981"
+                            onPress={() => navigateToFeature('map')}
+                        />
+                        <FeatureCard
+                            title="Roulette"
+                            icon="dice-outline"
+                            color="#3B82F6"
+                            onPress={() => navigateToFeature('roulette')}
+                            fullWidth
+                        />
                     </View>
 
-                    {isOwner && (
-                        <View style={styles.ownerSection}>
-                            <Text style={styles.joinLabel}>JOIN CODE</Text>
-                            <Text style={styles.joinCode}>{cove.joinCode}</Text>
+                    {/* QUICK INFO (Temporary until Settings is robust) */}
+                    <View style={styles.info}>
+                        <Text style={styles.infoText}>Created: {createdDate}</Text>
+                        <Text style={styles.infoText}>Members: {cove.members.length}</Text>
+                        {isOwner && (
+                            <View style={styles.codeContainer}>
+                                <Text style={styles.joinLabel}>CODE:</Text>
+                                <Text style={styles.joinCodeCompact}>{cove.joinCode}</Text>
+                            </View>
+                        )}
+                    </View>
 
-                            <TouchableOpacity
-                                style={[styles.deleteBtn, { borderColor: themeColors.error }]}
-                                onPress={handleDelete}
-                            >
-                                <Ionicons name="trash-outline" size={20} color={themeColors.error} />
-                                <Text style={[styles.deleteText, { color: themeColors.error }]}>
-                                    Delete Cove
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 </ScrollView>
             </View>
         </AuthGuard>
     );
 }
 
+const FeatureCard = ({ title, icon, color, onPress, fullWidth }: any) => (
+    <TouchableOpacity
+        style={[styles.card, fullWidth && styles.cardFull]}
+        onPress={onPress}
+        activeOpacity={0.8}
+    >
+        <View style={[styles.iconBox, { backgroundColor: color + '20' }]}>
+            <Ionicons name={icon} size={28} color={color} />
+        </View>
+        <Text style={styles.cardTitle}>{title}</Text>
+    </TouchableOpacity>
+);
+
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
     container: { flex: 1 },
     loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
     title: {
         fontFamily: Fonts.heading,
         fontSize: 32,
-        marginTop: 24,
-    },
-    owner: {
-        marginTop: 4,
-        fontSize: 12,
-        letterSpacing: 2,
+        marginBottom: 8,
     },
     description: {
-        marginTop: 24,
-        fontSize: 18,
-        lineHeight: 26,
+        fontSize: 16,
+        lineHeight: 24,
+        marginBottom: 32,
+        opacity: 0.7,
+    },
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 16,
+        marginBottom: 40,
+    },
+    card: {
+        width: '47%',
+        backgroundColor: '#fff', // Or theme variable
+        padding: 16,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        // Shadow for iOS
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        // Elevation for Android
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+    },
+    cardFull: {
+        width: '100%',
+        flexDirection: 'row',
+    },
+    iconBox: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cardTitle: {
+        fontFamily: Fonts.heading,
+        fontSize: 16,
+        color: '#333',
     },
     info: {
-        marginTop: 32,
+        marginTop: 0,
         gap: 8,
+        opacity: 0.5,
     },
     infoText: {
         fontFamily: Fonts.body,
-        fontSize: 16,
-        color: '#999',
+        fontSize: 14,
     },
-    ownerSection: {
-        marginTop: 40,
-        gap: 16,
+    codeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 8,
     },
     joinLabel: {
         fontSize: 12,
-        letterSpacing: 2,
-        color: '#888',
+        letterSpacing: 1,
+        fontWeight: 'bold',
     },
-    joinCode: {
-        fontFamily: Fonts.heading,
-        fontSize: 28,
-        letterSpacing: 6,
-        color: '#0EA5E9',
-    },
-    deleteBtn: {
-        marginTop: 24,
-        height: 56,
-        borderWidth: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    deleteText: {
+    joinCodeCompact: {
         fontFamily: Fonts.heading,
         fontSize: 16,
+        letterSpacing: 2,
     },
 });
