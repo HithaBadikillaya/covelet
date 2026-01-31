@@ -7,7 +7,7 @@ import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { Colors, Fonts } from '@/constants/theme';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { User } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -18,14 +18,16 @@ interface Cove {
     id: string;
     name: string;
     description?: string;
-    memberCount: number;
-    code: string;
+    members: string[];
+    createdBy: string;
+    joinCode: string;
     createdAt?: { seconds: number };
 }
 
 const DashboardScreen = () => {
     const insets = useSafeAreaInsets();
     const themeColors = Colors.light; // Single theme
+    const [cuser, setCUser] = useState<User | null>(null);
 
     const [coves, setCoves] = useState<Cove[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ const DashboardScreen = () => {
 
     useEffect(() => {
         const unsubscribeAuth = subscribeToAuthChanges((user: User | null) => {
+            setCUser(user);
             if (!user) {
                 return; // AuthGuard handles redirect
             }
@@ -42,7 +45,7 @@ const DashboardScreen = () => {
             // Real-time listener for Coves where the user is a member
             const q = query(
                 collection(db, 'coves'),
-                where('memberIds', 'array-contains', user.uid)
+                where('members', 'array-contains', user.uid)
             );
 
             const unsubscribeCoves = onSnapshot(q, (snapshot) => {
@@ -63,7 +66,7 @@ const DashboardScreen = () => {
             }, (error) => {
                 console.error("Error listening to coves:", error);
                 if (error.message.includes('permissions')) {
-                    setError("Firestore Permission Denied. Please ensure your Firestore Rules allow 'read' for authenticated users.");
+                    setError("Firestore Permission Denied. Please ensure your Firestore Rules allow 'read' for members.");
                 }
                 setLoading(false);
             });
@@ -75,8 +78,7 @@ const DashboardScreen = () => {
     }, []);
 
     const handleCovePress = (id: string) => {
-        // Future: Navigate to specific Cove features
-        console.log("Entering Cove:", id);
+        router.push(`/dashboard/cove/${id}` as any);
     };
 
     return (
@@ -136,18 +138,15 @@ const DashboardScreen = () => {
                     ) : (
                         <ScrollView
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={[
-                                styles.scrollContent,
-                                { paddingTop: 0 } // Padding for Navbar + spacing
-                            ]}
+                            contentContainerStyle={styles.scrollContent}
                         >
                             {coves.map((cove) => (
                                 <CoveCard
                                     key={cove.id}
                                     name={cove.name}
                                     description={cove.description}
-                                    memberCount={cove.memberCount || 1}
-                                    code={cove.code}
+                                    memberCount={cove.members?.length || 0}
+                                    isOwner={cuser?.uid === cove.createdBy}
                                     onPress={() => handleCovePress(cove.id)}
                                 />
                             ))}

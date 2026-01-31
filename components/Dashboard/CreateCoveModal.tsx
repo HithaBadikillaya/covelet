@@ -1,6 +1,5 @@
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -11,9 +10,7 @@ interface CreateCoveModalProps {
 }
 
 export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) => {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const themeColors = Colors[isDark ? 'dark' : 'light'];
+    const themeColors = Colors.light;
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -21,7 +18,12 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
     const [error, setError] = useState<string | null>(null);
 
     const generateJoinCode = () => {
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
     };
 
     const handleCreate = async () => {
@@ -44,15 +46,12 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
             await addDoc(collection(db, 'coves'), {
                 name,
                 description,
-                code: joinCode,
-                ownerId: user.uid,
+                joinCode: joinCode,
+                createdBy: user.uid,
                 createdAt: serverTimestamp(),
-                memberIds: [user.uid],
-                memberCount: 1,
+                members: [user.uid],
+                isActive: true,
             });
-
-            // In a real app, we'd add the user to a members subcollection too
-            // for more complex permission queries.
 
             setName('');
             setDescription('');
@@ -72,9 +71,9 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
             onRequestClose={onClose}
         >
             <View style={styles.overlay}>
-                <View style={[styles.modalCard, { backgroundColor: isDark ? '#1A2A38' : '#F8FBFF' }]}>
+                <View style={[styles.modalCard, { backgroundColor: themeColors.card }]}>
                     <Text style={[styles.title, { color: themeColors.text }]}>Create a New Cove</Text>
-                    <Text style={[styles.subtitle, { color: themeColors.text }]}>
+                    <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
                         Give your sanctuary a name and an optional description.
                     </Text>
 
@@ -83,9 +82,9 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
                     <View style={styles.inputGroup}>
                         <Text style={[styles.label, { color: themeColors.text }]}>Cove Name</Text>
                         <TextInput
-                            style={[styles.input, { borderColor: themeColors.sand, color: themeColors.text }]}
+                            style={[styles.input, { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background }]}
                             placeholder="e.g., Summer 2024 Memories"
-                            placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                            placeholderTextColor={themeColors.textMuted}
                             value={name}
                             onChangeText={setName}
                         />
@@ -94,9 +93,9 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
                     <View style={styles.inputGroup}>
                         <Text style={[styles.label, { color: themeColors.text }]}>Description (Optional)</Text>
                         <TextInput
-                            style={[styles.input, { borderColor: themeColors.sand, color: themeColors.text, height: 100, textAlignVertical: 'top', paddingTop: 12 }]}
+                            style={[styles.input, { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background, height: 100, textAlignVertical: 'top', paddingTop: 12 }]}
                             placeholder="What is this cove for?"
-                            placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                            placeholderTextColor={themeColors.textMuted}
                             value={description}
                             onChangeText={setDescription}
                             multiline
@@ -112,13 +111,13 @@ export const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClo
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={handleCreate}
-                            style={[styles.button, { backgroundColor: themeColors.ocean }]}
+                            style={[styles.button, { backgroundColor: themeColors.primary }]}
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color="#FFFFFF" />
+                                <ActivityIndicator color={themeColors.background} />
                             ) : (
-                                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Create Cove</Text>
+                                <Text style={[styles.buttonText, { color: themeColors.background }]}>Create Cove</Text>
                             )}
                         </TouchableOpacity>
                     </View>

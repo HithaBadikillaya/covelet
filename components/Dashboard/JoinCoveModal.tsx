@@ -1,7 +1,6 @@
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { arrayUnion, collection, doc, getDocs, increment, query, updateDoc, where } from 'firebase/firestore';
+import { arrayUnion, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -11,9 +10,7 @@ interface JoinCoveModalProps {
 }
 
 export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }) => {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const themeColors = Colors[isDark ? 'dark' : 'light'];
+    const themeColors = Colors.light;
 
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
@@ -35,7 +32,7 @@ export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }
         setError(null);
 
         try {
-            const q = query(collection(db, 'coves'), where('code', '==', code.toUpperCase()));
+            const q = query(collection(db, 'coves'), where('joinCode', '==', code.toUpperCase()));
             const querySnapshot = await getDocs(q);
 
             if (querySnapshot.empty) {
@@ -47,15 +44,14 @@ export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }
             const coveDoc = querySnapshot.docs[0];
             const coveData = coveDoc.data();
 
-            if (coveData.memberIds.includes(user.uid)) {
+            if (coveData.members.includes(user.uid)) {
                 setError('You are already a member of this Cove.');
                 setLoading(false);
                 return;
             }
 
             await updateDoc(doc(db, 'coves', coveDoc.id), {
-                memberIds: arrayUnion(user.uid),
-                memberCount: increment(1),
+                members: arrayUnion(user.uid),
             });
 
             setCode('');
@@ -75,9 +71,9 @@ export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }
             onRequestClose={onClose}
         >
             <View style={styles.overlay}>
-                <View style={[styles.modalCard, { backgroundColor: isDark ? '#1A2A38' : '#F8FBFF' }]}>
+                <View style={[styles.modalCard, { backgroundColor: themeColors.card }]}>
                     <Text style={[styles.title, { color: themeColors.text }]}>Join a Cove</Text>
-                    <Text style={[styles.subtitle, { color: themeColors.text }]}>
+                    <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
                         Enter the unique 6-character code shared by your circle.
                     </Text>
 
@@ -86,9 +82,9 @@ export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }
                     <View style={styles.inputGroup}>
                         <Text style={[styles.label, { color: themeColors.text }]}>Join Code</Text>
                         <TextInput
-                            style={[styles.input, { borderColor: themeColors.sand, color: themeColors.text, textAlign: 'center', letterSpacing: 4, fontFamily: Fonts.heading, fontSize: 24 }]}
+                            style={[styles.input, { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background, textAlign: 'center', letterSpacing: 4, fontFamily: Fonts.heading, fontSize: 24 }]}
                             placeholder="ABC123"
-                            placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                            placeholderTextColor={themeColors.textMuted}
                             value={code}
                             onChangeText={(text) => setCode(text.toUpperCase())}
                             maxLength={6}
@@ -106,13 +102,13 @@ export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={handleJoin}
-                            style={[styles.button, { backgroundColor: themeColors.ocean }]}
+                            style={[styles.button, { backgroundColor: themeColors.primary }]}
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color="#FFFFFF" />
+                                <ActivityIndicator color={themeColors.background} />
                             ) : (
-                                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Join Cove</Text>
+                                <Text style={[styles.buttonText, { color: themeColors.background }]}>Join Cove</Text>
                             )}
                         </TouchableOpacity>
                     </View>
