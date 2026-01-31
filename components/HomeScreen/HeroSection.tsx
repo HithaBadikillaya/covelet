@@ -1,63 +1,55 @@
 import { Colors, Fonts } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export const HeroSection = () => {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const themeColors = Colors[isDark ? 'dark' : 'light'];
+    const themeColors = Colors.light;
 
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(20)).current;
-
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 1000,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: 0,
-                duration: 1000,
-                useNativeDriver: true,
-            })
-        ]).start();
-    }, []);
+    const handleGetStarted = () => {
+        router.push('/login');
+    };
 
     return (
         <View style={styles.container}>
-            <Animated.View style={[
-                styles.content,
-                { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-            ]}>
+            <View style={styles.content}>
                 <View style={styles.badgeContainer}>
-                    <View style={[styles.badgeLine, { backgroundColor: themeColors.ocean }]} />
-                    <Text style={[styles.badgeText, { color: themeColors.ocean }]}>EST. 2026</Text>
+                    <View style={[styles.badgeLine, { backgroundColor: themeColors.primary }]} />
+                    <Text style={[styles.badgeText, { color: themeColors.primary }]}>EST. 2026</Text>
                 </View>
 
                 <Text style={[styles.title, { color: themeColors.text }]}>
                     A safe harbor for your digital life.
                 </Text>
 
-                <View style={[styles.divider, { backgroundColor: themeColors.sand }]} />
-
                 <Text style={[styles.missionStatement, { color: themeColors.text }]}>
-                    Covelet is a sanctuary for your digital life, built for everyday people who value clarity over complexity and privacy over noise. In a world that often feels fast and fragile, we’ve created a calm space where you can securely store, share, and protect what matters most to you—without the hype, without the tracking, and without the clutter.
+                    Covelet is a sanctuary for your digital life. Securely store, share, and protect what matters most—without tracking or clutter.
                 </Text>
 
-                <Text style={[styles.missionStatement, { color: themeColors.text, marginTop: 16 }]}>
-                    Whether you're preserving personal memories or collaborating with your inner circle, Covelet treats your information with the respect it deserves, providing a safe harbor in the digital storm.
-                </Text>
-            </Animated.View>
+                <View style={styles.ctaContainer}>
+                    <TouchableOpacity
+                        style={[styles.primaryButton, { backgroundColor: themeColors.primary }]}
+                        onPress={handleGetStarted}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={[styles.primaryButtonText, { color: themeColors.background }]}>Get Started</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.secondaryButton, { borderColor: themeColors.primary }]}
+                        onPress={() => router.push('/login')}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.secondaryButtonText, { color: themeColors.primary }]}>Sign In</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        paddingTop: 60,
         paddingHorizontal: 24,
     },
     content: {
@@ -66,7 +58,7 @@ const styles = StyleSheet.create({
     badgeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 20,
     },
     badgeLine: {
         width: 32,
@@ -80,21 +72,42 @@ const styles = StyleSheet.create({
     },
     title: {
         fontFamily: Fonts.heading,
-        fontSize: 42,
-        lineHeight: 48,
+        fontSize: 48,
+        lineHeight: 54,
         textAlign: 'left',
         marginBottom: 24,
-    },
-    divider: {
-        width: 60,
-        height: 4,
-        marginBottom: 32,
     },
     missionStatement: {
         fontFamily: Fonts.body,
         fontSize: 18,
         lineHeight: 28,
         textAlign: 'left',
-        opacity: 0.9,
+        opacity: 0.8,
+        marginBottom: 40,
+    },
+    ctaContainer: {
+        width: '100%',
+        gap: 16,
+    },
+    primaryButton: {
+        width: '100%',
+        height: 56,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    primaryButtonText: {
+        fontFamily: Fonts.heading,
+        fontSize: 16,
+    },
+    secondaryButton: {
+        width: '100%',
+        height: 56,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    secondaryButtonText: {
+        fontFamily: Fonts.heading,
+        fontSize: 16,
     },
 });

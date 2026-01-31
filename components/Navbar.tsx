@@ -64,8 +64,9 @@ export const Navbar = () => {
                     styles.container,
                     {
                         paddingTop: insets.top,
-                        backgroundColor: Colors.light.background,
-                        borderBottomColor: Colors.light.border,
+                        backgroundColor: '#000000',
+                        borderBottomColor: '#404040',
+                        borderBottomWidth: 1,
                     },
                 ]}
             >
@@ -102,7 +103,7 @@ export const Navbar = () => {
                                         className="bg-muted"
                                         style={styles.avatarFallbackLoggedOut}
                                     >
-                                        <Ionicons name="person-outline" size={20} color={Colors.light.text} />
+                                        <Ionicons name="person-outline" size={20} color="#FFFFFF" />
                                     </AvatarFallback>
                                 </Avatar>
                             )}

@@ -1,6 +1,5 @@
 import { resetPassword, signIn, signUp } from '@/components/auth/authService';
 import { Colors, Fonts } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import React, { useState } from 'react';
@@ -24,9 +23,7 @@ import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const themeColors = Colors[isDark ? 'dark' : 'light'];
+    const themeColors = Colors.light;
 
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
