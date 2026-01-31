@@ -3,6 +3,7 @@ import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { CoveCard } from '@/components/Dashboard/CoveCard';
 import { CreateCoveModal } from '@/components/Dashboard/CreateCoveModal';
 import { JoinCoveModal } from '@/components/Dashboard/JoinCoveModal';
+import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { Colors, Fonts } from '@/constants/theme';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { User } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Cove {
     id: string;
@@ -22,6 +24,7 @@ interface Cove {
 }
 
 const DashboardScreen = () => {
+    const insets = useSafeAreaInsets();
     const themeColors = Colors.light; // Single theme
 
     const [coves, setCoves] = useState<Cove[]>([]);
@@ -81,7 +84,7 @@ const DashboardScreen = () => {
             <View style={[styles.container, { backgroundColor: themeColors.background }]}>
                 <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
 
-                <View style={[styles.header, { backgroundColor: themeColors.card }]}>
+                <View style={[styles.header, { backgroundColor: themeColors.card, paddingTop: insets.top + NAVBAR_HEIGHT + 20 }]}>
                     <View style={styles.headerContent}>
                         <Text style={[styles.greeting, { color: themeColors.text }]}>
                             Your Sanctuaries
@@ -133,7 +136,10 @@ const DashboardScreen = () => {
                     ) : (
                         <ScrollView
                             showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.scrollList}
+                            contentContainerStyle={[
+                                styles.scrollContent,
+                                { paddingTop: 0 } // Padding for Navbar + spacing
+                            ]}
                         >
                             {coves.map((cove) => (
                                 <CoveCard
@@ -167,7 +173,6 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        paddingTop: 80,
         paddingHorizontal: 24,
         paddingBottom: 32,
     },
@@ -222,6 +227,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     scrollList: {
+        paddingBottom: 100,
+    },
+    scrollContent: {
         paddingBottom: 100,
     },
     loaderBox: {

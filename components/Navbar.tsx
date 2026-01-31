@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+export const NAVBAR_HEIGHT = 64;
+
 export const Navbar = () => {
     const insets = useSafeAreaInsets();
     const pathname = usePathname();
@@ -58,58 +60,63 @@ export const Navbar = () => {
     };
 
     return (
-        <>
+        <View
+            style={[
+                styles.wrapper,
+                {
+                    paddingTop: insets.top,
+                    backgroundColor: '#000000',
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#404040',
+                },
+            ]}
+        >
             <View
                 style={[
                     styles.container,
                     {
-                        paddingTop: insets.top,
-                        backgroundColor: '#000000',
-                        borderBottomColor: '#404040',
-                        borderBottomWidth: 1,
+                        height: NAVBAR_HEIGHT,
                     },
                 ]}
             >
-                <View style={styles.content}>
-                    {/* Left: Logo/App Name */}
-                    <TouchableOpacity onPress={() => handleNav('/')} activeOpacity={0.7}>
-                        <Image
-                            source={require('@/assets/images/logo.png')}
-                            style={styles.logo}
-                            contentFit="contain"
-                        />
-                    </TouchableOpacity>
+                {/* Left: Logo/App Name */}
+                <TouchableOpacity onPress={() => handleNav('/')} activeOpacity={0.7}>
+                    <Image
+                        source={require('@/assets/images/logo.png')}
+                        style={styles.logo}
+                        contentFit="contain"
+                    />
+                </TouchableOpacity>
 
-                    {/* Right: Avatar */}
-                    <TouchableOpacity onPress={handleAvatarClick} activeOpacity={0.8}>
-                        <View style={styles.avatarContainer}>
-                            {user ? (
-                                <Avatar className="h-10 w-10">
-                                    {user.photoURL ? (
-                                        <AvatarImage src={user.photoURL} alt={user.displayName || 'User'} />
-                                    ) : null}
-                                    <AvatarFallback
-                                        className="bg-primary"
-                                        style={styles.avatarFallback}
-                                    >
-                                        <Text style={styles.avatarText}>
-                                            {getInitials(user.displayName)}
-                                        </Text>
-                                    </AvatarFallback>
-                                </Avatar>
-                            ) : (
-                                <Avatar className="h-10 w-10">
-                                    <AvatarFallback
-                                        className="bg-muted"
-                                        style={styles.avatarFallbackLoggedOut}
-                                    >
-                                        <Ionicons name="person-outline" size={20} color="#FFFFFF" />
-                                    </AvatarFallback>
-                                </Avatar>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                </View>
+                {/* Right: Avatar */}
+                <TouchableOpacity onPress={handleAvatarClick} activeOpacity={0.8}>
+                    <View style={styles.avatarContainer}>
+                        {user ? (
+                            <Avatar className="h-10 w-10">
+                                {user.photoURL ? (
+                                    <AvatarImage src={user.photoURL} alt={user.displayName || 'User'} />
+                                ) : null}
+                                <AvatarFallback
+                                    className="bg-primary"
+                                    style={styles.avatarFallback}
+                                >
+                                    <Text style={styles.avatarText}>
+                                        {getInitials(user.displayName)}
+                                    </Text>
+                                </AvatarFallback>
+                            </Avatar>
+                        ) : (
+                            <Avatar className="h-10 w-10">
+                                <AvatarFallback
+                                    className="bg-muted"
+                                    style={styles.avatarFallbackLoggedOut}
+                                >
+                                    <Ionicons name="person-outline" size={20} color="#FFFFFF" />
+                                </AvatarFallback>
+                            </Avatar>
+                        )}
+                    </View>
+                </TouchableOpacity>
             </View>
 
             {/* Dropdown Modal for Logged-in Users */}
@@ -144,20 +151,19 @@ export const Navbar = () => {
                     </Pressable>
                 </Modal>
             )}
-        </>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    wrapper: {
         width: '100%',
         zIndex: 100,
         position: 'absolute',
         top: 0,
-        borderBottomWidth: 1,
     },
-    content: {
-        height: 60,
+    container: {
+        width: '100%',
         paddingHorizontal: 24,
         flexDirection: 'row',
         alignItems: 'center',

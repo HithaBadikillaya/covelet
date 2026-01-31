@@ -1,4 +1,5 @@
 import { Colors, Fonts } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -10,6 +11,10 @@ export const HeroSection = () => {
         router.push('/login');
     };
 
+    const handleDashboard = () => {
+        router.push('/(tabs)/dashboard');
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.content}>
@@ -19,12 +24,27 @@ export const HeroSection = () => {
                 </View>
 
                 <Text style={[styles.title, { color: themeColors.text }]}>
-                    A safe harbor for your digital life.
+                    Your digital{"\n"}sanctuary.
                 </Text>
 
                 <Text style={[styles.missionStatement, { color: themeColors.text }]}>
-                    Covelet is a sanctuary for your digital life. Securely store, share, and protect what matters most—without tracking or clutter.
+                    A minimalist space for what matters most. No noise, no tracking, just clarity for your digital life.
                 </Text>
+
+                <View style={styles.funDetails}>
+                    <View style={styles.detailItem}>
+                        <Ionicons name="shield-checkmark-outline" size={20} color={themeColors.primary} />
+                        <Text style={[styles.detailText, { color: themeColors.text }]}>Privacy by design</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                        <Ionicons name="leaf-outline" size={20} color={themeColors.primary} />
+                        <Text style={[styles.detailText, { color: themeColors.text }]}>Breathable UI</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                        <Ionicons name="infinite-outline" size={20} color={themeColors.primary} />
+                        <Text style={[styles.detailText, { color: themeColors.text }]}>Permanent memories</Text>
+                    </View>
+                </View>
 
                 <View style={styles.ctaContainer}>
                     <TouchableOpacity
@@ -37,11 +57,17 @@ export const HeroSection = () => {
 
                     <TouchableOpacity
                         style={[styles.secondaryButton, { borderColor: themeColors.primary }]}
-                        onPress={() => router.push('/login')}
+                        onPress={handleDashboard}
                         activeOpacity={0.7}
                     >
-                        <Text style={[styles.secondaryButtonText, { color: themeColors.primary }]}>Sign In</Text>
+                        <Text style={[styles.secondaryButtonText, { color: themeColors.primary }]}>Go to Dashboard</Text>
                     </TouchableOpacity>
+                </View>
+
+                <View style={styles.footerNote}>
+                    <Text style={[styles.footerNoteText, { color: themeColors.textMuted }]}>
+                        Crafted for the minimalist. Built for the future.
+                    </Text>
                 </View>
             </View>
         </View>
@@ -83,11 +109,27 @@ const styles = StyleSheet.create({
         lineHeight: 28,
         textAlign: 'left',
         opacity: 0.8,
+        marginBottom: 32,
+    },
+    funDetails: {
+        width: '100%',
         marginBottom: 40,
+        gap: 16,
+    },
+    detailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    detailText: {
+        fontFamily: Fonts.body,
+        fontSize: 16,
+        opacity: 0.9,
     },
     ctaContainer: {
         width: '100%',
         gap: 16,
+        marginBottom: 40,
     },
     primaryButton: {
         width: '100%',
@@ -109,5 +151,15 @@ const styles = StyleSheet.create({
     secondaryButtonText: {
         fontFamily: Fonts.heading,
         fontSize: 16,
+    },
+    footerNote: {
+        width: '100%',
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    footerNoteText: {
+        fontFamily: Fonts.body,
+        fontSize: 14,
+        fontStyle: 'italic',
     },
 });

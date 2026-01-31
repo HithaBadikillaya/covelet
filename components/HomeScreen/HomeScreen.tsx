@@ -2,6 +2,7 @@ import { Colors } from '@/constants/theme';
 import React, { useRef } from 'react';
 import { ScrollView, StatusBar, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NAVBAR_HEIGHT } from '../Navbar';
 import { HeroSection } from './HeroSection';
 
 export const HomeScreen: React.FC = () => {
@@ -18,11 +19,10 @@ export const HomeScreen: React.FC = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
                     styles.scrollContent,
-                    { paddingTop: insets.top + 80 } // Padding for Navbar + spacing
+                    { paddingTop: insets.top + NAVBAR_HEIGHT + 20 }
                 ]}
             >
                 <HeroSection />
-                {/* Space for CTAs will be in HeroSection or added here */}
             </ScrollView>
         </View>
     );
