@@ -2,7 +2,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { CoveCard } from '@/components/Dashboard/CoveCard';
 import { CreateCoveModal } from '@/components/Dashboard/CreateCoveModal';
-import { JoinCoveModal } from '@/components/Dashboard/JoinCoveModal';
+import JoinCoveModal from "@/components/Dashboard/JoinCoveModal";
 import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { Colors, Fonts } from '@/constants/theme';
 import { db } from '@/firebaseConfig';
@@ -64,9 +64,14 @@ const DashboardScreen = () => {
                 setLoading(false);
                 setError(null);
             }, (error) => {
-                console.error("Error listening to coves:", error);
-                if (error.message.includes('permissions')) {
-                    setError("Firestore Permission Denied. Please ensure your Firestore Rules allow 'read' for members.");
+                // Handle permission errors gracefully - usually happens if a document is deleted 
+                // but the listener is still trying to access it before catching up.
+                if (error.code === 'permission-denied') {
+                    console.warn("Permission denied for dashboard query - likely during document deletion.");
+                    // We don't set a hard error state here to avoid UI flicker/crashes
+                } else {
+                    console.error("Dashboard listener error:", error);
+                    setError("Failed to sync your sanctuaries. Please check your connection.");
                 }
                 setLoading(false);
             });
@@ -101,7 +106,10 @@ const DashboardScreen = () => {
                     <View style={styles.actionRow}>
                         <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
-                            onPress={() => setCreateModalVisible(true)}
+                            onPress={() => {
+                                console.log("Create Cove button pressed");
+                                setCreateModalVisible(true);
+                            }}
                         >
                             <Ionicons name="add" size={24} color={themeColors.background} />
                             <Text style={[styles.actionButtonText, { color: themeColors.background }]}>Create Cove</Text>
@@ -109,7 +117,10 @@ const DashboardScreen = () => {
 
                         <TouchableOpacity
                             style={[styles.actionButtonSecondary, { borderColor: themeColors.primary }]}
-                            onPress={() => setJoinModalVisible(true)}
+                            onPress={() => {
+                                console.log("Join Cove button pressed");
+                                setJoinModalVisible(true);
+                            }}
                         >
                             <Ionicons name="enter-outline" size={24} color={themeColors.primary} />
                             <Text style={[styles.actionButtonTextSecondary, { color: themeColors.primary }]}>Join Cove</Text>
@@ -132,7 +143,7 @@ const DashboardScreen = () => {
                             <Ionicons name="boat-outline" size={64} color={themeColors.muted} />
                             <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No Coves Yet</Text>
                             <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
-                                Create your own circle or join one using a code shared by a friend.
+                                Create your own cove or join one using a code shared by a friend.
                             </Text>
                         </View>
                     ) : (
@@ -153,16 +164,16 @@ const DashboardScreen = () => {
                         </ScrollView>
                     )}
                 </View>
-
-                <CreateCoveModal
-                    visible={createModalVisible}
-                    onClose={() => setCreateModalVisible(false)}
-                />
-                <JoinCoveModal
-                    visible={joinModalVisible}
-                    onClose={() => setJoinModalVisible(false)}
-                />
             </View>
+            <CreateCoveModal
+                visible={createModalVisible}
+                onClose={() => setCreateModalVisible(false)}
+            />
+            <JoinCoveModal
+                visible={joinModalVisible}
+                onClose={() => setJoinModalVisible(false)}
+                onJoin={(coveId) => handleCovePress(coveId)}
+            />
         </AuthGuard>
     );
 }

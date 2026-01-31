@@ -8,7 +8,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { User } from 'firebase/auth';
 import { deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Cove {
@@ -27,161 +35,140 @@ export default function CoveDetailsScreen() {
     const themeColors = Colors.light;
 
     const [cove, setCove] = useState<Cove | null>(null);
-    const [cuser, setCUser] = useState<User | null>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
+    /* ---------------- AUTH SUBSCRIPTION ---------------- */
     useEffect(() => {
-        const unsubscribeAuth = subscribeToAuthChanges((user) => {
-            setCUser(user);
-            if (!user) return;
+        const unsubAuth = subscribeToAuthChanges(setUser);
+        return () => unsubAuth();
+    }, []);
 
-            if (!coveId) {
-                setError('No Cove ID provided.');
-                setLoading(false);
-                return;
-            }
+    /* ---------------- COVE SNAPSHOT ---------------- */
+    useEffect(() => {
+        if (!user || !coveId) return;
 
-            const unsubscribeCove = onSnapshot(doc(db, 'coves', coveId), (snapshot) => {
-                if (!snapshot.exists()) {
-                    setError('Cove not found.');
-                    setLoading(false);
+        const coveRef = doc(db, 'coves', coveId);
+
+        const unsubscribe = onSnapshot(
+            coveRef,
+            (snap) => {
+                if (!snap.exists()) {
+                    router.replace('/(tabs)/dashboard');
                     return;
                 }
 
-                const data = { id: snapshot.id, ...snapshot.data() } as Cove;
+                const data = { id: snap.id, ...snap.data() } as Cove;
 
-                // Security check: must be a member
                 if (!data.members.includes(user.uid)) {
-                    setError('You are not a member of this Cove.');
-                    setLoading(false);
+                    router.replace('/(tabs)/dashboard');
                     return;
                 }
 
                 setCove(data);
                 setLoading(false);
-            }, (err) => {
-                console.error("Error fetching cove:", err);
-                setError("Access denied or cove not found.");
-                setLoading(false);
-            });
+            },
+            () => {
+                router.replace('/(tabs)/dashboard');
+            }
+        );
 
-            return () => unsubscribeCove();
-        });
+        return () => unsubscribe();
+    }, [user, coveId]);
 
-        return () => unsubscribeAuth();
-    }, [coveId]);
-
-    const handleDelete = async () => {
-        if (!cove || !cuser || cove.createdBy !== cuser.uid) return;
+    /* ---------------- DELETE HANDLER ---------------- */
+    const handleDelete = () => {
+        if (!cove || !user || cove.createdBy !== user.uid) return;
 
         Alert.alert(
-            "Delete Cove",
-            "Are you sure you want to permanently delete this digital sanctuary? This action cannot be undone.",
+            'Delete Cove',
+            'This action is permanent and cannot be undone.',
             [
-                { text: "Cancel", style: "cancel" },
+                { text: 'Cancel', style: 'cancel' },
                 {
-                    text: "Delete",
-                    style: "destructive",
+                    text: 'Delete',
+                    style: 'destructive',
                     onPress: async () => {
                         try {
+                            setLoading(true);
+                            setCove(null);
+
                             await deleteDoc(doc(db, 'coves', cove.id));
+
                             router.replace('/(tabs)/dashboard');
-                        } catch (err) {
-                            Alert.alert("Error", "Failed to delete Cove.");
+                        } catch {
+                            Alert.alert('Error', 'Failed to delete Cove.');
                         }
-                    }
-                }
+                    },
+                },
             ]
         );
     };
 
+    /* ---------------- LOADING ---------------- */
     if (loading) {
         return (
-            <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+            <View style={[styles.loading, { backgroundColor: themeColors.background }]}>
                 <ActivityIndicator size="large" color={themeColors.primary} />
             </View>
         );
     }
 
-    if (error || !cove) {
-        return (
-            <View style={[styles.errorContainer, { backgroundColor: themeColors.background }]}>
-                <Ionicons name="alert-circle-outline" size={64} color={themeColors.error} />
-                <Text style={[styles.errorText, { color: themeColors.text }]}>{error || 'Something went wrong'}</Text>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={[styles.backButton, { borderColor: themeColors.primary }]}
-                >
-                    <Text style={[styles.backButtonText, { color: themeColors.primary }]}>Go Back</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
+    if (!cove || !user) return null;
 
-    const isCreator = cove.createdBy === cuser?.uid;
-    const formattedDate = cove.createdAt ? new Date(cove.createdAt.seconds * 1000).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    }) : 'Initial Sanctuary';
+    const isOwner = cove.createdBy === user.uid;
+    const createdDate = cove.createdAt
+        ? new Date(cove.createdAt.seconds * 1000).toDateString()
+        : '—';
 
     return (
         <AuthGuard>
             <View style={[styles.container, { backgroundColor: themeColors.background }]}>
                 <ScrollView
-                    contentContainerStyle={[
-                        styles.scrollContent,
-                        { paddingTop: insets.top + NAVBAR_HEIGHT + 24 }
-                    ]}
+                    contentContainerStyle={{
+                        paddingTop: insets.top + NAVBAR_HEIGHT + 24,
+                        paddingHorizontal: 24,
+                        paddingBottom: 40,
+                    }}
                 >
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                        </TouchableOpacity>
-                        <View style={styles.titleContainer}>
-                            <Text style={[styles.title, { color: themeColors.text }]}>{cove.name}</Text>
-                            {isCreator && (
-                                <View style={[styles.ownerBadge, { borderColor: themeColors.primary }]}>
-                                    <Text style={[styles.ownerBadgeText, { color: themeColors.primary }]}>You are the Owner</Text>
-                                </View>
-                            )}
-                        </View>
-                    </View>
+                    <TouchableOpacity onPress={() => router.back()}>
+                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                    </TouchableOpacity>
 
-                    <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                        {cove.description || 'A sanctuary for shared memories and digital clarity.'}
+                    <Text style={[styles.title, { color: themeColors.text }]}>
+                        {cove.name}
                     </Text>
 
-                    <View style={[styles.infoCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                        <View style={styles.infoRow}>
-                            <Ionicons name="calendar-outline" size={20} color={themeColors.primary} />
-                            <Text style={[styles.infoLabel, { color: themeColors.text }]}>Established</Text>
-                            <Text style={[styles.infoValue, { color: themeColors.textMuted }]}>{formattedDate}</Text>
-                        </View>
-                        <View style={styles.infoRow}>
-                            <Ionicons name="people-outline" size={20} color={themeColors.primary} />
-                            <Text style={[styles.infoLabel, { color: themeColors.text }]}>Members</Text>
-                            <Text style={[styles.infoValue, { color: themeColors.textMuted }]}>{cove.members.length}</Text>
-                        </View>
+                    {isOwner && (
+                        <Text style={[styles.owner, { color: themeColors.primary }]}>
+                            OWNER
+                        </Text>
+                    )}
+
+                    <Text style={[styles.description, { color: themeColors.textMuted }]}>
+                        {cove.description || 'A digital sanctuary.'}
+                    </Text>
+
+                    <View style={styles.info}>
+                        <Text style={styles.infoText}>Created: {createdDate}</Text>
+                        <Text style={styles.infoText}>
+                            Members: {cove.members.length}
+                        </Text>
                     </View>
 
-                    {isCreator && (
-                        <View style={[styles.ownerCard, { backgroundColor: themeColors.card, borderColor: themeColors.primary + '40' }]}>
-                            <Text style={[styles.ownerCardTitle, { color: themeColors.primary }]}>Sanctuary Management</Text>
-                            <View style={styles.codeContainer}>
-                                <Text style={[styles.codeLabel, { color: themeColors.text }]}>Join Code</Text>
-                                <View style={[styles.codeBox, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
-                                    <Text style={[styles.codeText, { color: themeColors.primary }]}>{cove.joinCode}</Text>
-                                </View>
-                            </View>
+                    {isOwner && (
+                        <View style={styles.ownerSection}>
+                            <Text style={styles.joinLabel}>JOIN CODE</Text>
+                            <Text style={styles.joinCode}>{cove.joinCode}</Text>
 
                             <TouchableOpacity
-                                style={[styles.deleteButton, { borderColor: themeColors.error }]}
+                                style={[styles.deleteBtn, { borderColor: themeColors.error }]}
                                 onPress={handleDelete}
                             >
                                 <Ionicons name="trash-outline" size={20} color={themeColors.error} />
-                                <Text style={[styles.deleteButtonText, { color: themeColors.error }]}>Delete Cove</Text>
+                                <Text style={[styles.deleteText, { color: themeColors.error }]}>
+                                    Delete Cove
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -191,135 +178,60 @@ export default function CoveDetailsScreen() {
     );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    errorContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    errorText: {
-        fontFamily: Fonts.bodyMedium,
-        fontSize: 18,
-        textAlign: 'center',
-        marginTop: 16,
-        marginBottom: 24,
-    },
-    backButton: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderWidth: 1,
-    },
-    backButtonText: {
-        fontFamily: Fonts.heading,
-        fontSize: 16,
-    },
-    scrollContent: {
-        paddingHorizontal: 24,
-        paddingBottom: 40,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 24,
-        gap: 16,
-    },
-    iconButton: {
-        padding: 4,
-    },
-    titleContainer: {
-        flex: 1,
-    },
+    container: { flex: 1 },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
     title: {
         fontFamily: Fonts.heading,
         fontSize: 32,
-        lineHeight: 38,
+        marginTop: 24,
     },
-    ownerBadge: {
-        alignSelf: 'flex-start',
+    owner: {
         marginTop: 4,
-        borderBottomWidth: 1,
-    },
-    ownerBadgeText: {
-        fontFamily: Fonts.bodyBold,
         fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: 2,
     },
     description: {
-        fontFamily: Fonts.body,
+        marginTop: 24,
         fontSize: 18,
-        lineHeight: 28,
-        marginBottom: 32,
+        lineHeight: 26,
     },
-    infoCard: {
-        padding: 24,
-        borderWidth: 1,
-        marginBottom: 32,
-        gap: 20,
+    info: {
+        marginTop: 32,
+        gap: 8,
     },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    infoLabel: {
-        flex: 1,
-        fontFamily: Fonts.bodyMedium,
-        fontSize: 16,
-    },
-    infoValue: {
+    infoText: {
         fontFamily: Fonts.body,
         fontSize: 16,
+        color: '#999',
     },
-    ownerCard: {
-        padding: 24,
-        borderWidth: 1,
-        gap: 24,
+    ownerSection: {
+        marginTop: 40,
+        gap: 16,
     },
-    ownerCardTitle: {
+    joinLabel: {
+        fontSize: 12,
+        letterSpacing: 2,
+        color: '#888',
+    },
+    joinCode: {
         fontFamily: Fonts.heading,
-        fontSize: 18,
-        marginBottom: 8,
+        fontSize: 28,
+        letterSpacing: 6,
+        color: '#0EA5E9',
     },
-    codeContainer: {
-        gap: 12,
-    },
-    codeLabel: {
-        fontFamily: Fonts.bodyBold,
-        fontSize: 14,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    codeBox: {
-        height: 64,
-        borderWidth: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    codeText: {
-        fontFamily: Fonts.heading,
-        fontSize: 32,
-        letterSpacing: 8,
-    },
-    deleteButton: {
-        flexDirection: 'row',
+    deleteBtn: {
+        marginTop: 24,
         height: 56,
         borderWidth: 1,
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 8,
-        marginTop: 8,
     },
-    deleteButtonText: {
+    deleteText: {
         fontFamily: Fonts.heading,
         fontSize: 16,
     },

@@ -1,66 +1,119 @@
-import { Colors, Fonts } from '@/constants/theme';
-import { auth, db } from '@/firebaseConfig';
-import { arrayUnion, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
-import React, { useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { db } from "@/firebaseConfig";
+import { getAuth } from "firebase/auth";
+import {
+    arrayUnion,
+    collection,
+    doc,
+    getDocs,
+    query,
+    updateDoc,
+    where,
+} from "firebase/firestore";
+import React, { useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
-interface JoinCoveModalProps {
+interface Props {
     visible: boolean;
     onClose: () => void;
+    onJoin: (coveId: string) => void;
 }
 
-export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }) => {
-    const themeColors = Colors.light;
-
-    const [code, setCode] = useState('');
+export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
+    const [code, setCode] = useState("");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const inputRef = useRef<TextInput>(null);
+    const auth = getAuth();
 
     const handleJoin = async () => {
-        if (!code) {
-            setError('Please enter a join code.');
-            return;
-        }
-
-        const user = auth.currentUser;
-        if (!user) {
-            setError('You must be logged in to join a Cove.');
-            return;
-        }
+        const trimmedCode = code.trim().toUpperCase();
+        if (trimmedCode.length !== 6) return;
+        if (!auth.currentUser) return;
 
         setLoading(true);
-        setError(null);
-
         try {
-            const q = query(collection(db, 'coves'), where('joinCode', '==', code.toUpperCase()));
-            const querySnapshot = await getDocs(q);
+            // 1. Query cove by joinCode
+            const q = query(
+                collection(db, "coves"),
+                where("joinCode", "==", trimmedCode)
+            );
+            const snapshot = await getDocs(q);
 
-            if (querySnapshot.empty) {
-                setError('Invalid code. No Cove found with this code.');
+            if (snapshot.empty) {
+                Alert.alert("Invalid Code", "No Cove found with this join code.");
                 setLoading(false);
                 return;
             }
 
-            const coveDoc = querySnapshot.docs[0];
+            const coveDoc = snapshot.docs[0];
             const coveData = coveDoc.data();
+            const coveId = coveDoc.id;
+            const userId = auth.currentUser.uid;
 
-            if (coveData.members.includes(user.uid)) {
-                setError('You are already a member of this Cove.');
+            // 2. Prevent re-joining or joining own cove
+            if (coveData.members.includes(userId)) {
+                Alert.alert("Already a Member", "You are already a member of this Cove.");
                 setLoading(false);
+                onClose();
                 return;
             }
 
-            await updateDoc(doc(db, 'coves', coveDoc.id), {
-                members: arrayUnion(user.uid),
+            // 3. Atomically join
+            await updateDoc(doc(db, "coves", coveId), {
+                members: arrayUnion(userId),
             });
 
-            setCode('');
+            // 4. Cleanup and Navigate
+            setCode("");
+            setLoading(false);
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Failed to join Cove.');
-        } finally {
+            // Pass the coveId to the onJoin callback for navigation
+            onJoin(coveId);
+        } catch (error: any) {
+            console.error("Error joining cove:", error);
+            Alert.alert("Join Failed", "Something went wrong. Please try again later.");
             setLoading(false);
         }
+    };
+
+    const handleCodeChange = (text: string) => {
+        // Only alphanumeric, uppercase, max 6
+        const filteredText = text.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        if (filteredText.length <= 6) {
+            setCode(filteredText);
+        }
+    };
+
+    const renderBoxes = () => {
+        const boxes = [];
+        for (let i = 0; i < 6; i++) {
+            const char = code[i] || "";
+            const isFocused = i === code.length;
+            boxes.push(
+                <View
+                    key={i}
+                    style={[
+                        styles.box,
+                        isFocused ? styles.boxFocused : styles.boxUnfocused
+                    ]}
+                >
+                    <Text style={styles.boxText}>{char}</Text>
+                </View>
+            );
+        }
+        return boxes;
     };
 
     return (
@@ -68,112 +121,183 @@ export const JoinCoveModal: React.FC<JoinCoveModalProps> = ({ visible, onClose }
             visible={visible}
             transparent
             animationType="fade"
+            statusBarTranslucent
             onRequestClose={onClose}
         >
-            <View style={styles.overlay}>
-                <View style={[styles.modalCard, { backgroundColor: themeColors.card }]}>
-                    <Text style={[styles.title, { color: themeColors.text }]}>Join a Cove</Text>
-                    <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
-                        Enter the unique 6-character code shared by your circle.
-                    </Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.overlay}
+            >
+                <Pressable style={styles.backdrop} onPress={() => {
+                    Keyboard.dismiss();
+                    onClose();
+                }} />
 
-                    {error && <Text style={styles.errorText}>{error}</Text>}
+                <View style={styles.modalCard}>
+                    <Text style={styles.title}>Join a Cove</Text>
+                    <Text style={styles.subtitle}>Enter the invitation code to enter a sanctuary.</Text>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: themeColors.text }]}>Join Code</Text>
+                    {/* Code Input Area with Ghost Input Overlay */}
+                    <View style={styles.codeRow}>
+                        {renderBoxes()}
                         <TextInput
-                            style={[styles.input, { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background, textAlign: 'center', letterSpacing: 4, fontFamily: Fonts.heading, fontSize: 24 }]}
-                            placeholder="ABC123"
-                            placeholderTextColor={themeColors.textMuted}
-                            value={code}
-                            onChangeText={(text) => setCode(text.toUpperCase())}
+                            ref={inputRef}
+                            onChangeText={handleCodeChange}
                             maxLength={6}
-                            autoCorrect={false}
                             autoCapitalize="characters"
+                            autoCorrect={false}
+                            autoFocus={false} // Handled in useEffect
+                            caretHidden={true}
+                            allowFontScaling={false}
+                            contextMenuHidden={true}
+                            style={styles.ghostInput}
+                            keyboardType="default"
+                            cursorColor="transparent"
                         />
                     </View>
 
                     <View style={styles.buttonRow}>
                         <TouchableOpacity
+                            style={styles.cancelButton}
                             onPress={onClose}
-                            style={[styles.button, { backgroundColor: 'transparent' }]}
+                            activeOpacity={0.7}
                         >
-                            <Text style={[styles.buttonText, { color: themeColors.text, opacity: 0.6 }]}>Cancel</Text>
+                            <Text style={styles.cancelButtonText}>CANCEL</Text>
                         </TouchableOpacity>
+
                         <TouchableOpacity
+                            style={[
+                                styles.joinButton,
+                                (code.length === 6 && !loading) ? styles.joinButtonActive : styles.joinButtonDisabled
+                            ]}
                             onPress={handleJoin}
-                            style={[styles.button, { backgroundColor: themeColors.primary }]}
-                            disabled={loading}
+                            disabled={code.length !== 6 || loading}
+                            activeOpacity={0.7}
                         >
                             {loading ? (
-                                <ActivityIndicator color={themeColors.background} />
+                                <ActivityIndicator color="white" />
                             ) : (
-                                <Text style={[styles.buttonText, { color: themeColors.background }]}>Join Cove</Text>
+                                <Text style={styles.joinButtonText}>JOIN</Text>
                             )}
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
-};
+}
 
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        padding: 24,
+        backgroundColor: "rgba(0,0,0,0.7)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    backdrop: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
     modalCard: {
-        padding: 32,
+        width: "90%",
+        maxWidth: 400,
+        backgroundColor: "#09090b", // zinc-950
+        padding: 24,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: "#27272a", // zinc-800
+        borderRadius: 0,
     },
     title: {
-        fontFamily: Fonts.heading,
+        color: "#ffffff",
         fontSize: 24,
-        marginBottom: 12,
+        fontWeight: "bold",
+        marginBottom: 8,
+        textAlign: "center",
     },
     subtitle: {
-        fontFamily: Fonts.body,
-        fontSize: 16,
-        marginBottom: 32,
-        opacity: 0.7,
-    },
-    inputGroup: {
-        marginBottom: 24,
-    },
-    label: {
-        fontFamily: Fonts.bodyBold,
+        color: "#a1a1aa", // zinc-400
         fontSize: 14,
-        marginBottom: 8,
+        marginBottom: 24,
+        textAlign: "center",
     },
-    input: {
-        height: 64,
-        borderWidth: 1,
-        paddingHorizontal: 16,
+    ghostInput: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        opacity: 0, // Completely invisible
+        // It's important that it COVERS the boxes.
+        // We set opacity to effectively 0 but let it capture touches.
+        color: "transparent",
+    },
+    codeRow: {
+        flexDirection: "row",
+        justifyContent: "center",
+        marginBottom: 32,
+    },
+    box: {
+        width: 44,
+        height: 48,
+        borderWidth: 2,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#18181b", // zinc-900
+        marginHorizontal: 4,
+        borderRadius: 0,
+    },
+    boxFocused: {
+        borderColor: "#6366f1", // indigo-500
+        backgroundColor: "#27272a", // zinc-800
+    },
+    boxUnfocused: {
+        borderColor: "#27272a", // zinc-800
+    },
+    boxText: {
+        color: "#ffffff",
+        fontSize: 20,
+        fontWeight: "bold",
     },
     buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 16,
-        marginTop: 16,
+        flexDirection: "row",
+        gap: 12,
     },
-    button: {
-        height: 56,
-        paddingHorizontal: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
+    cancelButton: {
+        flex: 1,
+        height: 48,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#27272a", // zinc-800
+        borderWidth: 1,
+        borderColor: "#3f3f46", // zinc-700
     },
-    buttonText: {
-        fontFamily: Fonts.heading,
-        fontSize: 16,
+    cancelButtonText: {
+        color: "#ffffff",
+        fontWeight: "600",
+        fontStyle: "italic",
+        fontSize: 12,
     },
-    errorText: {
-        color: '#FF6B6B',
-        fontFamily: Fonts.bodyMedium,
-        fontSize: 14,
-        marginBottom: 20,
+    joinButton: {
+        flex: 1,
+        height: 48,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    joinButtonActive: {
+        backgroundColor: "#4f46e5", // indigo-600
+    },
+    joinButtonDisabled: {
+        backgroundColor: "#312e81", // indigo-900
+        opacity: 0.5,
+    },
+    joinButtonText: {
+        color: "#ffffff",
+        fontWeight: "600",
+        fontStyle: "italic",
+        letterSpacing: 1.5,
+        fontSize: 12,
     },
 });
