@@ -37,9 +37,23 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
     const inputRef = useRef<TextInput>(null);
     const auth = getAuth();
 
+    const handleCloseInternal = () => {
+        setCode("");
+        inputRef.current?.clear();
+        Keyboard.dismiss();
+        onClose();
+    };
+
     const handleJoin = async () => {
         const trimmedCode = code.trim().toUpperCase();
         if (trimmedCode.length !== 6) return;
+
+        // Validate alphanumeric only before query
+        if (!/^[A-Z0-9]+$/.test(trimmedCode)) {
+            Alert.alert("Invalid Code", "Cove codes only contain letters and numbers.");
+            return;
+        }
+
         if (!auth.currentUser) return;
 
         setLoading(true);
@@ -63,10 +77,17 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
             const userId = auth.currentUser.uid;
 
             // 2. Prevent re-joining or joining own cove
+            if (coveData.createdBy === userId) {
+                Alert.alert("Cannot Join", "You are the creator of this Cove.");
+                setLoading(false);
+                handleCloseInternal();
+                return;
+            }
+
             if (coveData.members.includes(userId)) {
                 Alert.alert("Already a Member", "You are already a member of this Cove.");
                 setLoading(false);
-                onClose();
+                handleCloseInternal();
                 return;
             }
 
@@ -76,9 +97,8 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
             });
 
             // 4. Cleanup and Navigate
-            setCode("");
             setLoading(false);
-            onClose();
+            handleCloseInternal();
             // Pass the coveId to the onJoin callback for navigation
             onJoin(coveId);
         } catch (error: any) {
@@ -89,10 +109,12 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
     };
 
     const handleCodeChange = (text: string) => {
-        // Only alphanumeric, uppercase, max 6
-        const filteredText = text.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-        if (filteredText.length <= 6) {
-            setCode(filteredText);
+        // Allow all characters visually to prevent "trapped" backspace in uncontrolled input.
+        // We only capitalize. Validation happens on Join.
+        const upperText = text.toUpperCase();
+
+        if (upperText.length <= 6) {
+            setCode(upperText);
         }
     };
 
@@ -122,16 +144,13 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
             transparent
             animationType="fade"
             statusBarTranslucent
-            onRequestClose={onClose}
+            onRequestClose={handleCloseInternal}
         >
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={styles.overlay}
             >
-                <Pressable style={styles.backdrop} onPress={() => {
-                    Keyboard.dismiss();
-                    onClose();
-                }} />
+                <Pressable style={styles.backdrop} onPress={handleCloseInternal} />
 
                 <View style={styles.modalCard}>
                     <Text style={styles.title}>Join a Cove</Text>
@@ -159,7 +178,7 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
                     <View style={styles.buttonRow}>
                         <TouchableOpacity
                             style={styles.cancelButton}
-                            onPress={onClose}
+                            onPress={handleCloseInternal}
                             activeOpacity={0.7}
                         >
                             <Text style={styles.cancelButtonText}>CANCEL</Text>
