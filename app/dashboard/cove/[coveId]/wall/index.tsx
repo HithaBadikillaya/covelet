@@ -105,7 +105,7 @@ export default function WallScreen() {
                         renderItem={({ item }) => (
                             <QuoteCard
                                 quote={item}
-                                onUpvote={() => toggleUpvote(item.id, item.upvotesCount)}
+                                onUpvote={() => toggleUpvote(item.id)}
                                 onDelete={() => deleteQuote(item.id)}
                                 hasUpvoted={hasUpvoted(item.id)}
                                 onSubscribeReplies={subscribeRepliesStable}

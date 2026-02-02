@@ -48,14 +48,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
     // #region agent log
     React.useEffect(() => {
         if (visible) {
-            fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreateStoryModal.tsx:36',message:'Modal opened',data:{visible,contentLength:content.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CreateStoryModal.tsx:36', message: 'Modal opened', data: { visible, contentLength: content.length }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
         }
     }, [visible, content.length]);
     // #endregion
 
     const trimmedContent = content.trim();
-    const wordCount = trimmedContent.length > 0 
-        ? trimmedContent.split(/\s+/).filter((w) => w.length > 0).length 
+    const wordCount = trimmedContent.length > 0
+        ? trimmedContent.split(/\s+/).filter((w) => w.length > 0).length
         : 0;
     const isOverLimit = wordCount > MAX_WORDS;
     const canSubmit = trimmedContent.length > 0 && !isOverLimit && !loading;
@@ -70,16 +70,16 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
 
     const handleSubmit = async () => {
         const trimmed = content.trim();
-        
+
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreateStoryModal.tsx:53',message:'handleSubmit called',data:{contentLength:content.length,trimmedLength:trimmed.length,isOverLimit},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CreateStoryModal.tsx:53', message: 'handleSubmit called', data: { contentLength: content.length, trimmedLength: trimmed.length, isOverLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
         // #endregion
-        
+
         if (!trimmed || trimmed.length === 0) {
             Alert.alert('Empty Story', 'Please write something before sharing.');
             return;
         }
-        
+
         if (isOverLimit) {
             Alert.alert('Story Too Long', `Your story is ${wordCount} words. Please keep it under ${MAX_WORDS} words.`);
             return;
@@ -142,7 +142,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                                 ) : null}
                                 <AvatarFallback className="bg-primary">
                                     <Text style={styles.avatarText}>
-                                        {currentUser.displayName 
+                                        {currentUser.displayName
                                             ? currentUser.displayName.substring(0, 2).toUpperCase()
                                             : 'U'}
                                     </Text>
@@ -160,47 +160,47 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                     )}
 
                     <View style={styles.scrollContainer}>
-                        <ScrollView 
-                            style={styles.scrollView} 
+                        <ScrollView
+                            style={styles.scrollView}
                             contentContainerStyle={styles.scrollContent}
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator={true}
                             onLayout={(e) => {
                                 // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreateStoryModal.tsx:114',message:'ScrollView layout',data:{height:e.nativeEvent.layout.height,width:e.nativeEvent.layout.width},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CreateStoryModal.tsx:114', message: 'ScrollView layout', data: { height: e.nativeEvent.layout.height, width: e.nativeEvent.layout.width }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
                                 // #endregion
                             }}
                         >
-                        <TextInput
-                            style={[
-                                styles.textInput,
-                                {
-                                    color: themeColors.text,
-                                    backgroundColor: themeColors.muted,
-                                    borderColor: isOverLimit
-                                        ? themeColors.error
-                                        : themeColors.border,
-                                },
-                            ]}
-                            placeholder="Tell us your story..."
-                            placeholderTextColor={themeColors.textMuted}
-                            multiline
-                            value={content}
-                            onChangeText={(text) => {
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreateStoryModal.tsx:130',message:'TextInput onChangeText',data:{textLength:text.length,hasText:text.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                                // #endregion
-                                setContent(text);
-                            }}
-                            maxLength={MAX_WORDS * 10} // Rough estimate: ~10 chars per word
-                            textAlignVertical="top"
-                            editable={!loading}
-                            onLayout={(e) => {
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreateStoryModal.tsx:133',message:'TextInput layout',data:{height:e.nativeEvent.layout.height,width:e.nativeEvent.layout.width,visible:e.nativeEvent.layout.height>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                                // #endregion
-                            }}
-                        />
+                            <TextInput
+                                style={[
+                                    styles.textInput,
+                                    {
+                                        color: themeColors.text,
+                                        backgroundColor: themeColors.muted,
+                                        borderColor: isOverLimit
+                                            ? themeColors.error
+                                            : themeColors.border,
+                                    },
+                                ]}
+                                placeholder="Tell us your story..."
+                                placeholderTextColor={themeColors.textMuted}
+                                multiline
+                                value={content}
+                                onChangeText={(text) => {
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CreateStoryModal.tsx:130', message: 'TextInput onChangeText', data: { textLength: text.length, hasText: text.length > 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' }) }).catch(() => { });
+                                    // #endregion
+                                    setContent(text);
+                                }}
+                                maxLength={MAX_WORDS * 10} // Rough estimate: ~10 chars per word
+                                textAlignVertical="top"
+                                editable={!loading}
+                                onLayout={(e) => {
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7242/ingest/207d706e-498d-4353-8c5c-780361927bdc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'CreateStoryModal.tsx:133', message: 'TextInput layout', data: { height: e.nativeEvent.layout.height, width: e.nativeEvent.layout.width, visible: e.nativeEvent.layout.height > 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
+                                    // #endregion
+                                }}
+                            />
 
                             <View style={styles.counterRow}>
                                 <Text
@@ -222,40 +222,40 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                                 )}
                             </View>
 
-                        <View style={styles.anonymousRow}>
-                            <View style={styles.anonymousInfo}>
-                                <Ionicons
-                                    name={isAnonymous ? "eye-off-outline" : "eye-outline"}
-                                    size={22}
-                                    color={isAnonymous ? themeColors.primary : themeColors.textMuted}
-                                />
-                                <View style={styles.anonymousTextContainer}>
-                                    <Text style={[styles.anonymousLabel, { color: themeColors.text }]}>
-                                        Post anonymously
-                                    </Text>
-                                    <Text
-                                        style={[
-                                            styles.anonymousHint,
-                                            { color: themeColors.textMuted },
-                                        ]}
-                                    >
-                                        {isAnonymous 
-                                            ? 'Your name and avatar will be hidden from others'
-                                            : 'Your name and avatar will be visible'}
-                                    </Text>
+                            <View style={styles.anonymousRow}>
+                                <View style={styles.anonymousInfo}>
+                                    <Ionicons
+                                        name={isAnonymous ? "eye-off-outline" : "eye-outline"}
+                                        size={22}
+                                        color={isAnonymous ? themeColors.primary : themeColors.textMuted}
+                                    />
+                                    <View style={styles.anonymousTextContainer}>
+                                        <Text style={[styles.anonymousLabel, { color: themeColors.text }]}>
+                                            Post anonymously
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.anonymousHint,
+                                                { color: themeColors.textMuted },
+                                            ]}
+                                        >
+                                            {isAnonymous
+                                                ? 'Your name and avatar will be hidden from others'
+                                                : 'Your name and avatar will be visible'}
+                                        </Text>
+                                    </View>
                                 </View>
+                                <Switch
+                                    value={isAnonymous}
+                                    onValueChange={setIsAnonymous}
+                                    disabled={loading}
+                                    trackColor={{
+                                        false: themeColors.muted,
+                                        true: themeColors.primary,
+                                    }}
+                                    thumbColor="#fff"
+                                />
                             </View>
-                            <Switch
-                                value={isAnonymous}
-                                onValueChange={setIsAnonymous}
-                                disabled={loading}
-                                trackColor={{
-                                    false: themeColors.muted,
-                                    true: themeColors.primary,
-                                }}
-                                thumbColor="#fff"
-                            />
-                        </View>
                         </ScrollView>
                     </View>
 

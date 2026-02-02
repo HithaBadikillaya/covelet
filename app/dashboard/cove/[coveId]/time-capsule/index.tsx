@@ -21,6 +21,7 @@ import {
     Alert,
     FlatList,
     KeyboardAvoidingView,
+    Linking,
     Platform,
     StyleSheet,
     Text,
@@ -285,6 +286,16 @@ export default function TimeCapsuleScreen() {
                                 : `Unlocks on ${unlockDate.toLocaleDateString()}`}
                         </Text>
                     </View>
+
+                    {isUnlocked && isOwner && (
+                        <TouchableOpacity
+                            style={styles.notifyBtn}
+                            onPress={handleNotifyMembers}
+                        >
+                            <Ionicons name="mail-outline" size={20} color={themeColors.primary} />
+                            <Text style={[styles.notifyText, { color: themeColors.primary }]}>Notify</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* CONTENT AREA */}
@@ -426,4 +437,20 @@ const styles = StyleSheet.create({
     // Empty State
     emptyTitle: { fontFamily: Fonts.heading, fontSize: 18, marginTop: 16, color: '#333' },
     emptySub: { color: '#888', marginTop: 8 },
+    notifyBtn: {
+        marginLeft: 'auto',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#eee',
+        gap: 6,
+    },
+    notifyText: {
+        fontFamily: Fonts.bodyBold,
+        fontSize: 14,
+    },
 });

@@ -41,7 +41,7 @@ export interface UseQuotesResult {
     setSort: (s: QuoteSort) => void;
     createQuote: (content: string) => Promise<void>;
     deleteQuote: (quoteId: string) => Promise<void>;
-    toggleUpvote: (quoteId: string, currentCount: number) => Promise<void>;
+    toggleUpvote: (quoteId: string) => Promise<void>;
     hasUpvoted: (quoteId: string) => boolean;
     getReplies: (quoteId: string) => QuoteReply[];
     subscribeReplies: (quoteId: string, onReplies: (replies: QuoteReply[]) => void) => () => void;
@@ -120,7 +120,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
         await deleteDoc(doc(db, 'coves', coveId, 'quotes', quoteId));
     };
 
-    const toggleUpvote = async (quoteId: string, currentCount: number) => {
+    const toggleUpvote = async (quoteId: string) => {
         if (!coveId || !auth.currentUser) return;
         const uid = auth.currentUser.uid;
         const upvoteRef = doc(db, 'coves', coveId, 'quotes', quoteId, 'upvotes', uid);
@@ -144,7 +144,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     const getReplies = (quoteId: string): QuoteReply[] => repliesCache[quoteId] ?? [];
 
     const subscribeReplies = (quoteId: string, onReplies: (replies: QuoteReply[]) => void): (() => void) => {
-        if (!coveId) return () => {};
+        if (!coveId) return () => { };
         replyListeners[quoteId] = onReplies;
         const q = query(
             collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'),

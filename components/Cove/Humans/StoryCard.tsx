@@ -111,11 +111,11 @@ export const StoryCard: React.FC<StoryCardProps> = ({
                                 [
                                     ...(isAuthor
                                         ? [
-                                              {
-                                                  text: 'Edit',
-                                                  onPress: onEdit,
-                                              },
-                                          ]
+                                            {
+                                                text: 'Edit',
+                                                onPress: onEdit,
+                                            },
+                                        ]
                                         : []),
                                     {
                                         text: 'Delete',
