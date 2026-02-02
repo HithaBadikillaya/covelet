@@ -127,13 +127,8 @@ export default function CoveDetailsScreen() {
         : '—';
 
     /* ---------------- NAVIGATION HANDLERS ---------------- */
-    const navigateToFeature = (feature: string) => {
-        if (feature === 'time-capsule') {
-            router.push(`/dashboard/cove/${coveId}/time-capsule`);
-            return;
-        }
-        // Will implement other routes later
-        Alert.alert("Coming Soon", `${feature} is under construction!`);
+    const navigateToFeature = (path: string) => {
+        router.push(`/dashboard/cove/${coveId}/${path}`);
     };
 
     const navigateToSettings = () => {
@@ -183,7 +178,7 @@ export default function CoveDetailsScreen() {
                             title="Humans"
                             icon="people-outline"
                             color="#EC4899"
-                            onPress={() => navigateToFeature('profiles')}
+                            onPress={() => navigateToFeature('humans')}
                         />
                         <FeatureCard
                             title="The Wall"
@@ -202,6 +197,12 @@ export default function CoveDetailsScreen() {
                             icon="dice-outline"
                             color="#3B82F6"
                             onPress={() => navigateToFeature('roulette')}
+                        />
+                        <FeatureCard
+                            title="On this day"
+                            icon="calendar-outline"
+                            color="#A855F7"
+                            onPress={() => navigateToFeature('flashback')}
                             fullWidth
                         />
                     </View>

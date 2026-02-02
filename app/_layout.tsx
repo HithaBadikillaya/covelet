@@ -27,11 +27,13 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+
   useEffect(() => {
     if (loaded || error) {
       SplashScreen.hideAsync();
     }
   }, [loaded, error]);
+
 
   if (!loaded && !error) {
     return null;
