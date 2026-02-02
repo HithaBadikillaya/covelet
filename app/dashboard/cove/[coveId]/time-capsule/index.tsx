@@ -26,7 +26,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 interface TimeCapsule {
@@ -186,6 +186,21 @@ export default function TimeCapsuleScreen() {
                 }
             ]
         );
+    };
+
+    const handleNotifyMembers = async () => {
+        // In a real app involving member emails, we'd fetch member emails from Firestore here.
+        // For MVP, we'll just open a generic email draft.
+        const subject = encodeURIComponent("Time Capsule Unlocked!");
+        const body = encodeURIComponent(`The time capsule in our Cove is now open!\n\nOpen the app to see the memories.`);
+        const url = `mailto:?subject=${subject}&body=${body}`;
+
+        const supported = await Linking.canOpenURL(url);
+        if (supported) {
+            await Linking.openURL(url);
+        } else {
+            Alert.alert("Error", "No email app found.");
+        }
     };
 
     /* ---------------- RENDER HELPERS ---------------- */
