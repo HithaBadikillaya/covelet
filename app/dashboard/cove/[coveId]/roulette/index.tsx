@@ -86,7 +86,9 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12 },
     title: { fontFamily: Fonts.heading, fontSize: 20 },
     description: { fontFamily: Fonts.body, fontSize: 14, paddingHorizontal: 20, marginBottom: 24 },
-    content: { flex: 1, paddingHorizontal: 20 },
+    // add a little top padding so content (description, spinner, card) sits
+    // lower below the header/icon and doesn't appear too close to the top
+    content: { flex: 1, paddingHorizontal: 20, paddingTop: 12 },
     errorBox: { padding: 16, marginBottom: 16, borderRadius: 12, backgroundColor: 'rgba(239,68,68,0.15)' },
     errorText: { fontFamily: Fonts.body, fontSize: 14 },
     spinArea: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },

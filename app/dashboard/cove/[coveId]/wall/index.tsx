@@ -5,147 +5,271 @@ import { FEATURE_DESCRIPTIONS } from '@/constants/features';
 import { Colors, Fonts } from '@/constants/theme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     FlatList,
+    Platform,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const CARAMEL = '#C8A97E';
 
 export default function WallScreen() {
-    const { coveId } = useLocalSearchParams<{ coveId: string }>();
-    const insets = useSafeAreaInsets();
-    const themeColors = Colors.light;
-    const [modalVisible, setModalVisible] = useState(false);
+  const { coveId } = useLocalSearchParams<{ coveId: string }>();
+  const themeColors = Colors.light;
+  const [modalVisible, setModalVisible] = useState(false);
 
-    const {
-        quotes,
-        loading,
-        error,
-        sort,
-        setSort,
-        createQuote,
-        deleteQuote,
-        toggleUpvote,
-        hasUpvoted,
-        subscribeReplies,
-        addReply,
-    } = useQuotes(coveId);
+  const {
+    quotes,
+    loading,
+    sort,
+    setSort,
+    createQuote,
+    deleteQuote,
+    toggleUpvote,
+    hasUpvoted,
+    subscribeReplies,
+    addReply,
+  } = useQuotes(coveId);
 
-    const handleCreate = async (content: string) => {
-        await createQuote(content);
-    };
+  const handleCreate = async (content: string) => {
+    await createQuote(content);
+  };
 
-    const subscribeRepliesStable = useCallback(
-        (quoteId: string, onReplies: (r: import('@/hooks/useQuotes').QuoteReply[]) => void) =>
-            subscribeReplies(quoteId, onReplies),
-        [subscribeReplies]
-    );
+  const subscribeRepliesStable = useCallback(
+    (quoteId: string, onReplies: any) =>
+      subscribeReplies(quoteId, onReplies),
+    [subscribeReplies]
+  );
 
-    if (error && quotes.length === 0) {
-        return (
-            <AuthGuard>
-                <View style={[styles.container, styles.center, { backgroundColor: themeColors.background }]}>
-                    <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                    <TouchableOpacity style={[styles.backBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.back()}>
-                        <Text style={styles.backBtnText}>Go Back</Text>
-                    </TouchableOpacity>
-                </View>
-            </AuthGuard>
-        );
-    }
+  const renderHeader = () => (
+    <View style={styles.headerWrapper}>
+      <Text style={[styles.pageTitle, { color: themeColors.text }]}>
+        The Wall
+      </Text>
 
-    return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>The Wall</Text>
-                    <View style={{ width: 24 }} />
-                </View>
-                <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.wall}
-                </Text>
-                <Text style={[styles.subDescription, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.threads}
-                </Text>
-                <View style={styles.sortRow}>
-                    <TouchableOpacity
-                        style={[styles.sortBtn, sort === 'recent' && { backgroundColor: themeColors.primary }]}
-                        onPress={() => setSort('recent')}
-                    >
-                        <Text style={[styles.sortText, sort === 'recent' && { color: '#fff' }]}>Recent</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.sortBtn, sort === 'upvoted' && { backgroundColor: themeColors.primary }]}
-                        onPress={() => setSort('upvoted')}
-                    >
-                        <Text style={[styles.sortText, sort === 'upvoted' && { color: '#fff' }]}>Most upvoted</Text>
-                    </TouchableOpacity>
-                </View>
-                {loading && quotes.length === 0 ? (
-                    <View style={styles.center}><Text style={{ color: themeColors.textMuted }}>Loading...</Text></View>
-                ) : quotes.length === 0 ? (
-                    <View style={styles.empty}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={64} color={themeColors.textMuted} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No memories yet</Text>
-                        <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>Post a quote or moment to get started.</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={quotes}
-                        keyExtractor={(q) => q.id}
-                        contentContainerStyle={styles.list}
-                        renderItem={({ item }) => (
-                            <QuoteCard
-                                quote={item}
-                                onUpvote={() => toggleUpvote(item.id)}
-                                onDelete={() => deleteQuote(item.id)}
-                                hasUpvoted={hasUpvoted(item.id)}
-                                onSubscribeReplies={subscribeRepliesStable}
-                                onAddReply={addReply}
-                            />
-                        )}
-                    />
-                )}
-                <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
-                    onPress={() => setModalVisible(true)}
-                >
-                    <Ionicons name="add" size={28} color="#fff" />
-                </TouchableOpacity>
-                <CreateQuoteModal
-                    visible={modalVisible}
-                    onClose={() => setModalVisible(false)}
-                    onSubmit={handleCreate}
+      <Text style={[styles.description, { color: themeColors.textMuted }]}>
+        {FEATURE_DESCRIPTIONS.wall}
+      </Text>
+
+      <Text style={[styles.subDescription, { color: themeColors.textMuted }]}>
+        {FEATURE_DESCRIPTIONS.threads}
+      </Text>
+
+      <View style={styles.sortRow}>
+        <TouchableOpacity
+          style={[
+            styles.sortBtn,
+            sort === 'recent' && styles.activeSortBtn,
+          ]}
+          onPress={() => setSort('recent')}
+        >
+          <Text
+            style={[
+              styles.sortText,
+              sort === 'recent' && styles.activeSortText,
+            ]}
+          >
+            Recent
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.sortBtn,
+            sort === 'upvoted' && styles.activeSortBtn,
+          ]}
+          onPress={() => setSort('upvoted')}
+        >
+          <Text
+            style={[
+              styles.sortText,
+              sort === 'upvoted' && styles.activeSortText,
+            ]}
+          >
+            Most upvoted
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <AuthGuard>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: themeColors.background }]}
+        edges={['top']}
+      >
+        <FlatList
+          data={quotes}
+          keyExtractor={(q) => q.id}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <QuoteCard
+              quote={item}
+              onUpvote={() => toggleUpvote(item.id)}
+              onDelete={() => deleteQuote(item.id)}
+              hasUpvoted={hasUpvoted(item.id)}
+              onSubscribeReplies={subscribeRepliesStable}
+              onAddReply={addReply}
+            />
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyWrapper}>
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={72}
+                  color={themeColors.textMuted}
                 />
-            </View>
-        </AuthGuard>
-    );
+                <Text
+                  style={[styles.emptyTitle, { color: themeColors.text }]}
+                >
+                  No memories yet
+                </Text>
+                <Text
+                  style={[styles.emptySub, { color: themeColors.textMuted }]}
+                >
+                  Post a quote or moment to get started.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.loadingWrapper}>
+                <Text style={{ color: themeColors.textMuted }}>
+                  Loading...
+                </Text>
+              </View>
+            )
+          }
+        />
+
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color="#000" />
+        </TouchableOpacity>
+
+        <CreateQuoteModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          onSubmit={handleCreate}
+        />
+      </SafeAreaView>
+    </AuthGuard>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12 },
-    title: { fontFamily: Fonts.heading, fontSize: 20 },
-    description: { fontFamily: Fonts.body, fontSize: 14, paddingHorizontal: 20, marginBottom: 4 },
-    subDescription: { fontFamily: Fonts.body, fontSize: 12, paddingHorizontal: 20, marginBottom: 16, opacity: 0.9 },
-    sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
-    sortBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)' },
-    sortText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: '#A3A3A3' },
-    list: { paddingHorizontal: 20, paddingBottom: 100 },
-    empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
-    emptyTitle: { fontFamily: Fonts.heading, fontSize: 20, marginTop: 16 },
-    emptySub: { fontFamily: Fonts.body, fontSize: 14, marginTop: 8 },
-    errorText: { fontFamily: Fonts.body, marginBottom: 16 },
-    backBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
-    backBtnText: { fontFamily: Fonts.heading, color: '#fff' },
-    fab: { position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  safeArea: {
+    flex: 1,
+  },
+
+  headerWrapper: {
+    paddingHorizontal: 24,
+    paddingTop:
+      Platform.OS === 'android'
+        ? (StatusBar.currentHeight || 0) + 20
+        : 20,
+    paddingBottom: 24,
+  },
+
+  pageTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 26,
+    marginBottom: 12,
+  },
+
+  description: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+
+  subDescription: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    opacity: 0.7,
+    marginBottom: 24,
+  },
+
+  sortRow: {
+    flexDirection: 'row',
+  },
+
+  sortBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 30,
+    backgroundColor: '#1a1a1a',
+    marginRight: 12,
+  },
+
+  activeSortBtn: {
+    backgroundColor: CARAMEL,
+  },
+
+  sortText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: '#888',
+  },
+
+  activeSortText: {
+    color: '#000',
+  },
+
+  listContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 140,
+  },
+
+  emptyWrapper: {
+    alignItems: 'center',
+    marginTop: 120,
+    paddingHorizontal: 40,
+  },
+
+  emptyTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: 22,
+    marginTop: 24,
+  },
+
+  emptySub: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+
+  loadingWrapper: {
+    marginTop: 140,
+    alignItems: 'center',
+  },
+
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: CARAMEL,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+  },
 });
