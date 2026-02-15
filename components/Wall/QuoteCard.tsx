@@ -136,7 +136,9 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
 
 const styles = StyleSheet.create({
     card: { padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+    // alignItems changed to 'center' so the text and the icon are vertically centered
+    // inside the row instead of being aligned to the top.
+    row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     content: { flex: 1, fontFamily: Fonts.body, fontSize: 16, lineHeight: 22 },
     meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     author: { fontFamily: Fonts.bodyBold, fontSize: 13 },
