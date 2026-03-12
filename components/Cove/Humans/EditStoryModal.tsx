@@ -160,18 +160,17 @@ export const EditStoryModal: React.FC<EditStoryModalProps> = ({
                         <TouchableOpacity
                             style={[
                                 styles.saveButton,
-                                {
-                                    backgroundColor: canSave ? themeColors.primary : themeColors.muted,
-                                    opacity: loading ? 0.6 : 1,
-                                },
+                                canSave ? { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 } : { backgroundColor: themeColors.muted },
+                                { opacity: loading ? 0.6 : 1 },
                             ]}
                             onPress={handleSubmit}
                             disabled={!canSave}
+                            activeOpacity={0.85}
                         >
                             {loading ? (
-                                <ActivityIndicator color="#fff" size="small" />
+                                <ActivityIndicator color="#000" size="small" />
                             ) : (
-                                <Text style={styles.saveText}>Save Changes</Text>
+                                <Text style={[styles.saveText, !canSave && { color: themeColors.textMuted } ]}>Save Changes</Text>
                             )}
                         </TouchableOpacity>
                     </View>
@@ -197,6 +196,8 @@ const styles = StyleSheet.create({
         width: '90%',
         maxWidth: 420,
         maxHeight: '85%',
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
@@ -225,7 +226,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         lineHeight: 24,
         borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
         marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     counterRow: {
         flexDirection: 'row',
@@ -248,10 +255,16 @@ const styles = StyleSheet.create({
     cancelButton: {
         flex: 1,
         height: 48,
-        borderRadius: 24,
+        borderRadius: 12,
         borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     cancelText: {
         fontFamily: Fonts.bodyBold,
@@ -260,9 +273,16 @@ const styles = StyleSheet.create({
     saveButton: {
         flex: 1,
         height: 48,
-        borderRadius: 24,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
     },
     saveText: {
         fontFamily: Fonts.heading,

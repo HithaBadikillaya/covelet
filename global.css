@@ -10,38 +10,46 @@
 @layer base {
     :root {
         /* Core Colors */
-        --background: #000000;
-        --primary: #0EA5E9;
+        --background: #F7F7F7;
+        --primary: #FFB22C;
         --secondary: #FFFFFF;
 
         /* Text Colors */
-        --text: #FFFFFF;
-        --text-muted: #A3A3A3;
+        --text: #000000;
+        --text-muted: #854836;
 
         /* UI States */
         --error: #EF4444;
         --success: #10B981;
-        --warning: #F59E0B;
+        --warning: #FFB22C;
 
         /* Borders & Inputs */
-        --border: #404040;
-        --input: #404040;
-        --ring: #0EA5E9;
+        --border: #D4D4D8;
+        --input-border: rgba(0, 0, 0, 0.2);
+        --input: #FFFFFF;
+        --input-text: #000000;
+        --ring: #FFB22C;
 
         /* Muted/Disabled */
-        --muted: #262626;
-        --muted-foreground: #737373;
+        --muted: #E4E4E7;
+        --muted-foreground: #A1A1A1;
 
         /* Cards & Surfaces */
-        --card: #0A0A0A;
-        --card-foreground: #FFFFFF;
+        --card: #FFFFFF;
+        --card-foreground: #000000;
+        --card-border: rgba(0, 0, 0, 0.1);
 
         /* Popover/Dropdown */
-        --popover: #171717;
-        --popover-foreground: #FFFFFF;
+        --popover: #FFFFFF;
+        --popover-foreground: #000000;
+        --popover-border: rgba(0, 0, 0, 0.1);
+
+        /* Shadows */
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.06);
 
         /* Radius */
-        --radius: 0rem;
+        --radius: 0.75rem;
     }
 }
 

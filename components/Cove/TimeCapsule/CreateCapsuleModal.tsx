@@ -121,14 +121,14 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
                                 <TouchableOpacity
                                     key={u.value}
                                     style={[
-                                        styles.unitChip,
-                                        unit === u.value && { backgroundColor: themeColors.primary }
+                                            styles.unitChip,
+                                            unit === u.value && { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }
                                     ]}
                                     onPress={() => setUnit(u.value)}
                                 >
                                     <Text style={[
                                         styles.unitText,
-                                        unit === u.value ? { color: '#fff' } : { color: themeColors.textMuted }
+                                        unit === u.value ? { color: '#000' } : { color: themeColors.textMuted }
                                     ]}>
                                         {u.label}
                                     </Text>
@@ -145,14 +145,15 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.buryButton, { backgroundColor: themeColors.primary }]}
+                        style={[styles.buryButton, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                         onPress={handleCreate}
                         disabled={loading}
+                        activeOpacity={0.85}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="#000" />
                         ) : (
-                            <Text style={styles.buryText}>Set Lock Timer</Text>
+                            <Text style={[styles.buryText, { color: '#000' }]}>Set Lock Timer</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -198,9 +199,16 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     closeBtn: {
-        padding: 4,
+        padding: 8,
         backgroundColor: '#f5f5f5',
-        borderRadius: 20,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     inputSection: {
         gap: 16,
@@ -248,15 +256,17 @@ const styles = StyleSheet.create({
         color: '#8B5CF6',
     },
     buryButton: {
-        height: 60,
-        borderRadius: 30,
+        height: 56,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#8B5CF6',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
         shadowRadius: 8,
-        elevation: 4,
+        elevation: 2,
     },
     buryText: {
         fontFamily: Fonts.heading,

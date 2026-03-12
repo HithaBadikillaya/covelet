@@ -68,12 +68,13 @@ export default function RouletteScreen() {
                         <Text style={[styles.hint, { color: themeColors.textMuted }]}>Tap Spin to see a random memory.</Text>
                     )}
                     <TouchableOpacity
-                        style={[styles.spinBtn, { backgroundColor: themeColors.primary }]}
+                        style={[styles.spinBtn, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                         onPress={spin}
                         disabled={loading}
+                        activeOpacity={0.85}
                     >
-                        <Ionicons name="dice-outline" size={28} color="#fff" />
-                        <Text style={styles.spinBtnText}>Spin</Text>
+                        <Ionicons name="dice-outline" size={28} color="#000" />
+                        <Text style={[styles.spinBtnText, { color: '#000' }]}>Spin</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -91,7 +92,7 @@ const styles = StyleSheet.create({
     errorText: { fontFamily: Fonts.body, fontSize: 14 },
     spinArea: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
     spinLabel: { fontFamily: Fonts.body, fontSize: 14, marginTop: 12 },
-    memoryCard: { padding: 24, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    memoryCard: { padding: 24, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
     badge: { alignSelf: 'flex-start', marginBottom: 12 },
     badgeText: { fontFamily: Fonts.bodyBold, fontSize: 12 },
     memoryTitle: { fontFamily: Fonts.heading, fontSize: 18, marginBottom: 8 },

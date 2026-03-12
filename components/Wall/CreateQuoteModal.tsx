@@ -85,11 +85,19 @@ export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({
                         {content.length} / {MAX_LENGTH}
                     </Text>
                     <TouchableOpacity
-                        style={[styles.submit, { backgroundColor: canSubmit ? themeColors.primary : themeColors.muted }]}
+                        style={[
+                            styles.submit,
+                            canSubmit ? { borderColor: themeColors.primary } : { backgroundColor: themeColors.muted },
+                        ]}
                         onPress={handleSubmit}
                         disabled={!canSubmit}
+                        activeOpacity={0.85}
                     >
-                        {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Post</Text>}
+                        {loading ? (
+                            <ActivityIndicator color="#000" size="small" />
+                        ) : (
+                            <Text style={[styles.submitText, !canSubmit && { color: themeColors.textMuted }]}>Post</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
@@ -100,12 +108,51 @@ export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({
 const styles = StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
-    card: { borderRadius: 24, padding: 24, width: '90%', maxWidth: 420 },
+    card: { 
+        borderRadius: 16, 
+        padding: 24, 
+        width: '90%', 
+        maxWidth: 420,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+    },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     title: { fontFamily: Fonts.heading, fontSize: 22 },
     closeBtn: { padding: 8 },
-    input: { minHeight: 120, borderRadius: 12, padding: 16, fontFamily: Fonts.body, fontSize: 16, borderWidth: 1, marginBottom: 8 },
+    input: { 
+        minHeight: 120, 
+        borderRadius: 12, 
+        padding: 16, 
+        fontFamily: Fonts.body, 
+        fontSize: 16, 
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
     counter: { fontFamily: Fonts.body, fontSize: 12, marginBottom: 16 },
-    submit: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
-    submitText: { fontFamily: Fonts.heading, fontSize: 16, color: '#fff' },
+    submit: { 
+        height: 48, 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        borderWidth: 1,
+        backgroundColor: '#fff',
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    submitText: { fontFamily: Fonts.heading, fontSize: 16, color: '#000' },
 });

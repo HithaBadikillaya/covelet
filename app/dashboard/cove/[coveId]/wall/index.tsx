@@ -51,8 +51,8 @@ export default function WallScreen() {
             <AuthGuard>
                 <View style={[styles.container, styles.center, { backgroundColor: themeColors.background }]}>
                     <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                    <TouchableOpacity style={[styles.backBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.back()}>
-                        <Text style={styles.backBtnText}>Go Back</Text>
+                    <TouchableOpacity style={[styles.backBtn, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]} onPress={() => router.back()} activeOpacity={0.85}>
+                        <Text style={[styles.backBtnText, { color: '#000' }]}>Go Back</Text>
                     </TouchableOpacity>
                 </View>
             </AuthGuard>
@@ -77,16 +77,18 @@ export default function WallScreen() {
                 </Text>
                 <View style={styles.sortRow}>
                     <TouchableOpacity
-                        style={[styles.sortBtn, sort === 'recent' && { backgroundColor: themeColors.primary }]}
+                        style={[styles.sortBtn, sort === 'recent' && { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                         onPress={() => setSort('recent')}
+                        activeOpacity={0.85}
                     >
-                        <Text style={[styles.sortText, sort === 'recent' && { color: '#fff' }]}>Recent</Text>
+                        <Text style={[styles.sortText, sort === 'recent' && { color: '#000' }]}>Recent</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.sortBtn, sort === 'upvoted' && { backgroundColor: themeColors.primary }]}
+                        style={[styles.sortBtn, sort === 'upvoted' && { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                         onPress={() => setSort('upvoted')}
+                        activeOpacity={0.85}
                     >
-                        <Text style={[styles.sortText, sort === 'upvoted' && { color: '#fff' }]}>Most upvoted</Text>
+                        <Text style={[styles.sortText, sort === 'upvoted' && { color: '#000' }]}>Most upvoted</Text>
                     </TouchableOpacity>
                 </View>
                 {loading && quotes.length === 0 ? (
@@ -115,10 +117,11 @@ export default function WallScreen() {
                     />
                 )}
                 <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
+                    style={[styles.fab, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                     onPress={() => setModalVisible(true)}
+                    activeOpacity={0.85}
                 >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Ionicons name="add" size={28} color="#000" />
                 </TouchableOpacity>
                 <CreateQuoteModal
                     visible={modalVisible}
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
     description: { fontFamily: Fonts.body, fontSize: 14, paddingHorizontal: 20, marginBottom: 4 },
     subDescription: { fontFamily: Fonts.body, fontSize: 12, paddingHorizontal: 20, marginBottom: 16, opacity: 0.9 },
     sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
-    sortBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)' },
+    sortBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
     sortText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: '#A3A3A3' },
     list: { paddingHorizontal: 20, paddingBottom: 100 },
     empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },

@@ -48,19 +48,19 @@ export const HeroSection = () => {
 
                 <View style={styles.ctaContainer}>
                     <TouchableOpacity
-                        style={[styles.primaryButton, { backgroundColor: themeColors.primary }]}
+                        style={[styles.primaryButton, { borderColor: themeColors.primary, backgroundColor: '#fff' }]}
                         onPress={handleGetStarted}
-                        activeOpacity={0.8}
+                        activeOpacity={0.85}
                     >
-                        <Text style={[styles.primaryButtonText, { color: themeColors.background }]}>Get Started</Text>
+                        <Text style={[styles.primaryButtonText, { color: '#000' }]}>Get Started</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.secondaryButton, { borderColor: themeColors.primary }]}
+                        style={[styles.secondaryButton, { borderColor: themeColors.primary, backgroundColor: '#fff' }]}
                         onPress={handleDashboard}
-                        activeOpacity={0.7}
+                        activeOpacity={0.85}
                     >
-                        <Text style={[styles.secondaryButtonText, { color: themeColors.primary }]}>Go to Dashboard</Text>
+                        <Text style={[styles.secondaryButtonText, { color: '#000' }]}>Go to Dashboard</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -136,10 +136,20 @@ const styles = StyleSheet.create({
         height: 56,
         justifyContent: 'center',
         alignItems: 'center',
+        borderRadius: 14,
+        borderWidth: 1,
+        backgroundColor: '#fff',
+        borderColor: 'rgba(0,0,0,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
     },
     primaryButtonText: {
         fontFamily: Fonts.heading,
         fontSize: 16,
+        color: '#000',
     },
     secondaryButton: {
         width: '100%',
@@ -147,6 +157,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
+        borderRadius: 14,
+        borderColor: 'rgba(0,0,0,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 2,
     },
     secondaryButtonText: {
         fontFamily: Fonts.heading,

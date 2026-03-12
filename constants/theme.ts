@@ -3,70 +3,76 @@
 export const Colors = {
   light: {
     // Core Colors
-    background: '#000000',
-    primary: '#0EA5E9',
+    background: '#F7F7F7',
+    primary: '#FFB22C',
     secondary: '#FFFFFF',
 
     // Text
-    text: '#FFFFFF',
-    textMuted: '#A3A3A3',
+    text: '#000000',
+    textMuted: '#854836',
 
     // UI States
     error: '#EF4444',
     success: '#10B981',
-    warning: '#F59E0B',
+    warning: '#FFB22C',
 
     // Borders & Inputs
-    border: '#404040',
-    input: '#404040',
-    ring: '#0EA5E9',
+    border: '#D4D4D8',
+    input: '#FFFFFF',
+    inputBorder: 'rgba(0,0,0,0.2)',
+    ring: '#FFB22C',
 
     // Muted/Disabled
-    muted: '#262626',
-    mutedForeground: '#737373',
+    muted: '#E4E4E7',
+    mutedForeground: '#A1A1A1',
 
     // Cards & Surfaces
-    card: '#0A0A0A',
-    cardForeground: '#FFFFFF',
+    card: '#FFFFFF',
+    cardForeground: '#000000',
+    cardBorder: 'rgba(0,0,0,0.1)',
 
     // Popover/Dropdown
-    popover: '#171717',
-    popoverForeground: '#FFFFFF',
+    popover: '#FFFFFF',
+    popoverForeground: '#000000',
+    popoverBorder: 'rgba(0,0,0,0.1)',
 
     // Legacy compatibility (map to new tokens)
-    tint: '#0EA5E9',
-    icon: '#FFFFFF',
-    tabIconDefault: '#737373',
-    tabIconSelected: '#0EA5E9',
-    ocean: '#0EA5E9', // Maps to primary
-    sand: '#404040', // Maps to border
+    tint: '#FFB22C',
+    icon: '#854836',
+    tabIconDefault: '#A1A1A1',
+    tabIconSelected: '#FFB22C',
+    ocean: '#FFB22C', // Maps to primary
+    sand: '#854836', // Maps to accent
     white: '#FFFFFF', // Maps to secondary
   },
   dark: {
     // Same as light - single theme
-    background: '#000000',
-    primary: '#0EA5E9',
+    background: '#F7F7F7',
+    primary: '#FFB22C',
     secondary: '#FFFFFF',
-    text: '#FFFFFF',
-    textMuted: '#A3A3A3',
+    text: '#000000',
+    textMuted: '#854836',
     error: '#EF4444',
     success: '#10B981',
-    warning: '#F59E0B',
-    border: '#404040',
-    input: '#404040',
-    ring: '#0EA5E9',
-    muted: '#262626',
-    mutedForeground: '#737373',
-    card: '#0A0A0A',
-    cardForeground: '#FFFFFF',
-    popover: '#171717',
-    popoverForeground: '#FFFFFF',
-    tint: '#0EA5E9',
-    icon: '#FFFFFF',
-    tabIconDefault: '#737373',
-    tabIconSelected: '#0EA5E9',
-    ocean: '#0EA5E9', // Maps to primary
-    sand: '#404040', // Maps to border
+    warning: '#FFB22C',
+    border: '#D4D4D8',
+    input: '#FFFFFF',
+    inputBorder: 'rgba(0,0,0,0.2)',
+    ring: '#FFB22C',
+    muted: '#E4E4E7',
+    mutedForeground: '#A1A1A1',
+    card: '#FFFFFF',
+    cardForeground: '#000000',
+    cardBorder: 'rgba(0,0,0,0.1)',
+    popover: '#FFFFFF',
+    popoverForeground: '#000000',
+    popoverBorder: 'rgba(0,0,0,0.1)',
+    tint: '#FFB22C',
+    icon: '#854836',
+    tabIconDefault: '#A1A1A1',
+    tabIconSelected: '#FFB22C',
+    ocean: '#FFB22C', // Maps to primary
+    sand: '#854836', // Maps to accent
     white: '#FFFFFF', // Maps to secondary
   },
 };

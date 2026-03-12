@@ -1,4 +1,5 @@
 import { db } from "@/firebaseConfig";
+import { Colors } from '@/constants/theme';
 import { getAuth } from "firebase/auth";
 import {
     arrayUnion,
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
+    const themeColors = Colors.light;
     const [code, setCode] = useState("");
     const [loading, setLoading] = useState(false);
     const inputRef = useRef<TextInput>(null);
@@ -137,10 +139,11 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
                     key={i}
                     style={[
                         styles.box,
-                        isFocused ? styles.boxFocused : styles.boxUnfocused
+                        { backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.08)' },
+                        isFocused ? { borderColor: themeColors.primary } : {},
                     ]}
                 >
-                    <Text style={styles.boxText}>{char}</Text>
+                    <Text style={[styles.boxText, { color: '#000' }]}>{char}</Text>
                 </View>
             );
         }
@@ -161,9 +164,9 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
             >
                 <Pressable style={styles.backdrop} onPress={handleCloseInternal} />
 
-                <View style={styles.modalCard}>
-                    <Text style={styles.title}>Join a Cove</Text>
-                    <Text style={styles.subtitle}>Enter the invitation code to enter a sanctuary.</Text>
+                <View style={[styles.modalCard, { backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.08)' }]}>
+                    <Text style={[styles.title, { color: themeColors.text }]}>Join a Cove</Text>
+                    <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>Enter the invitation code to enter a sanctuary.</Text>
 
                     {/* Code Input Area with Ghost Input Overlay */}
                     <View style={styles.codeRow}>
@@ -186,26 +189,28 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
 
                     <View style={styles.buttonRow}>
                         <TouchableOpacity
-                            style={styles.cancelButton}
+                            style={[styles.cancelButton, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                             onPress={handleCloseInternal}
-                            activeOpacity={0.7}
+                            activeOpacity={0.85}
                         >
-                            <Text style={styles.cancelButtonText}>CANCEL</Text>
+                            <Text style={[styles.cancelButtonText, { color: '#000' }]}>CANCEL</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[
                                 styles.joinButton,
-                                (code.length === 6 && !loading) ? styles.joinButtonActive : styles.joinButtonDisabled
+                                (code.length === 6 && !loading)
+                                    ? { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }
+                                    : { backgroundColor: themeColors.muted },
                             ]}
                             onPress={handleJoin}
                             disabled={code.length !== 6 || loading}
-                            activeOpacity={0.7}
+                            activeOpacity={0.85}
                         >
                             {loading ? (
-                                <ActivityIndicator color="white" />
+                                <ActivityIndicator color="#000" />
                             ) : (
-                                <Text style={styles.joinButtonText}>JOIN</Text>
+                                <Text style={[styles.joinButtonText, (code.length === 6 && !loading) ? { color: '#000' } : { color: themeColors.textMuted } ]}>JOIN</Text>
                             )}
                         </TouchableOpacity>
                     </View>
@@ -232,21 +237,24 @@ const styles = StyleSheet.create({
     modalCard: {
         width: "90%",
         maxWidth: 400,
-        backgroundColor: "#09090b", // zinc-950
+        backgroundColor: "#fff",
         padding: 24,
         borderWidth: 1,
-        borderColor: "#27272a", // zinc-800
-        borderRadius: 0,
+        borderColor: "rgba(0,0,0,0.05)",
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 5,
     },
     title: {
-        color: "#ffffff",
         fontSize: 24,
         fontWeight: "bold",
         marginBottom: 8,
         textAlign: "center",
     },
     subtitle: {
-        color: "#a1a1aa", // zinc-400
         fontSize: 14,
         marginBottom: 24,
         textAlign: "center",
@@ -270,22 +278,26 @@ const styles = StyleSheet.create({
     box: {
         width: 44,
         height: 48,
-        borderWidth: 2,
+        borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#18181b", // zinc-900
+        backgroundColor: '#fff',
         marginHorizontal: 4,
-        borderRadius: 0,
+        borderRadius: 10,
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     boxFocused: {
-        borderColor: "#6366f1", // indigo-500
-        backgroundColor: "#27272a", // zinc-800
+        // focus handled inline to use theme color
     },
     boxUnfocused: {
-        borderColor: "#27272a", // zinc-800
+        // unfocus handled inline
     },
     boxText: {
-        color: "#ffffff",
         fontSize: 20,
         fontWeight: "bold",
     },
@@ -300,12 +312,18 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         backgroundColor: "#27272a", // zinc-800
         borderWidth: 1,
-        borderColor: "#3f3f46", // zinc-700
+        borderColor: "#52525b", // zinc-600
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 2,
     },
     cancelButtonText: {
         color: "#ffffff",
         fontWeight: "600",
-        fontStyle: "italic",
+        fontStyle: "normal",
         fontSize: 12,
     },
     joinButton: {
@@ -313,6 +331,14 @@ const styles = StyleSheet.create({
         height: 48,
         alignItems: "center",
         justifyContent: "center",
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 2,
     },
     joinButtonActive: {
         backgroundColor: "#4f46e5", // indigo-600
@@ -322,9 +348,9 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     joinButtonText: {
-        color: "#ffffff",
+        color: "#000",
         fontWeight: "600",
-        fontStyle: "italic",
+        fontStyle: "normal",
         letterSpacing: 1.5,
         fontSize: 12,
     },

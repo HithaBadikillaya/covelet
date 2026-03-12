@@ -56,8 +56,8 @@ export default function FlashbackScreen() {
                 ) : error ? (
                     <View style={styles.center}>
                         <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: themeColors.primary }]} onPress={fetchFlashbacks}>
-                            <Text style={styles.retryText}>Retry</Text>
+                        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]} onPress={fetchFlashbacks} activeOpacity={0.85}>
+                            <Text style={[styles.retryText, { color: '#000' }]}>Retry</Text>
                         </TouchableOpacity>
                     </View>
                 ) : memories.length === 0 ? (
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     description: { fontFamily: Fonts.body, fontSize: 14, paddingHorizontal: 20, marginBottom: 20 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     list: { paddingHorizontal: 20, paddingBottom: 40 },
-    card: { padding: 18, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    card: { padding: 18, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     year: { fontFamily: Fonts.bodyBold, fontSize: 14 },
     source: { fontFamily: Fonts.body, fontSize: 12 },

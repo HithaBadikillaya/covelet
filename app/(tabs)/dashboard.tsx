@@ -105,25 +105,38 @@ const DashboardScreen = () => {
                 <View style={[styles.content, { backgroundColor: themeColors.background }]}>
                     <View style={styles.actionRow}>
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
+                            style={[
+                                styles.actionButton,
+                                {
+                                    backgroundColor: '#fff',
+                                    borderColor: themeColors.primary,
+                                    borderWidth: 1,
+                                    borderRadius: 14,
+                                },
+                            ]}
                             onPress={() => {
                                 console.log("Create Cove button pressed");
                                 setCreateModalVisible(true);
                             }}
+                            activeOpacity={0.85}
                         >
-                            <Ionicons name="add" size={24} color={themeColors.background} />
-                            <Text style={[styles.actionButtonText, { color: themeColors.background }]}>Create Cove</Text>
+                            <Ionicons name="add" size={24} color={'#000'} />
+                            <Text style={[styles.actionButtonText, { color: '#000' }]}>Create Cove</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButtonSecondary, { borderColor: themeColors.primary }]}
+                            style={[
+                                styles.actionButtonSecondary,
+                                { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1, borderRadius: 14 },
+                            ]}
                             onPress={() => {
                                 console.log("Join Cove button pressed");
                                 setJoinModalVisible(true);
                             }}
+                            activeOpacity={0.85}
                         >
-                            <Ionicons name="enter-outline" size={24} color={themeColors.primary} />
-                            <Text style={[styles.actionButtonTextSecondary, { color: themeColors.primary }]}>Join Cove</Text>
+                            <Ionicons name="enter-outline" size={24} color={'#000'} />
+                            <Text style={[styles.actionButtonTextSecondary, { color: '#000' }]}>Join Cove</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -218,6 +231,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
     },
     actionButtonSecondary: {
         flex: 1,
@@ -227,6 +248,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         borderWidth: 1,
+        borderRadius: 14,
+        borderColor: 'rgba(0,0,0,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
     },
     actionButtonText: {
         fontFamily: Fonts.heading,

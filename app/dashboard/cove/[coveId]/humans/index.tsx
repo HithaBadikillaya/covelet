@@ -113,10 +113,11 @@ export default function HumansScreen() {
                     <Ionicons name="alert-circle-outline" size={64} color={themeColors.error} />
                     <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
                     <TouchableOpacity
-                        style={[styles.retryButton, { backgroundColor: themeColors.primary }]}
+                        style={[styles.retryButton, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                         onPress={() => router.back()}
+                        activeOpacity={0.85}
                     >
-                        <Text style={styles.retryText}>Go Back</Text>
+                        <Text style={[styles.retryText, { color: '#000' }]}>Go Back</Text>
                     </TouchableOpacity>
                 </View>
             </AuthGuard>
@@ -169,11 +170,11 @@ export default function HumansScreen() {
 
                 {/* Floating Action Button */}
                 <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
+                    style={[styles.fab, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                     onPress={() => setModalVisible(true)}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                 >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Ionicons name="add" size={28} color="#000" />
                 </TouchableOpacity>
 
                 {/* Create Story Modal */}

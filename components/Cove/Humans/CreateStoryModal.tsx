@@ -256,21 +256,17 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
           <TouchableOpacity
             style={[
               styles.submitButton,
-              {
-                backgroundColor: canSubmit
-                  ? themeColors.primary
-                  : themeColors.muted,
-                opacity: loading ? 0.6 : 1,
-              },
+              canSubmit ? { borderColor: themeColors.primary } : { backgroundColor: themeColors.muted },
+              { opacity: loading ? 0.6 : 1 },
             ]}
             onPress={handleSubmit}
             disabled={loading}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#000" />
             ) : (
-              <Text style={styles.submitText}>Share Story</Text>
+              <Text style={[styles.submitText, !canSubmit && { color: themeColors.textMuted }]}>Share Story</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -290,17 +286,19 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 16,
     padding: 24,
     paddingBottom: 24,
     maxHeight: "85%",
     width: "90%",
     maxWidth: 420,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 10,
+    elevation: 4,
     zIndex: 1,
   },
   scrollContainer: {
@@ -388,6 +386,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   counterRow: {
     flexDirection: "row",
@@ -434,20 +438,23 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 52,
-    borderRadius: 26,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 8,
-    shadowColor: "#0EA5E9",
+    borderWidth: 1,
+    backgroundColor: '#fff',
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   submitText: {
     fontFamily: Fonts.heading,
     fontSize: 18,
-    color: "#fff",
+    color: '#000',
     letterSpacing: 1,
   },
 });

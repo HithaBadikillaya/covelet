@@ -17,8 +17,10 @@ export interface RouletteMemory {
     authorName?: string;
     title?: string;
     description?: string;
-    latitude?: number;
-    longitude?: number;
+    location?: {
+        latitude: number;
+        longitude: number;
+    };
     createdAt?: { seconds: number } | null;
 }
 
@@ -77,8 +79,10 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
                     content: data.description || '',
                     title: data.title,
                     authorName: data.authorName,
-                    latitude: data.latitude,
-                    longitude: data.longitude,
+                    location: {
+                        latitude: data.location?.latitude,
+                        longitude: data.location?.longitude,
+                    },
                     createdAt: data.createdAt ?? null,
                 });
             });

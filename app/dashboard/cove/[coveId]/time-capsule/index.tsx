@@ -220,10 +220,11 @@ export default function TimeCapsuleScreen() {
 
                     {isOwner ? (
                         <TouchableOpacity
-                            style={[styles.btnPrimary, { backgroundColor: themeColors.primary, marginTop: 24, paddingHorizontal: 32 }]}
+                            style={[styles.btnPrimary, { backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1, marginTop: 24, paddingHorizontal: 32 }]}
                             onPress={() => setModalVisible(true)}
+                            activeOpacity={0.85}
                         >
-                            <Text style={styles.btnText}>Create Time Capsule</Text>
+                            <Text style={[styles.btnText, { color: '#000' }]}>Create Time Capsule</Text>
                         </TouchableOpacity>
                     ) : (
                         <Text style={styles.emptySub}>Waiting for the Cove owner to create one.</Text>
@@ -336,14 +337,15 @@ export default function TimeCapsuleScreen() {
                                 onChangeText={setNewEntryText}
                             />
                             <TouchableOpacity
-                                style={[styles.btnPrimary, { marginTop: 16, backgroundColor: themeColors.primary }]}
+                                style={[styles.btnPrimary, { marginTop: 16, backgroundColor: '#fff', borderColor: themeColors.primary, borderWidth: 1 }]}
                                 onPress={handleAddEntry}
                                 disabled={addingEntry}
+                                activeOpacity={0.85}
                             >
                                 {addingEntry ? (
-                                    <ActivityIndicator color="#fff" />
+                                    <ActivityIndicator color="#000" />
                                 ) : (
-                                    <Text style={styles.btnText}>Drop into Capsule</Text>
+                                    <Text style={[styles.btnText, { color: '#000' }]}>Drop into Capsule</Text>
                                 )}
                             </TouchableOpacity>
                         </View>

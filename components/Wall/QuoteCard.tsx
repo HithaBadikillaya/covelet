@@ -121,11 +121,12 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
                             editable={!submittingReply}
                         />
                         <TouchableOpacity
-                            style={[styles.replyBtn, { backgroundColor: themeColors.primary }]}
+                            style={[styles.replyBtn, { borderColor: themeColors.primary, backgroundColor: '#fff' }]}
                             onPress={handleAddReply}
                             disabled={!replyText.trim() || submittingReply}
+                            activeOpacity={0.85}
                         >
-                            <Text style={styles.replyBtnText}>Reply</Text>
+                            <Text style={[styles.replyBtnText, { color: '#000' }]}>Reply</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -135,7 +136,18 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-    card: { padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    card: { 
+        padding: 16, 
+        borderRadius: 14, 
+        marginBottom: 12, 
+        borderWidth: 1, 
+        borderColor: 'rgba(0,0,0,0.05)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+    },
     row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
     content: { flex: 1, fontFamily: Fonts.body, fontSize: 16, lineHeight: 22 },
     meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
@@ -150,7 +162,32 @@ const styles = StyleSheet.create({
     replyAuthor: { fontFamily: Fonts.bodyBold, fontSize: 12, marginBottom: 2 },
     replyContent: { fontFamily: Fonts.body, fontSize: 14 },
     replyInputRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-    replyInput: { flex: 1, borderRadius: 8, padding: 10, fontFamily: Fonts.body, fontSize: 14 },
-    replyBtn: { paddingHorizontal: 16, justifyContent: 'center', borderRadius: 20 },
-    replyBtnText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: '#fff' },
+    replyInput: { 
+        flex: 1, 
+        borderRadius: 12, 
+        padding: 10, 
+        fontFamily: Fonts.body, 
+        fontSize: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    replyBtn: { 
+        paddingHorizontal: 16, 
+        justifyContent: 'center', 
+        borderRadius: 12,
+        borderWidth: 1,
+        backgroundColor: '#fff',
+        borderColor: 'rgba(0,0,0,0.15)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    replyBtnText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: '#000' },
 });

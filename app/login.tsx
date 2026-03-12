@@ -161,15 +161,28 @@ export default function LoginScreen() {
                         )}
 
                         <TouchableOpacity
-                            activeOpacity={0.8}
-                            style={[styles.button, { backgroundColor: themeColors.primary }]}
+                            activeOpacity={0.85}
+                            style={[
+                                styles.button,
+                                {
+                                    borderColor: themeColors.primary,
+                                    backgroundColor: '#fff',
+                                    borderWidth: 1,
+                                    borderRadius: 12,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.06,
+                                    shadowRadius: 8,
+                                    elevation: 2,
+                                },
+                            ]}
                             onPress={handleAuth}
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color={themeColors.background} />
+                                <ActivityIndicator color="#000" />
                             ) : (
-                                <Text style={[styles.buttonText, { color: themeColors.background }]}>
+                                <Text style={[styles.buttonText, { color: '#000' }]}> 
                                     {isLogin ? 'Sign In' : 'Sign Up'}
                                 </Text>
                             )}
@@ -183,16 +196,29 @@ export default function LoginScreen() {
 
                         <TouchableOpacity
                             activeOpacity={0.7}
-                            style={[styles.socialButton, { borderColor: themeColors.primary }]}
+                            style={[
+                                styles.button,
+                                {
+                                    borderColor: themeColors.primary,
+                                    backgroundColor: '#fff',
+                                    borderWidth: 1,
+                                    borderRadius: 12,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.06,
+                                    shadowRadius: 8,
+                                    elevation: 2,
+                                },
+                            ]}
                             onPress={handleGoogleSignIn}
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color={themeColors.primary} />
+                                <ActivityIndicator color="#000" />
                             ) : (
                                 <>
-                                    <Ionicons name="logo-google" size={20} color={themeColors.primary} style={{ marginRight: 10 }} />
-                                    <Text style={[styles.socialButtonText, { color: themeColors.primary }]}>Continue with Google</Text>
+                                    <Ionicons name="logo-google" size={20} color="#000" style={{ marginRight: 10 }} />
+                                    <Text style={[styles.socialButtonText, { color: '#000' }]}>Continue with Google</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -275,8 +301,10 @@ const styles = StyleSheet.create({
     },
     button: {
         height: 56,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingHorizontal: 16,
         marginBottom: 24,
     },
     buttonText: {
