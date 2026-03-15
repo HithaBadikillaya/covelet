@@ -76,6 +76,7 @@ export function usePins(coveId: string | undefined): UsePinsResult {
     }) => {
         if (!coveId || !auth.currentUser) throw new Error('You must be logged in');
         const user = auth.currentUser;
+        const now = new Date();
         await addDoc(collection(db, 'coves', coveId, 'pins'), {
             title: data.title.trim(),
             description: data.description.trim(),
@@ -83,6 +84,8 @@ export function usePins(coveId: string | undefined): UsePinsResult {
             longitude: data.longitude,
             authorId: user.uid,
             createdAt: serverTimestamp(),
+            day: now.getDate(),
+            month: now.getMonth(),
             ...(data.mediaRef && { mediaRef: data.mediaRef }),
         });
     };

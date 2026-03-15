@@ -125,12 +125,15 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     const createQuote = async (content: string) => {
         if (!coveId || !auth.currentUser) throw new Error('You must be logged in');
         const user = auth.currentUser;
+        const now = new Date();
         await addDoc(collection(db, 'coves', coveId, 'quotes'), {
             authorId: user.uid,
             authorName: user.displayName || 'Member',
             content: content.trim(),
             coveId,
             createdAt: serverTimestamp(),
+            day: now.getDate(),
+            month: now.getMonth(),
             upvotesCount: 0,
         });
     };

@@ -142,12 +142,15 @@ export default function TimeCapsuleScreen() {
     const handleAddEntry = async () => {
         if (!newEntryText.trim() || !capsule || !currentUser) return;
 
-        setAddingEntry(true);
         try {
+            const now = new Date();
             await addDoc(collection(db, 'coves', coveId!, 'timeCapsules', capsule.id, 'entries'), {
                 text: newEntryText.trim(),
                 authorId: currentUser.uid,
                 createdAt: serverTimestamp(),
+                coveId,
+                day: now.getDate(),
+                month: now.getMonth(),
             });
             setNewEntryText('');
             Alert.alert("Memory Added", "Your secret is safe until the capsule opens.");

@@ -1,5 +1,5 @@
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 
 export type FlashbackSource = 'quote' | 'pin' | 'human' | 'capsule';
@@ -47,54 +47,69 @@ export function useFlashbackMemories(coveId: string | undefined) {
                 snap.docs.forEach((d) => {
                     const data = d.data();
                     const createdAt = data.createdAt ?? null;
-                    if (!createdAt?.seconds) return;
-                    const dDate = new Date(createdAt.seconds * 1000);
-                    if (
-                        dDate.getMonth() === TARGET_MONTH &&
-                        dDate.getDate() === TARGET_DATE &&
-                        dDate.getFullYear() < CURRENT_YEAR
-                    ) {
-                        collected.push({
-                            source,
-                            id: d.id,
-                            content: data[contentKey] ?? data.text ?? '',
-                            title: titleKey ? data[titleKey] : undefined,
-                            authorName: data.authorName,
-                            year: dDate.getFullYear(),
-                            createdAt,
-                        });
+                    // Filter past years only (current year memories aren't "flashbacks")
+                    if (createdAt?.seconds) {
+                        const dDate = new Date(createdAt.seconds * 1000);
+                        if (dDate.getFullYear() >= CURRENT_YEAR) return;
                     }
+
+                    collected.push({
+                        source,
+                        id: d.id,
+                        content: data[contentKey] ?? data.text ?? '',
+                        title: titleKey ? data[titleKey] : undefined,
+                        authorName: data.authorName,
+                        year: data.year ?? (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).getFullYear() : CURRENT_YEAR - 1),
+                        createdAt: data.createdAt ?? null,
+                    });
                 });
             };
 
-            const qQuotes = query(base(['quotes']), orderBy('createdAt', 'desc'), limit(MAX_PER_SOURCE));
-            addFromSnap(await getDocs(qQuotes), 'quote', 'content');
+            // Queries are now server-side filtered by day and month
+            const commonFilters = [
+                where('day', '==', TARGET_DATE),
+                where('month', '==', TARGET_MONTH),
+                orderBy('createdAt', 'desc'),
+                limit(MAX_PER_SOURCE)
+            ];
 
-            const qPins = query(base(['pins']), orderBy('createdAt', 'desc'), limit(MAX_PER_SOURCE));
-            addFromSnap(await getDocs(qPins), 'pin', 'description', 'title');
+            const qQuotes = query(base(['quotes']), ...commonFilters);
+            const qPins = query(base(['pins']), ...commonFilters);
+            const qHumans = query(base(['humans']), ...commonFilters);
 
-            const qHumans = query(base(['humans']), orderBy('createdAt', 'desc'), limit(MAX_PER_SOURCE));
-            const snapHumans = await getDocs(qHumans);
+            // Capsule entries are nested, so we use collectionGroup
+            const qCapsules = query(
+                collectionGroup(db, 'entries'),
+                where('coveId', '==', coveId),
+                ...commonFilters
+            );
+
+            // Fetch all in parallel
+            const [snapQuotes, snapPins, snapHumans, snapCapsules] = await Promise.all([
+                getDocs(qQuotes),
+                getDocs(qPins),
+                getDocs(qHumans),
+                getDocs(qCapsules)
+            ]);
+
+            addFromSnap(snapQuotes, 'quote', 'content');
+            addFromSnap(snapPins, 'pin', 'description', 'title');
+            
+            // Special handling for humans (anonymity)
             snapHumans.docs.forEach((d) => {
                 const data = d.data();
-                const createdAt = data.createdAt ?? null;
-                if (!createdAt?.seconds) return;
-                const dDate = new Date(createdAt.seconds * 1000);
-                if (
-                    dDate.getMonth() === TARGET_MONTH &&
-                    dDate.getDate() === TARGET_DATE &&
-                    dDate.getFullYear() < CURRENT_YEAR
-                ) {
-                    collected.push({
-                        source: 'human',
-                        id: d.id,
-                        content: data.content ?? '',
-                        authorName: data.isAnonymous ? 'Anonymous' : data.authorName,
-                        year: dDate.getFullYear(),
-                        createdAt,
-                    });
-                }
+                if (data.year && data.year >= CURRENT_YEAR) return;
+                collected.push({
+                    source: 'human',
+                    id: d.id,
+                    content: data.content ?? '',
+                    authorName: data.isAnonymous ? 'Anonymous' : data.authorName,
+                    year: data.year ?? (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).getFullYear() : CURRENT_YEAR - 1),
+                    createdAt: data.createdAt ?? null,
+                });
             });
+
+            addFromSnap(snapCapsules, 'capsule', 'text');
 
             collected.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
             setMemories(collected);

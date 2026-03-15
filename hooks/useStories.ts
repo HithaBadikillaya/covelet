@@ -122,12 +122,15 @@ export function useStories(coveId: string | undefined): UseStoriesResult {
         }
 
         const user = auth.currentUser;
+        const now = new Date();
         const storyData = {
             authorId: user.uid,
             authorName: user.displayName || 'Anonymous',
             authorAvatar: user.photoURL || null,
             content: content.trim(),
             createdAt: serverTimestamp(),
+            day: now.getDate(),
+            month: now.getMonth(),
             isAnonymous,
             likesCount: 0,
         };
