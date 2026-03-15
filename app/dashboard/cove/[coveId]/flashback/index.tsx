@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { FEATURE_DESCRIPTIONS } from '@/constants/features';
 import { Colors, Fonts } from '@/constants/theme';
 import type { FlashbackMemory } from '@/hooks/useFlashbackMemories';
@@ -37,61 +36,59 @@ export default function FlashbackScreen() {
     };
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>On this day</Text>
-                    <View style={{ width: 24 }} />
-                </View>
-                <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.flashback}
-                </Text>
-                {loading ? (
-                    <View style={styles.center}>
-                        <ActivityIndicator size="large" color={themeColors.primary} />
-                    </View>
-                ) : error ? (
-                    <View style={styles.center}>
-                        <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: themeColors.primary }]} onPress={fetchFlashbacks}>
-                            <Text style={styles.retryText}>Retry</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : memories.length === 0 ? (
-                    <View style={styles.empty}>
-                        <Ionicons name="calendar-outline" size={64} color={themeColors.textMuted} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No memories from this day</Text>
-                        <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>
-                            Nothing from this date in past years. Check back next year!
-                        </Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={memories}
-                        keyExtractor={(m) => `${m.source}-${m.id}-${m.year}`}
-                        contentContainerStyle={styles.list}
-                        renderItem={({ item }) => (
-                            <View style={[styles.card, { backgroundColor: themeColors.card }]}>
-                                <View style={styles.cardHeader}>
-                                    <Text style={[styles.year, { color: themeColors.primary }]}>{item.year}</Text>
-                                    <Text style={[styles.source, { color: themeColors.textMuted }]}>{sourceLabel(item)}</Text>
-                                </View>
-                                {item.title && (
-                                    <Text style={[styles.cardTitle, { color: themeColors.text }]}>{item.title}</Text>
-                                )}
-                                <Text style={[styles.cardContent, { color: themeColors.text }]}>{item.content}</Text>
-                                {item.authorName && (
-                                    <Text style={[styles.cardAuthor, { color: themeColors.textMuted }]}>— {item.authorName}</Text>
-                                )}
-                            </View>
-                        )}
-                    />
-                )}
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.title, { color: themeColors.text }]}>On this day</Text>
+                <View style={{ width: 24 }} />
             </View>
-        </AuthGuard>
+            <Text style={[styles.description, { color: themeColors.textMuted }]}>
+                {FEATURE_DESCRIPTIONS.flashback}
+            </Text>
+            {loading ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={themeColors.primary} />
+                </View>
+            ) : error ? (
+                <View style={styles.center}>
+                    <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
+                    <TouchableOpacity style={[styles.retryBtn, { backgroundColor: themeColors.primary }]} onPress={fetchFlashbacks}>
+                        <Text style={styles.retryText}>Retry</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : memories.length === 0 ? (
+                <View style={styles.empty}>
+                    <Ionicons name="calendar-outline" size={64} color={themeColors.textMuted} />
+                    <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No memories from this day</Text>
+                    <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>
+                        Nothing from this date in past years. Check back next year!
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={memories}
+                    keyExtractor={(m) => `${m.source}-${m.id}-${m.year}`}
+                    contentContainerStyle={styles.list}
+                    renderItem={({ item }) => (
+                        <View style={[styles.card, { backgroundColor: themeColors.card }]}>
+                            <View style={styles.cardHeader}>
+                                <Text style={[styles.year, { color: themeColors.primary }]}>{item.year}</Text>
+                                <Text style={[styles.source, { color: themeColors.textMuted }]}>{sourceLabel(item)}</Text>
+                            </View>
+                            {item.title && (
+                                <Text style={[styles.cardTitle, { color: themeColors.text }]}>{item.title}</Text>
+                            )}
+                            <Text style={[styles.cardContent, { color: themeColors.text }]}>{item.content}</Text>
+                            {item.authorName && (
+                                <Text style={[styles.cardAuthor, { color: themeColors.textMuted }]}>— {item.authorName}</Text>
+                            )}
+                        </View>
+                    )}
+                />
+            )}
+        </View>
     );
 }
 

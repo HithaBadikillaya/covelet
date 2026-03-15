@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { FEATURE_DESCRIPTIONS } from '@/constants/features';
 import { Colors, Fonts } from '@/constants/theme';
 import { useMemoryRoulette } from '@/hooks/useMemoryRoulette';
@@ -21,63 +20,61 @@ export default function RouletteScreen() {
     const { loading, error, memory, spin } = useMemoryRoulette(coveId);
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>Memory Roulette</Text>
-                    <View style={{ width: 24 }} />
-                </View>
-                <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.roulette}
-                </Text>
-                <View style={styles.content}>
-                    {error && !memory && (
-                        <View style={styles.errorBox}>
-                            <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                        </View>
-                    )}
-                    {loading && (
-                        <View style={styles.spinArea}>
-                            <ActivityIndicator size="large" color={themeColors.primary} />
-                            <Text style={[styles.spinLabel, { color: themeColors.textMuted }]}>Spinning...</Text>
-                        </View>
-                    )}
-                    {!loading && memory && (
-                        <View style={[styles.memoryCard, { backgroundColor: themeColors.card }]}>
-                            <View style={styles.badge}>
-                                <Text style={[styles.badgeText, { color: themeColors.primary }]}>
-                                    {memory.type === 'quote' && 'Quote'}
-                                    {memory.type === 'pin' && 'Map memory'}
-                                    {memory.type === 'human' && 'Human story'}
-                                    {memory.type === 'capsule' && 'Time capsule'}
-                                </Text>
-                            </View>
-                            {memory.title && (
-                                <Text style={[styles.memoryTitle, { color: themeColors.text }]}>{memory.title}</Text>
-                            )}
-                            <Text style={[styles.memoryContent, { color: themeColors.text }]}>{memory.content}</Text>
-                            {memory.authorName && (
-                                <Text style={[styles.memoryAuthor, { color: themeColors.textMuted }]}>— {memory.authorName}</Text>
-                            )}
-                        </View>
-                    )}
-                    {!loading && !memory && !error && (
-                        <Text style={[styles.hint, { color: themeColors.textMuted }]}>Tap Spin to see a random memory.</Text>
-                    )}
-                    <TouchableOpacity
-                        style={[styles.spinBtn, { backgroundColor: themeColors.primary }]}
-                        onPress={spin}
-                        disabled={loading}
-                    >
-                        <Ionicons name="dice-outline" size={28} color="#fff" />
-                        <Text style={styles.spinBtnText}>Spin</Text>
-                    </TouchableOpacity>
-                </View>
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.title, { color: themeColors.text }]}>Memory Roulette</Text>
+                <View style={{ width: 24 }} />
             </View>
-        </AuthGuard>
+            <Text style={[styles.description, { color: themeColors.textMuted }]}>
+                {FEATURE_DESCRIPTIONS.roulette}
+            </Text>
+            <View style={styles.content}>
+                {error && !memory && (
+                    <View style={styles.errorBox}>
+                        <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
+                    </View>
+                )}
+                {loading && (
+                    <View style={styles.spinArea}>
+                        <ActivityIndicator size="large" color={themeColors.primary} />
+                        <Text style={[styles.spinLabel, { color: themeColors.textMuted }]}>Spinning...</Text>
+                    </View>
+                )}
+                {!loading && memory && (
+                    <View style={[styles.memoryCard, { backgroundColor: themeColors.card }]}>
+                        <View style={styles.badge}>
+                            <Text style={[styles.badgeText, { color: themeColors.primary }]}>
+                                {memory.type === 'quote' && 'Quote'}
+                                {memory.type === 'pin' && 'Map memory'}
+                                {memory.type === 'human' && 'Human story'}
+                                {memory.type === 'capsule' && 'Time capsule'}
+                            </Text>
+                        </View>
+                        {memory.title && (
+                            <Text style={[styles.memoryTitle, { color: themeColors.text }]}>{memory.title}</Text>
+                        )}
+                        <Text style={[styles.memoryContent, { color: themeColors.text }]}>{memory.content}</Text>
+                        {memory.authorName && (
+                            <Text style={[styles.memoryAuthor, { color: themeColors.textMuted }]}>— {memory.authorName}</Text>
+                        )}
+                    </View>
+                )}
+                {!loading && !memory && !error && (
+                    <Text style={[styles.hint, { color: themeColors.textMuted }]}>Tap Spin to see a random memory.</Text>
+                )}
+                <TouchableOpacity
+                    style={[styles.spinBtn, { backgroundColor: themeColors.primary }]}
+                    onPress={spin}
+                    disabled={loading}
+                >
+                    <Ionicons name="dice-outline" size={28} color="#fff" />
+                    <Text style={styles.spinBtnText}>Spin</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
     );
 }
 

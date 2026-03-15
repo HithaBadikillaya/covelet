@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateStoryModal } from '@/components/Cove/Humans/CreateStoryModal';
 import { EditStoryModal } from '@/components/Cove/Humans/EditStoryModal';
 import { StoryCard } from '@/components/Cove/Humans/StoryCard';
@@ -98,105 +97,99 @@ export default function HumansScreen() {
 
     if (loading && stories.length === 0) {
         return (
-            <AuthGuard>
-                <View style={[styles.container, styles.centerAll, { backgroundColor: themeColors.background }]}>
-                    <ActivityIndicator size="large" color={themeColors.primary} />
-                </View>
-            </AuthGuard>
+            <View style={[styles.container, styles.centerAll, { backgroundColor: themeColors.background }]}>
+                <ActivityIndicator size="large" color={themeColors.primary} />
+            </View>
         );
     }
 
     if (error && stories.length === 0) {
         return (
-            <AuthGuard>
-                <View style={[styles.container, styles.centerAll, { backgroundColor: themeColors.background }]}>
-                    <Ionicons name="alert-circle-outline" size={64} color={themeColors.error} />
-                    <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                    <TouchableOpacity
-                        style={[styles.retryButton, { backgroundColor: themeColors.primary }]}
-                        onPress={() => router.back()}
-                    >
-                        <Text style={styles.retryText}>Go Back</Text>
-                    </TouchableOpacity>
-                </View>
-            </AuthGuard>
+            <View style={[styles.container, styles.centerAll, { backgroundColor: themeColors.background }]}>
+                <Ionicons name="alert-circle-outline" size={64} color={themeColors.error} />
+                <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
+                <TouchableOpacity
+                    style={[styles.retryButton, { backgroundColor: themeColors.primary }]}
+                    onPress={() => router.back()}
+                >
+                    <Text style={styles.retryText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
         );
     }
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                {/* Header */}
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>
-                        Humans of Our Cove
-                    </Text>
-                    <View style={{ width: 24 }} />
-                </View>
-
-                {/* Stories Feed */}
-                {stories.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="people-outline" size={80} color={themeColors.textMuted} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
-                            Every cove has stories.
-                        </Text>
-                        <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
-                            Be the first to share.
-                        </Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={stories}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={styles.listContent}
-                        renderItem={({ item }) => (
-                            <StoryCard
-                                story={item}
-                                onLike={() => handleLike(item.id, item.likesCount)}
-                                onDelete={() => handleDeleteStory(item.id)}
-                                onEdit={() => handleEditPress(item.id, item.content)}
-                                hasLiked={hasLiked(item.id)}
-                                isOwner={isOwner}
-                            />
-                        )}
-                        showsVerticalScrollIndicator={false}
-                    />
-                )}
-
-                {/* Floating Action Button */}
-                <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
-                    onPress={() => setModalVisible(true)}
-                    activeOpacity={0.8}
-                >
-                    <Ionicons name="add" size={28} color="#fff" />
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            {/* Header */}
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
                 </TouchableOpacity>
-
-                {/* Create Story Modal */}
-                <CreateStoryModal
-                    visible={modalVisible}
-                    onClose={() => setModalVisible(false)}
-                    onSubmit={handleCreateStory}
-                />
-
-                {/* Edit Story Modal */}
-                {editingStory && (
-                    <EditStoryModal
-                        visible={editModalVisible}
-                        onClose={() => {
-                            setEditModalVisible(false);
-                            setEditingStory(null);
-                        }}
-                        onSubmit={handleEditStory}
-                        initialContent={editingStory.content}
-                    />
-                )}
+                <Text style={[styles.title, { color: themeColors.text }]}>
+                    Humans of Our Cove
+                </Text>
+                <View style={{ width: 24 }} />
             </View>
-        </AuthGuard>
+
+            {/* Stories Feed */}
+            {stories.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="people-outline" size={80} color={themeColors.textMuted} />
+                    <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+                        Every cove has stories.
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
+                        Be the first to share.
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={stories}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item }) => (
+                        <StoryCard
+                            story={item}
+                            onLike={() => handleLike(item.id, item.likesCount)}
+                            onDelete={() => handleDeleteStory(item.id)}
+                            onEdit={() => handleEditPress(item.id, item.content)}
+                            hasLiked={hasLiked(item.id)}
+                            isOwner={isOwner}
+                        />
+                    )}
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
+
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={[styles.fab, { backgroundColor: themeColors.primary }]}
+                onPress={() => setModalVisible(true)}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </TouchableOpacity>
+
+            {/* Create Story Modal */}
+            <CreateStoryModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                onSubmit={handleCreateStory}
+            />
+
+            {/* Edit Story Modal */}
+            {editingStory && (
+                <EditStoryModal
+                    visible={editModalVisible}
+                    onClose={() => {
+                        setEditModalVisible(false);
+                        setEditingStory(null);
+                    }}
+                    onSubmit={handleEditStory}
+                    initialContent={editingStory.content}
+                />
+            )}
+        </View>
     );
 }
 

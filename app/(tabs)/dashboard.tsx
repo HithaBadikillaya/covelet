@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { CoveCard } from '@/components/Dashboard/CoveCard';
 import { CreateCoveModal } from '@/components/Dashboard/CreateCoveModal';
@@ -87,83 +86,81 @@ const DashboardScreen = () => {
     };
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
 
-                <View style={[styles.header, { backgroundColor: themeColors.card, paddingTop: insets.top + NAVBAR_HEIGHT + 20 }]}>
-                    <View style={styles.headerContent}>
-                        <Text style={[styles.greeting, { color: themeColors.text }]}>
-                            Your Sanctuaries
-                        </Text>
-                        <Text style={[styles.subGreeting, { color: themeColors.textMuted }]}>
-                            Manage your circles and revisited memories.
-                        </Text>
-                    </View>
+            <View style={[styles.header, { backgroundColor: themeColors.card, paddingTop: insets.top + NAVBAR_HEIGHT + 20 }]}>
+                <View style={styles.headerContent}>
+                    <Text style={[styles.greeting, { color: themeColors.text }]}>
+                        Your Sanctuaries
+                    </Text>
+                    <Text style={[styles.subGreeting, { color: themeColors.textMuted }]}>
+                        Manage your circles and revisited memories.
+                    </Text>
+                </View>
+            </View>
+
+            <View style={[styles.content, { backgroundColor: themeColors.background }]}>
+                <View style={styles.actionRow}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
+                        onPress={() => {
+                            console.log("Create Cove button pressed");
+                            setCreateModalVisible(true);
+                        }}
+                    >
+                        <Ionicons name="add" size={24} color={themeColors.background} />
+                        <Text style={[styles.actionButtonText, { color: themeColors.background }]}>Create Cove</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButtonSecondary, { borderColor: themeColors.primary }]}
+                        onPress={() => {
+                            console.log("Join Cove button pressed");
+                            setJoinModalVisible(true);
+                        }}
+                    >
+                        <Ionicons name="enter-outline" size={24} color={themeColors.primary} />
+                        <Text style={[styles.actionButtonTextSecondary, { color: themeColors.primary }]}>Join Cove</Text>
+                    </TouchableOpacity>
                 </View>
 
-                <View style={[styles.content, { backgroundColor: themeColors.background }]}>
-                    <View style={styles.actionRow}>
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
-                            onPress={() => {
-                                console.log("Create Cove button pressed");
-                                setCreateModalVisible(true);
-                            }}
-                        >
-                            <Ionicons name="add" size={24} color={themeColors.background} />
-                            <Text style={[styles.actionButtonText, { color: themeColors.background }]}>Create Cove</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.actionButtonSecondary, { borderColor: themeColors.primary }]}
-                            onPress={() => {
-                                console.log("Join Cove button pressed");
-                                setJoinModalVisible(true);
-                            }}
-                        >
-                            <Ionicons name="enter-outline" size={24} color={themeColors.primary} />
-                            <Text style={[styles.actionButtonTextSecondary, { color: themeColors.primary }]}>Join Cove</Text>
-                        </TouchableOpacity>
+                {error && (
+                    <View style={[styles.errorBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: themeColors.error }]}>
+                        <Ionicons name="alert-circle-outline" size={24} color={themeColors.error} />
+                        <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
                     </View>
+                )}
 
-                    {error && (
-                        <View style={[styles.errorBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: themeColors.error }]}>
-                            <Ionicons name="alert-circle-outline" size={24} color={themeColors.error} />
-                            <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                        </View>
-                    )}
-
-                    {loading ? (
-                        <View style={styles.loaderBox}>
-                            <ActivityIndicator size="large" color={themeColors.primary} />
-                        </View>
-                    ) : coves.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="boat-outline" size={64} color={themeColors.muted} />
-                            <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No Coves Yet</Text>
-                            <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
-                                Create your own cove or join one using a code shared by a friend.
-                            </Text>
-                        </View>
-                    ) : (
-                        <ScrollView
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.scrollContent}
-                        >
-                            {coves.map((cove) => (
-                                <CoveCard
-                                    key={cove.id}
-                                    name={cove.name}
-                                    description={cove.description}
-                                    memberCount={cove.members?.length || 0}
-                                    isOwner={cuser?.uid === cove.createdBy}
-                                    onPress={() => handleCovePress(cove.id)}
-                                />
-                            ))}
-                        </ScrollView>
-                    )}
-                </View>
+                {loading ? (
+                    <View style={styles.loaderBox}>
+                        <ActivityIndicator size="large" color={themeColors.primary} />
+                    </View>
+                ) : coves.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="boat-outline" size={64} color={themeColors.muted} />
+                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No Coves Yet</Text>
+                        <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
+                            Create your own cove or join one using a code shared by a friend.
+                        </Text>
+                    </View>
+                ) : (
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.scrollContent}
+                    >
+                        {coves.map((cove) => (
+                            <CoveCard
+                                key={cove.id}
+                                name={cove.name}
+                                description={cove.description}
+                                memberCount={cove.members?.length || 0}
+                                isOwner={cuser?.uid === cove.createdBy}
+                                onPress={() => handleCovePress(cove.id)}
+                            />
+                        ))}
+                    </ScrollView>
+                )}
             </View>
             <CreateCoveModal
                 visible={createModalVisible}
@@ -174,7 +171,7 @@ const DashboardScreen = () => {
                 onClose={() => setJoinModalVisible(false)}
                 onJoin={(coveId) => handleCovePress(coveId)}
             />
-        </AuthGuard>
+        </View>
     );
 }
 

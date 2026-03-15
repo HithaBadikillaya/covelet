@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateCapsuleModal } from '@/components/Cove/TimeCapsule/CreateCapsuleModal';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
@@ -72,6 +71,7 @@ export default function TimeCapsuleScreen() {
     const isTimeUnlocked = now >= unlockDate;
     const isEmergencyOpen = capsule?.isEmergencyOpened || false;
     const isUnlocked = isTimeUnlocked || isEmergencyOpen;
+    const isUnlockedBanner = isUnlocked;
 
     /* ---------------- 0. FETCH COVE (For Ownership) ---------------- */
     useEffect(() => {
@@ -113,7 +113,7 @@ export default function TimeCapsuleScreen() {
 
     /* ---------------- 2. FETCH ENTRIES (If Unlocked) ---------------- */
     useEffect(() => {
-        if (!coveId || !capsule || !isUnlocked) {
+        if (!coveId || !capsule || !isUnlockedBanner) {
             setEntries([]);
             return;
         }
@@ -135,7 +135,7 @@ export default function TimeCapsuleScreen() {
         });
 
         return () => unsub();
-    }, [coveId, capsule?.id, isUnlocked]);
+    }, [coveId, capsule?.id, isUnlockedBanner]);
 
 
     /* ---------------- HANDLERS ---------------- */
@@ -212,33 +212,31 @@ export default function TimeCapsuleScreen() {
     // A. NO CAPSULE
     if (!loadingCapsule && !capsule) {
         return (
-            <AuthGuard>
-                <View style={[styles.container, styles.centerAll]}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backAbsolute}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+            <View style={[styles.container, styles.centerAll]}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backAbsolute}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+
+                <Ionicons name="hourglass-outline" size={64} color="#ccc" />
+                <Text style={styles.emptyTitle}>No Time Capsule Found</Text>
+
+                {isOwner ? (
+                    <TouchableOpacity
+                        style={[styles.btnPrimary, { backgroundColor: themeColors.primary, marginTop: 24, paddingHorizontal: 32 }]}
+                        onPress={() => setModalVisible(true)}
+                    >
+                        <Text style={styles.btnText}>Create Time Capsule</Text>
                     </TouchableOpacity>
+                ) : (
+                    <Text style={styles.emptySub}>Waiting for the Cove owner to create one.</Text>
+                )}
 
-                    <Ionicons name="hourglass-outline" size={64} color="#ccc" />
-                    <Text style={styles.emptyTitle}>No Time Capsule Found</Text>
-
-                    {isOwner ? (
-                        <TouchableOpacity
-                            style={[styles.btnPrimary, { backgroundColor: themeColors.primary, marginTop: 24, paddingHorizontal: 32 }]}
-                            onPress={() => setModalVisible(true)}
-                        >
-                            <Text style={styles.btnText}>Create Time Capsule</Text>
-                        </TouchableOpacity>
-                    ) : (
-                        <Text style={styles.emptySub}>Waiting for the Cove owner to create one.</Text>
-                    )}
-
-                    <CreateCapsuleModal
-                        visible={modalVisible}
-                        onClose={() => setModalVisible(false)}
-                        coveId={coveId!}
-                    />
-                </View>
-            </AuthGuard>
+                <CreateCapsuleModal
+                    visible={modalVisible}
+                    onClose={() => setModalVisible(false)}
+                    coveId={coveId!}
+                />
+            </View>
         );
     }
 
@@ -249,111 +247,109 @@ export default function TimeCapsuleScreen() {
 
     // C. ACTIVE CAPSULE (Locked/Unlocked)
     return (
-        <AuthGuard>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={[styles.container, { backgroundColor: themeColors.background }]}
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={[styles.container, { backgroundColor: themeColors.background }]}
+        >
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+                <Text style={styles.title}>Time Capsule</Text>
+                {/* Owner Action: Emergency Toggle */}
+                {isOwner && (
+                    <TouchableOpacity onPress={handleEmergencyToggle}>
+                        <Ionicons
+                            name={isUnlockedBanner ? "lock-open" : "lock-closed"}
+                            size={24}
+                            color={isUnlockedBanner ? themeColors.error : themeColors.text}
+                        />
                     </TouchableOpacity>
-                    <Text style={styles.title}>Time Capsule</Text>
-                    {/* Owner Action: Emergency Toggle */}
-                    {isOwner && (
-                        <TouchableOpacity onPress={handleEmergencyToggle}>
-                            <Ionicons
-                                name={isEmergencyOpen ? "lock-open" : "lock-closed"}
-                                size={24}
-                                color={isEmergencyOpen ? themeColors.error : themeColors.text}
-                            />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* STATUS BANNER */}
-                <View style={[styles.statusBanner, isUnlocked ? styles.bgOpen : styles.bgLocked]}>
-                    <Ionicons
-                        name={isUnlocked ? "lock-open-outline" : "lock-closed-outline"}
-                        size={32}
-                        color={isUnlocked ? "#10B981" : "#6B7280"}
-                    />
-                    <View>
-                        <Text style={styles.statusTitle}>
-                            {isUnlocked ? "CAPSULE UNLOCKED" : "CAPSULE LOCKED"}
-                        </Text>
-                        <Text style={styles.statusSub}>
-                            {isUnlocked
-                                ? "Memories are now visible to all."
-                                : `Unlocks on ${unlockDate.toLocaleDateString()}`}
-                        </Text>
-                    </View>
-
-                    {isUnlocked && isOwner && (
-                        <TouchableOpacity
-                            style={styles.notifyBtn}
-                            onPress={handleNotifyMembers}
-                        >
-                            <Ionicons name="mail-outline" size={20} color={themeColors.primary} />
-                            <Text style={[styles.notifyText, { color: themeColors.primary }]}>Notify</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* CONTENT AREA */}
-                {isUnlocked ? (
-                    // UNLOCKED: List Entries
-                    <FlatList
-                        data={entries}
-                        keyExtractor={i => i.id}
-                        contentContainerStyle={styles.listContent}
-                        renderItem={({ item }) => (
-                            <View style={styles.entryCard}>
-                                <Text style={styles.entryText}>{item.text}</Text>
-                                {/* We could show author name if we fetched profiles */}
-                            </View>
-                        )}
-                        ListEmptyComponent={
-                            <Text style={styles.emptyList}>The capsule was empty!</Text>
-                        }
-                    />
-                ) : (
-                    // LOCKED: Add Entry Form
-                    <View style={styles.lockedContainer}>
-                        <View style={styles.lockedPlaceholder}>
-                            <Ionicons name="eye-off-outline" size={48} color="#e5e5e5" />
-                            <Text style={styles.lockedHint}>
-                                Contents are hidden.
-                            </Text>
-                        </View>
-
-                        {/* Add Entry Input */}
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Add to the Capsule:</Text>
-                            <TextInput
-                                style={styles.textInput}
-                                placeholder="Write a memory, a prediction, or a secret..."
-                                multiline
-                                value={newEntryText}
-                                onChangeText={setNewEntryText}
-                            />
-                            <TouchableOpacity
-                                style={[styles.btnPrimary, { marginTop: 16, backgroundColor: themeColors.primary }]}
-                                onPress={handleAddEntry}
-                                disabled={addingEntry}
-                            >
-                                {addingEntry ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.btnText}>Drop into Capsule</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
                 )}
-            </KeyboardAvoidingView>
-        </AuthGuard>
+            </View>
+
+            {/* STATUS BANNER */}
+            <View style={[styles.statusBanner, isUnlockedBanner ? styles.bgOpen : styles.bgLocked]}>
+                <Ionicons
+                    name={isUnlockedBanner ? "lock-open-outline" : "lock-closed-outline"}
+                    size={32}
+                    color={isUnlockedBanner ? "#10B981" : "#6B7280"}
+                />
+                <View>
+                    <Text style={styles.statusTitle}>
+                        {isUnlockedBanner ? "CAPSULE UNLOCKED" : "CAPSULE LOCKED"}
+                    </Text>
+                    <Text style={styles.statusSub}>
+                        {isUnlockedBanner
+                            ? "Memories are now visible to all."
+                            : `Unlocks on ${unlockDate.toLocaleDateString()}`}
+                    </Text>
+                </View>
+
+                {isUnlockedBanner && isOwner && (
+                    <TouchableOpacity
+                        style={styles.notifyBtn}
+                        onPress={handleNotifyMembers}
+                    >
+                        <Ionicons name="mail-outline" size={20} color={themeColors.primary} />
+                        <Text style={[styles.notifyText, { color: themeColors.primary }]}>Notify</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {/* CONTENT AREA */}
+            {isUnlockedBanner ? (
+                // UNLOCKED: List Entries
+                <FlatList
+                    data={entries}
+                    keyExtractor={i => i.id}
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item }) => (
+                        <View style={styles.entryCard}>
+                            <Text style={styles.entryText}>{item.text}</Text>
+                            {/* We could show author name if we fetched profiles */}
+                        </View>
+                    )}
+                    ListEmptyComponent={
+                        <Text style={styles.emptyList}>The capsule was empty!</Text>
+                    }
+                />
+            ) : (
+                // LOCKED: Add Entry Form
+                <View style={styles.lockedContainer}>
+                    <View style={styles.lockedPlaceholder}>
+                        <Ionicons name="eye-off-outline" size={48} color="#e5e5e5" />
+                        <Text style={styles.lockedHint}>
+                            Contents are hidden.
+                        </Text>
+                    </View>
+
+                    {/* Add Entry Input */}
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.inputLabel}>Add to the Capsule:</Text>
+                        <TextInput
+                            style={styles.textInput}
+                            placeholder="Write a memory, a prediction, or a secret..."
+                            multiline
+                            value={newEntryText}
+                            onChangeText={setNewEntryText}
+                        />
+                        <TouchableOpacity
+                            style={[styles.btnPrimary, { marginTop: 16, backgroundColor: themeColors.primary }]}
+                            onPress={handleAddEntry}
+                            disabled={addingEntry}
+                        >
+                            {addingEntry ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.btnText}>Drop into Capsule</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+        </KeyboardAvoidingView>
     );
 }
 

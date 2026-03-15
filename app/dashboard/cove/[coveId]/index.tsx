@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { Colors, Fonts } from '@/constants/theme';
@@ -137,91 +136,89 @@ export default function CoveDetailsScreen() {
     };
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <ScrollView
-                    contentContainerStyle={{
-                        paddingTop: insets.top + NAVBAR_HEIGHT + 24,
-                        paddingHorizontal: 24,
-                        paddingBottom: 40,
-                    }}
-                >
-                    {/* HEADER */}
-                    <View style={styles.headerRow}>
-                        <TouchableOpacity onPress={() => router.replace('/(tabs)/dashboard')}>
-                            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            <ScrollView
+                contentContainerStyle={{
+                    paddingTop: insets.top + NAVBAR_HEIGHT + 24,
+                    paddingHorizontal: 24,
+                    paddingBottom: 40,
+                }}
+            >
+                {/* HEADER */}
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.replace('/(tabs)/dashboard')}>
+                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                    </TouchableOpacity>
+                    {isOwner && (
+                        <TouchableOpacity onPress={navigateToSettings}>
+                            <Ionicons name="settings-outline" size={24} color={themeColors.text} />
                         </TouchableOpacity>
-                        {isOwner && (
-                            <TouchableOpacity onPress={navigateToSettings}>
-                                <Ionicons name="settings-outline" size={24} color={themeColors.text} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                    )}
+                </View>
 
-                    <Text style={[styles.title, { color: themeColors.text }]}>
-                        {cove.name}
-                    </Text>
+                <Text style={[styles.title, { color: themeColors.text }]}>
+                    {cove.name}
+                </Text>
 
-                    <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                        {cove.description || 'A digital sanctuary.'}
-                    </Text>
+                <Text style={[styles.description, { color: themeColors.textMuted }]}>
+                    {cove.description || 'A digital sanctuary.'}
+                </Text>
 
-                    {/* FEATURE GRID */}
-                    <View style={styles.grid}>
-                        <FeatureCard
-                            title="Time Capsule"
-                            icon="hourglass-outline"
-                            color="#8B5CF6"
-                            onPress={() => navigateToFeature('time-capsule')}
-                        />
-                        <FeatureCard
-                            title="Humans"
-                            icon="people-outline"
-                            color="#EC4899"
-                            onPress={() => navigateToFeature('humans')}
-                        />
-                        <FeatureCard
-                            title="The Wall"
-                            icon="chatbubble-ellipses-outline"
-                            color="#F59E0B"
-                            onPress={() => navigateToFeature('wall')}
-                        />
-                        <FeatureCard
-                            title="Memory Map"
-                            icon="map-outline"
-                            color="#10B981"
-                            onPress={() => navigateToFeature('map')}
-                        />
-                        <FeatureCard
-                            title="Roulette"
-                            icon="dice-outline"
-                            color="#3B82F6"
-                            onPress={() => navigateToFeature('roulette')}
-                        />
-                        <FeatureCard
-                            title="On this day"
-                            icon="calendar-outline"
-                            color="#A855F7"
-                            onPress={() => navigateToFeature('flashback')}
-                            fullWidth
-                        />
-                    </View>
+                {/* FEATURE GRID */}
+                <View style={styles.grid}>
+                    <FeatureCard
+                        title="Time Capsule"
+                        icon="hourglass-outline"
+                        color="#8B5CF6"
+                        onPress={() => navigateToFeature('time-capsule')}
+                    />
+                    <FeatureCard
+                        title="Humans"
+                        icon="people-outline"
+                        color="#EC4899"
+                        onPress={() => navigateToFeature('humans')}
+                    />
+                    <FeatureCard
+                        title="The Wall"
+                        icon="chatbubble-ellipses-outline"
+                        color="#F59E0B"
+                        onPress={() => navigateToFeature('wall')}
+                    />
+                    <FeatureCard
+                        title="Memory Map"
+                        icon="map-outline"
+                        color="#10B981"
+                        onPress={() => navigateToFeature('map')}
+                    />
+                    <FeatureCard
+                        title="Roulette"
+                        icon="dice-outline"
+                        color="#3B82F6"
+                        onPress={() => navigateToFeature('roulette')}
+                    />
+                    <FeatureCard
+                        title="On this day"
+                        icon="calendar-outline"
+                        color="#A855F7"
+                        onPress={() => navigateToFeature('flashback')}
+                        fullWidth
+                    />
+                </View>
 
-                    {/* QUICK INFO (Temporary until Settings is robust) */}
-                    <View style={styles.info}>
-                        <Text style={styles.infoText}>Created: {createdDate}</Text>
-                        <Text style={styles.infoText}>Members: {cove.members.length}</Text>
-                        {isOwner && (
-                            <View style={styles.codeContainer}>
-                                <Text style={styles.joinLabel}>CODE:</Text>
-                                <Text style={styles.joinCodeCompact}>{cove.joinCode}</Text>
-                            </View>
-                        )}
-                    </View>
+                {/* QUICK INFO (Temporary until Settings is robust) */}
+                <View style={styles.info}>
+                    <Text style={styles.infoText}>Created: {createdDate}</Text>
+                    <Text style={styles.infoText}>Members: {cove.members.length}</Text>
+                    {isOwner && (
+                        <View style={styles.codeContainer}>
+                            <Text style={styles.joinLabel}>CODE:</Text>
+                            <Text style={styles.joinCodeCompact}>{cove.joinCode}</Text>
+                        </View>
+                    )}
+                </View>
 
-                </ScrollView>
-            </View>
-        </AuthGuard>
+            </ScrollView>
+        </View>
     );
 }
 

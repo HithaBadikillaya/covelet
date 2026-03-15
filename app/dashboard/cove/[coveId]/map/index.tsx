@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { AddPinModal } from '@/components/Map/AddPinModal';
 import { FEATURE_DESCRIPTIONS } from '@/constants/features';
 import { Colors, Fonts } from '@/constants/theme';
@@ -70,96 +69,92 @@ export default function MapScreen() {
 
     if (error && pins.length === 0) {
         return (
-            <AuthGuard>
-                <View style={[styles.container, styles.center, { backgroundColor: themeColors.background }]}>
-                    <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                    <TouchableOpacity style={[styles.backBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.back()}>
-                        <Text style={styles.backBtnText}>Go Back</Text>
-                    </TouchableOpacity>
-                </View>
-            </AuthGuard>
+            <View style={[styles.container, styles.center, { backgroundColor: themeColors.background }]}>
+                <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
+                <TouchableOpacity style={[styles.backBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.back()}>
+                    <Text style={styles.backBtnText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
         );
     }
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>Memory Map</Text>
-                    <View style={{ width: 24 }} />
-                </View>
-                <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.map}
-                </Text>
-                <View style={styles.mapContainer}>
-                    <MapView
-                        style={styles.map}
-                        region={region}
-                        onRegionChangeComplete={setRegion}
-                        mapType="standard"
-                    >
-                        {pins.filter((p) => p.latitude != null && p.longitude != null).map((p) => (
-                            <Marker
-                                key={p.id}
-                                coordinate={{ latitude: p.latitude, longitude: p.longitude }}
-                                title={p.title}
-                                description={p.description}
-                            />
-                        ))}
-                    </MapView>
-                </View>
-                {loading && pins.length === 0 ? (
-                    <View style={styles.center}><ActivityIndicator color={themeColors.primary} /></View>
-                ) : pins.length === 0 ? (
-                    <View style={styles.empty}>
-                        <Ionicons name="map-outline" size={48} color={themeColors.textMuted} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No pins yet</Text>
-                        <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>Add a memory to a place.</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={pins}
-                        keyExtractor={(p) => p.id}
-                        style={styles.list}
-                        contentContainerStyle={styles.listContent}
-                        renderItem={({ item }) => {
-                            const canDelete = item.authorId === currentUser?.uid || isOwner;
-                            return (
-                                <View style={[styles.pinCard, { backgroundColor: themeColors.card }]}>
-                                    <View style={styles.pinRow}>
-                                        <Text style={[styles.pinTitle, { color: themeColors.text }]}>{item.title}</Text>
-                                        {canDelete && (
-                                            <TouchableOpacity onPress={() => handleDeletePin(item)}>
-                                                <Ionicons name="trash-outline" size={18} color={themeColors.textMuted} />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                    <Text style={[styles.pinDesc, { color: themeColors.textMuted }]} numberOfLines={2}>{item.description}</Text>
-                                    <Text style={[styles.pinMeta, { color: themeColors.textMuted }]}>
-                                        {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
-                                    </Text>
-                                </View>
-                            );
-                        }}
-                    />
-                )}
-                <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
-                    onPress={() => setAddModalVisible(true)}
-                >
-                    <Ionicons name="add" size={28} color="#fff" />
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
                 </TouchableOpacity>
-                <AddPinModal
-                    visible={addModalVisible}
-                    onClose={() => setAddModalVisible(false)}
-                    onSubmit={handleCreatePin}
-                    initialRegion={region}
-                />
+                <Text style={[styles.title, { color: themeColors.text }]}>Memory Map</Text>
+                <View style={{ width: 24 }} />
             </View>
-        </AuthGuard>
+            <Text style={[styles.description, { color: themeColors.textMuted }]}>
+                {FEATURE_DESCRIPTIONS.map}
+            </Text>
+            <View style={styles.mapContainer}>
+                <MapView
+                    style={styles.map}
+                    region={region}
+                    onRegionChangeComplete={setRegion}
+                    mapType="standard"
+                >
+                    {pins.filter((p) => p.latitude != null && p.longitude != null).map((p) => (
+                        <Marker
+                            key={p.id}
+                            coordinate={{ latitude: p.latitude, longitude: p.longitude }}
+                            title={p.title}
+                            description={p.description}
+                        />
+                    ))}
+                </MapView>
+            </View>
+            {loading && pins.length === 0 ? (
+                <View style={styles.center}><ActivityIndicator color={themeColors.primary} /></View>
+            ) : pins.length === 0 ? (
+                <View style={styles.empty}>
+                    <Ionicons name="map-outline" size={48} color={themeColors.textMuted} />
+                    <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No pins yet</Text>
+                    <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>Add a memory to a place.</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={pins}
+                    keyExtractor={(p) => p.id}
+                    style={styles.list}
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item }) => {
+                        const canDelete = item.authorId === currentUser?.uid || isOwner;
+                        return (
+                            <View style={[styles.pinCard, { backgroundColor: themeColors.card }]}>
+                                <View style={styles.pinRow}>
+                                    <Text style={[styles.pinTitle, { color: themeColors.text }]}>{item.title}</Text>
+                                    {canDelete && (
+                                        <TouchableOpacity onPress={() => handleDeletePin(item)}>
+                                            <Ionicons name="trash-outline" size={18} color={themeColors.textMuted} />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                <Text style={[styles.pinDesc, { color: themeColors.textMuted }]} numberOfLines={2}>{item.description}</Text>
+                                <Text style={[styles.pinMeta, { color: themeColors.textMuted }]}>
+                                    {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+                                </Text>
+                            </View>
+                        );
+                    }}
+                />
+            )}
+            <TouchableOpacity
+                style={[styles.fab, { backgroundColor: themeColors.primary }]}
+                onPress={() => setAddModalVisible(true)}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </TouchableOpacity>
+            <AddPinModal
+                visible={addModalVisible}
+                onClose={() => setAddModalVisible(false)}
+                onSubmit={handleCreatePin}
+                initialRegion={region}
+            />
+        </View>
     );
 }
 

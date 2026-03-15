@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateQuoteModal } from '@/components/Wall/CreateQuoteModal';
 import { QuoteCard } from '@/components/Wall/QuoteCard';
 import { FEATURE_DESCRIPTIONS } from '@/constants/features';
@@ -48,85 +47,81 @@ export default function WallScreen() {
 
     if (error && quotes.length === 0) {
         return (
-            <AuthGuard>
-                <View style={[styles.container, styles.center, { backgroundColor: themeColors.background }]}>
-                    <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                    <TouchableOpacity style={[styles.backBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.back()}>
-                        <Text style={styles.backBtnText}>Go Back</Text>
-                    </TouchableOpacity>
-                </View>
-            </AuthGuard>
+            <View style={[styles.container, styles.center, { backgroundColor: themeColors.background }]}>
+                <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
+                <TouchableOpacity style={[styles.backBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.back()}>
+                    <Text style={styles.backBtnText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
         );
     }
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>The Wall</Text>
-                    <View style={{ width: 24 }} />
-                </View>
-                <Text style={[styles.description, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.wall}
-                </Text>
-                <Text style={[styles.subDescription, { color: themeColors.textMuted }]}>
-                    {FEATURE_DESCRIPTIONS.threads}
-                </Text>
-                <View style={styles.sortRow}>
-                    <TouchableOpacity
-                        style={[styles.sortBtn, sort === 'recent' && { backgroundColor: themeColors.primary }]}
-                        onPress={() => setSort('recent')}
-                    >
-                        <Text style={[styles.sortText, sort === 'recent' && { color: '#fff' }]}>Recent</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.sortBtn, sort === 'upvoted' && { backgroundColor: themeColors.primary }]}
-                        onPress={() => setSort('upvoted')}
-                    >
-                        <Text style={[styles.sortText, sort === 'upvoted' && { color: '#fff' }]}>Most upvoted</Text>
-                    </TouchableOpacity>
-                </View>
-                {loading && quotes.length === 0 ? (
-                    <View style={styles.center}><Text style={{ color: themeColors.textMuted }}>Loading...</Text></View>
-                ) : quotes.length === 0 ? (
-                    <View style={styles.empty}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={64} color={themeColors.textMuted} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No memories yet</Text>
-                        <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>Post a quote or moment to get started.</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={quotes}
-                        keyExtractor={(q) => q.id}
-                        contentContainerStyle={styles.list}
-                        renderItem={({ item }) => (
-                            <QuoteCard
-                                quote={item}
-                                onUpvote={() => toggleUpvote(item.id)}
-                                onDelete={() => deleteQuote(item.id)}
-                                hasUpvoted={hasUpvoted(item.id)}
-                                onSubscribeReplies={subscribeRepliesStable}
-                                onAddReply={addReply}
-                            />
-                        )}
-                    />
-                )}
-                <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
-                    onPress={() => setModalVisible(true)}
-                >
-                    <Ionicons name="add" size={28} color="#fff" />
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
                 </TouchableOpacity>
-                <CreateQuoteModal
-                    visible={modalVisible}
-                    onClose={() => setModalVisible(false)}
-                    onSubmit={handleCreate}
-                />
+                <Text style={[styles.title, { color: themeColors.text }]}>The Wall</Text>
+                <View style={{ width: 24 }} />
             </View>
-        </AuthGuard>
+            <Text style={[styles.description, { color: themeColors.textMuted }]}>
+                {FEATURE_DESCRIPTIONS.wall}
+            </Text>
+            <Text style={[styles.subDescription, { color: themeColors.textMuted }]}>
+                {FEATURE_DESCRIPTIONS.threads}
+            </Text>
+            <View style={styles.sortRow}>
+                <TouchableOpacity
+                    style={[styles.sortBtn, sort === 'recent' && { backgroundColor: themeColors.primary }]}
+                    onPress={() => setSort('recent')}
+                >
+                    <Text style={[styles.sortText, sort === 'recent' && { color: '#fff' }]}>Recent</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.sortBtn, sort === 'upvoted' && { backgroundColor: themeColors.primary }]}
+                    onPress={() => setSort('upvoted')}
+                >
+                    <Text style={[styles.sortText, sort === 'upvoted' && { color: '#fff' }]}>Most upvoted</Text>
+                </TouchableOpacity>
+            </View>
+            {loading && quotes.length === 0 ? (
+                <View style={styles.center}><Text style={{ color: themeColors.textMuted }}>Loading...</Text></View>
+            ) : quotes.length === 0 ? (
+                <View style={styles.empty}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={64} color={themeColors.textMuted} />
+                    <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No memories yet</Text>
+                    <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>Post a quote or moment to get started.</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={quotes}
+                    keyExtractor={(q) => q.id}
+                    contentContainerStyle={styles.list}
+                    renderItem={({ item }) => (
+                        <QuoteCard
+                            quote={item}
+                            onUpvote={() => toggleUpvote(item.id)}
+                            onDelete={() => deleteQuote(item.id)}
+                            hasUpvoted={hasUpvoted(item.id)}
+                            onSubscribeReplies={subscribeRepliesStable}
+                            onAddReply={addReply}
+                        />
+                    )}
+                />
+            )}
+            <TouchableOpacity
+                style={[styles.fab, { backgroundColor: themeColors.primary }]}
+                onPress={() => setModalVisible(true)}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </TouchableOpacity>
+            <CreateQuoteModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                onSubmit={handleCreate}
+            />
+        </View>
     );
 }
 

@@ -1,4 +1,3 @@
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
@@ -91,44 +90,42 @@ export default function CoveSettingsScreen() {
     if (!isOwner) return null;
 
     return (
-        <AuthGuard>
-            <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="close" size={24} color={themeColors.text} />
+        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="close" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.title, { color: themeColors.text }]}>Cove Settings</Text>
+                <View style={{ width: 24 }} />
+            </View>
+
+            <ScrollView contentContainerStyle={styles.content}>
+
+                {/* SECTION: GENERAL */}
+                <Text style={styles.sectionTitle}>GENERAL</Text>
+                <View style={styles.section}>
+                    <TouchableOpacity style={styles.row}>
+                        <Text style={styles.rowLabel}>Edit Details</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#ccc" />
                     </TouchableOpacity>
-                    <Text style={[styles.title, { color: themeColors.text }]}>Cove Settings</Text>
-                    <View style={{ width: 24 }} />
+                    <TouchableOpacity style={styles.row}>
+                        <Text style={styles.rowLabel}>Manage Members</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                    </TouchableOpacity>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.content}>
+                {/* SECTION: DANGER ZONE */}
+                <Text style={[styles.sectionTitle, { marginTop: 32, color: themeColors.error }]}>DANGER ZONE</Text>
+                <View style={[styles.section, { borderColor: themeColors.error }]}>
+                    <TouchableOpacity style={styles.row} onPress={handleDelete}>
+                        <Text style={[styles.rowLabel, { color: themeColors.error }]}>Delete Cove</Text>
+                        <Ionicons name="trash-outline" size={20} color={themeColors.error} />
+                    </TouchableOpacity>
+                </View>
 
-                    {/* SECTION: GENERAL */}
-                    <Text style={styles.sectionTitle}>GENERAL</Text>
-                    <View style={styles.section}>
-                        <TouchableOpacity style={styles.row}>
-                            <Text style={styles.rowLabel}>Edit Details</Text>
-                            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.row}>
-                            <Text style={styles.rowLabel}>Manage Members</Text>
-                            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* SECTION: DANGER ZONE */}
-                    <Text style={[styles.sectionTitle, { marginTop: 32, color: themeColors.error }]}>DANGER ZONE</Text>
-                    <View style={[styles.section, { borderColor: themeColors.error }]}>
-                        <TouchableOpacity style={styles.row} onPress={handleDelete}>
-                            <Text style={[styles.rowLabel, { color: themeColors.error }]}>Delete Cove</Text>
-                            <Ionicons name="trash-outline" size={20} color={themeColors.error} />
-                        </TouchableOpacity>
-                    </View>
-
-                </ScrollView>
-            </View>
-        </AuthGuard>
+            </ScrollView>
+        </View>
     );
 }
 
