@@ -2,6 +2,7 @@ import { auth, db } from '@/firebaseConfig';
 import {
     addDoc,
     collection,
+    collectionGroup,
     deleteDoc,
     doc,
     increment,
@@ -10,6 +11,7 @@ import {
     query,
     serverTimestamp,
     updateDoc,
+    where,
     writeBatch,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -79,49 +81,40 @@ export function useStories(coveId: string | undefined): UseStoriesResult {
 
     // Fetch user's likes
     useEffect(() => {
-        if (!coveId || !auth.currentUser || stories.length === 0) {
+        if (!coveId || !auth.currentUser) {
             setLikedStories(new Set());
             return;
         }
 
         const userId = auth.currentUser.uid;
-        const likedSet = new Set<string>();
-        const unsubscribers: (() => void)[] = [];
 
-        // Subscribe to likes subcollection for each story
-        stories.forEach((story) => {
-            const likeRef = doc(
-                db,
-                'coves',
-                coveId,
-                'humans',
-                story.id,
-                'likes',
-                userId
-            );
+        // Optimized: Single listener for all likes by this user in this cove.
+        const q = query(
+            collectionGroup(db, 'likes'),
+            where('userId', '==', userId),
+            where('coveId', '==', coveId)
+        );
 
-            const unsubscribe = onSnapshot(
-                likeRef,
-                (snap) => {
-                    if (snap.exists()) {
-                        likedSet.add(story.id);
-                    } else {
-                        likedSet.delete(story.id);
+        const unsubscribe = onSnapshot(q, (snap) => {
+            const next = new Set<string>();
+            snap.docs.forEach((doc) => {
+                const data = doc.data();
+                if (data.storyId) {
+                    next.add(data.storyId);
+                } else {
+                    const parts = doc.ref.path.split('/');
+                    if (parts[1] === coveId && parts[3]) {
+                        next.add(parts[3]);
                     }
-                    setLikedStories(new Set(likedSet));
-                },
-                () => {
-                    // Ignore errors (like doc might not exist)
                 }
-            );
-
-            unsubscribers.push(unsubscribe);
+            });
+            setLikedStories(next);
+        }, (err) => {
+            console.error('Error in like listener:', err);
         });
 
-        return () => {
-            unsubscribers.forEach((unsub) => unsub());
-        };
-    }, [coveId, stories]);
+        return () => unsubscribe();
+    }, [coveId]);
 
     const createStory = async (content: string, isAnonymous: boolean) => {
         if (!coveId || !auth.currentUser) {
@@ -206,6 +199,8 @@ export function useStories(coveId: string | undefined): UseStoriesResult {
                 // Like: create like doc and increment count
                 batch.set(likeRef, {
                     userId,
+                    coveId,
+                    storyId,
                     createdAt: serverTimestamp(),
                 });
                 batch.update(storyRef, {

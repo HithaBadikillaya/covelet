@@ -2,6 +2,7 @@ import { auth, db } from '@/firebaseConfig';
 import {
     addDoc,
     collection,
+    collectionGroup,
     deleteDoc,
     doc,
     increment,
@@ -9,6 +10,7 @@ import {
     orderBy,
     query,
     serverTimestamp,
+    where,
     writeBatch
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -82,25 +84,43 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     }, [coveId, sort]);
 
     useEffect(() => {
-        if (!coveId || !auth.currentUser || quotes.length === 0) {
+        if (!coveId || !auth.currentUser) {
             setUpvotedIds(new Set());
             return;
         }
         const uid = auth.currentUser.uid;
-        const unsubs: (() => void)[] = [];
-        const next = new Set<string>();
-        quotes.forEach((quote) => {
-            const ref = doc(db, 'coves', coveId, 'quotes', quote.id, 'upvotes', uid);
-            unsubs.push(
-                onSnapshot(ref, (snap) => {
-                    if (snap.exists()) next.add(quote.id);
-                    else next.delete(quote.id);
-                    setUpvotedIds(new Set(next));
-                })
-            );
+
+        // Optimized: Single listener for all upvotes by this user across all quotes.
+        // This replaces the N individual listeners that were previously created.
+        const q = query(
+            collectionGroup(db, 'upvotes'),
+            where('userId', '==', uid),
+            where('coveId', '==', coveId)
+        );
+
+        const unsub = onSnapshot(q, (snap) => {
+            const next = new Set<string>();
+            snap.docs.forEach((doc) => {
+                const data = doc.data();
+                // Prefer the quoteId stored in binary, fallback to path parsing for old docs
+                if (data.quoteId) {
+                    next.add(data.quoteId);
+                } else {
+                    const parts = doc.ref.path.split('/');
+                    if (parts[1] === coveId && parts[3]) {
+                        next.add(parts[3]);
+                    }
+                }
+            });
+            setUpvotedIds(next);
+        }, (err) => {
+            // Note: If you see an error here about a missing index, 
+            // click the link in the console to create it.
+            console.error('Error in upvote listener:', err);
         });
-        return () => unsubs.forEach((u) => u());
-    }, [coveId, quotes]);
+
+        return () => unsub();
+    }, [coveId]);
 
     const createQuote = async (content: string) => {
         if (!coveId || !auth.currentUser) throw new Error('You must be logged in');
@@ -130,7 +150,12 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
             batch.delete(upvoteRef);
             batch.update(quoteRef, { upvotesCount: increment(-1) });
         } else {
-            batch.set(upvoteRef, { userId: uid, createdAt: serverTimestamp() });
+            batch.set(upvoteRef, { 
+                userId: uid, 
+                coveId: coveId,
+                quoteId: quoteId,
+                createdAt: serverTimestamp() 
+            });
             batch.update(quoteRef, { upvotesCount: increment(1) });
         }
         await batch.commit();
