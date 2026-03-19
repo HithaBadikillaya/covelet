@@ -44,7 +44,6 @@ app-example
 /android
 
 # Firebase config
-google-services.json
 GoogleService-Info.plist
 firestore.rules
 .firebaserc
