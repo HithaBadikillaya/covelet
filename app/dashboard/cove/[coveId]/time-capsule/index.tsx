@@ -1,4 +1,5 @@
 import { CreateCapsuleModal } from '@/components/Cove/TimeCapsule/CreateCapsuleModal';
+import AppDialog, { type AppDialogAction } from '@/components/ui/AppDialog';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,26 +13,26 @@ import {
     orderBy,
     query,
     serverTimestamp,
-    updateDoc
+    updateDoc,
 } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
     KeyboardAvoidingView,
-    Linking,
     Platform,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { normalizeMultilineText, SECURITY_LIMITS } from '@/utils/security';
 
 interface TimeCapsule {
     id: string;
-    unlockAt: { seconds: number };
+    unlockAt?: { seconds: number } | null;
     ownerId: string;
     isEmergencyOpened: boolean;
     createdAt?: { seconds: number };
@@ -41,175 +42,176 @@ interface CapsuleEntry {
     id: string;
     text: string;
     authorId: string;
-    authorName?: string; // Optional if we fetch profile, for now simple
+    authorName?: string;
     createdAt: { seconds: number };
 }
+
+type DialogState = {
+    title: string;
+    message: string;
+    actions?: AppDialogAction[];
+} | null;
 
 export default function TimeCapsuleScreen() {
     const { coveId } = useLocalSearchParams<{ coveId: string }>();
     const themeColors = Colors.light;
     const currentUser = auth.currentUser;
+    const insets = useSafeAreaInsets();
 
-    // State
     const [capsule, setCapsule] = useState<TimeCapsule | null>(null);
-    const [coveOwnerId, setCoveOwnerId] = useState<string | null>(null); // New state for Cove Owner
+    const [coveOwnerId, setCoveOwnerId] = useState<string | null>(null);
     const [entries, setEntries] = useState<CapsuleEntry[]>([]);
     const [loadingCapsule, setLoadingCapsule] = useState(true);
     const [loadingEntries, setLoadingEntries] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
-
-    // Add Entry State
     const [newEntryText, setNewEntryText] = useState('');
     const [addingEntry, setAddingEntry] = useState(false);
+    const [dialog, setDialog] = useState<DialogState>(null);
 
-    // Derived State
     const isOwner = coveOwnerId === currentUser?.uid;
-    const now = new Date();
-
-    // Schema Logic Fix
-    const unlockDate = capsule ? new Date(capsule.unlockAt.seconds * 1000) : new Date();
-    const isTimeUnlocked = now >= unlockDate;
+    const unlockSeconds = capsule?.unlockAt?.seconds ?? 0;
+    const unlockDate = unlockSeconds ? new Date(unlockSeconds * 1000) : new Date();
+    const isTimeUnlocked = unlockSeconds > 0 && Date.now() >= unlockDate.getTime();
     const isEmergencyOpen = capsule?.isEmergencyOpened || false;
     const isUnlocked = isTimeUnlocked || isEmergencyOpen;
-    const isUnlockedBanner = isUnlocked;
 
-    /* ---------------- 0. FETCH COVE (For Ownership) ---------------- */
     useEffect(() => {
         if (!coveId) return;
+
         const unsub = onSnapshot(doc(db, 'coves', coveId), (snap) => {
             if (snap.exists()) {
                 setCoveOwnerId(snap.data().createdBy);
             }
         });
+
         return () => unsub();
     }, [coveId]);
 
-    /* ---------------- 1. FETCH CAPSULE CONTAINER ---------------- */
     useEffect(() => {
         if (!coveId) return;
 
-        // Listen for the SINGLE active capsule
-        const q = query(
+        const capsuleQuery = query(
             collection(db, 'coves', coveId, 'timeCapsules'),
             orderBy('createdAt', 'desc'),
             limit(1)
         );
 
-        const unsub = onSnapshot(q, (snap) => {
-            if (!snap.empty) {
-                const data = snap.docs[0].data();
-                setCapsule({ id: snap.docs[0].id, ...data } as TimeCapsule);
-            } else {
-                setCapsule(null);
+        const unsub = onSnapshot(
+            capsuleQuery,
+            (snap) => {
+                if (!snap.empty) {
+                    const data = snap.docs[0].data();
+                    setCapsule({ id: snap.docs[0].id, ...data } as TimeCapsule);
+                } else {
+                    setCapsule(null);
+                }
+                setLoadingCapsule(false);
+            },
+            (err) => {
+                console.error('Error fetching capsule:', err);
+                setLoadingCapsule(false);
             }
-            setLoadingCapsule(false);
-        }, (err) => {
-            console.error("Error fetching capsule:", err);
-            setLoadingCapsule(false);
-        });
+        );
 
         return () => unsub();
     }, [coveId]);
 
-    /* ---------------- 2. FETCH ENTRIES (If Unlocked) ---------------- */
     useEffect(() => {
-        if (!coveId || !capsule || !isUnlockedBanner) {
+        if (!coveId || !capsule || !isUnlocked) {
             setEntries([]);
             return;
         }
 
         setLoadingEntries(true);
-        const q = query(
+        const entriesQuery = query(
             collection(db, 'coves', coveId, 'timeCapsules', capsule.id, 'entries'),
             orderBy('createdAt', 'desc')
         );
 
-        const unsub = onSnapshot(q, (snap) => {
-            const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as CapsuleEntry));
-            setEntries(data);
-            setLoadingEntries(false);
-        }, (err) => {
-            console.error("Error fetching entries:", err);
-            // Permissions might fail if we think it's unlocked but rules differ
-            setLoadingEntries(false);
-        });
+        const unsub = onSnapshot(
+            entriesQuery,
+            (snap) => {
+                const data = snap.docs.map((entryDoc) => ({
+                    id: entryDoc.id,
+                    ...entryDoc.data(),
+                })) as CapsuleEntry[];
+                setEntries(data);
+                setLoadingEntries(false);
+            },
+            (err) => {
+                console.error('Error fetching entries:', err);
+                setLoadingEntries(false);
+            }
+        );
 
         return () => unsub();
-    }, [coveId, capsule?.id, isUnlockedBanner]);
+    }, [coveId, capsule, isUnlocked]);
 
+    const showDialog = useCallback((title: string, message: string, actions?: AppDialogAction[]) => {
+        setDialog({ title, message, actions });
+    }, []);
 
-    /* ---------------- HANDLERS ---------------- */
     const handleAddEntry = async () => {
-        if (!newEntryText.trim() || !capsule || !currentUser) return;
+        const safeEntryText = normalizeMultilineText(newEntryText, SECURITY_LIMITS.timeCapsuleEntry);
+        if (!safeEntryText || !capsule || !currentUser) {
+            return;
+        }
 
+        setAddingEntry(true);
         try {
             const now = new Date();
             await addDoc(collection(db, 'coves', coveId!, 'timeCapsules', capsule.id, 'entries'), {
-                text: newEntryText.trim(),
+                text: safeEntryText,
                 authorId: currentUser.uid,
                 createdAt: serverTimestamp(),
                 coveId,
+                capsuleId: capsule.id,
                 day: now.getDate(),
                 month: now.getMonth(),
             });
             setNewEntryText('');
-            Alert.alert("Memory Added", "Your secret is safe until the capsule opens.");
+            showDialog('Memory Added', 'Your secret is safe until the capsule opens.');
         } catch (error) {
             console.error(error);
-            Alert.alert("Error", "Failed to add memory.");
+            showDialog('Error', 'Failed to add memory.');
         } finally {
             setAddingEntry(false);
         }
     };
 
-    const handleEmergencyToggle = async () => {
-        if (!capsule || !isOwner) return;
+    const confirmEmergencyToggle = () => {
+        if (!capsule || !isOwner) {
+            return;
+        }
 
         const newStatus = !capsule.isEmergencyOpened;
-        const action = newStatus ? "OPEN" : "CLOSE";
+        const action = newStatus ? 'OPEN' : 'CLOSE';
 
-        Alert.alert(
+        showDialog(
             `Emergency ${action}`,
             newStatus
-                ? "Are you sure? Everyone will see the memories immediately."
-                : "This will re-lock the capsule.",
+                ? 'Are you sure? Everyone in the Cove with notifications enabled will be alerted and the memories will unlock immediately.'
+                : 'This will re-lock the capsule and stop showing the unlocked state in the app.',
             [
-                { text: 'Cancel', style: 'cancel' },
+                { label: 'Cancel', variant: 'secondary' },
                 {
-                    text: 'Confirm',
-                    style: 'destructive',
+                    label: 'Confirm',
+                    variant: 'danger',
                     onPress: async () => {
                         try {
                             await updateDoc(doc(db, 'coves', coveId!, 'timeCapsules', capsule.id), {
-                                isEmergencyOpened: newStatus
+                                isEmergencyOpened: newStatus,
                             });
-                        } catch (err) {
-                            Alert.alert("Error", "Failed to toggle emergency mode.");
+                        } catch (error) {
+                            console.error(error);
+                            showDialog('Error', 'Failed to toggle emergency mode.');
                         }
-                    }
-                }
+                    },
+                },
             ]
         );
     };
 
-    const handleNotifyMembers = async () => {
-        // In a real app involving member emails, we'd fetch member emails from Firestore here.
-        // For MVP, we'll just open a generic email draft.
-        const subject = encodeURIComponent("Time Capsule Unlocked!");
-        const body = encodeURIComponent(`The time capsule in our Cove is now open!\n\nOpen the app to see the memories.`);
-        const url = `mailto:?subject=${subject}&body=${body}`;
-
-        const supported = await Linking.canOpenURL(url);
-        if (supported) {
-            await Linking.openURL(url);
-        } else {
-            Alert.alert("Error", "No email app found.");
-        }
-    };
-
-    /* ---------------- RENDER HELPERS ---------------- */
-
-    // A. NO CAPSULE
     if (!loadingCapsule && !capsule) {
         return (
             <View style={[styles.container, styles.centerAll]}>
@@ -240,115 +242,134 @@ export default function TimeCapsuleScreen() {
         );
     }
 
-    // B. LOADING
     if (loadingCapsule) {
-        return <View style={styles.centerAll}><ActivityIndicator /></View>;
+        return (
+            <View style={styles.centerAll}>
+                <ActivityIndicator color={themeColors.primary} />
+            </View>
+        );
     }
 
-    // C. ACTIVE CAPSULE (Locked/Unlocked)
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={[styles.container, { backgroundColor: themeColors.background }]}
+            style={[styles.container, { backgroundColor: Colors.light.background }]}
         >
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+            <View style={[styles.header, { paddingTop: insets.top + 20 }]}> 
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
+                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Time Capsule</Text>
-                {/* Owner Action: Emergency Toggle */}
-                {isOwner && (
-                    <TouchableOpacity onPress={handleEmergencyToggle}>
+                {isOwner ? (
+                    <TouchableOpacity onPress={confirmEmergencyToggle} style={styles.lockBtnCircle}>
                         <Ionicons
-                            name={isUnlockedBanner ? "lock-open" : "lock-closed"}
-                            size={24}
-                            color={isUnlockedBanner ? themeColors.error : themeColors.text}
+                            name={isUnlocked ? 'lock-open' : 'lock-closed'}
+                            size={20}
+                            color={isUnlocked ? Colors.light.error : Colors.light.primary}
                         />
                     </TouchableOpacity>
+                ) : (
+                    <View style={{ width: 44 }} />
                 )}
             </View>
 
-            {/* STATUS BANNER */}
-            <View style={[styles.statusBanner, isUnlockedBanner ? styles.bgOpen : styles.bgLocked]}>
-                <Ionicons
-                    name={isUnlockedBanner ? "lock-open-outline" : "lock-closed-outline"}
-                    size={32}
-                    color={isUnlockedBanner ? "#10B981" : "#6B7280"}
-                />
-                <View>
-                    <Text style={styles.statusTitle}>
-                        {isUnlockedBanner ? "CAPSULE UNLOCKED" : "CAPSULE LOCKED"}
-                    </Text>
-                    <Text style={styles.statusSub}>
-                        {isUnlockedBanner
-                            ? "Memories are now visible to all."
-                            : `Unlocks on ${unlockDate.toLocaleDateString()}`}
+            <View style={[styles.statusLabel, isUnlocked ? styles.bgOpen : styles.bgLocked]}>
+                <View style={styles.statusLabelContent}>
+                    <Ionicons
+                        name={isUnlocked ? 'lock-open' : 'lock-closed'}
+                        size={20}
+                        color={isUnlocked ? '#4A6741' : '#D4A373'}
+                    />
+                    <Text style={[styles.statusTitle, { color: isUnlocked ? '#4A6741' : '#D4A373' }]}>
+                        {isUnlocked ? 'MEMORIES UNLOCKED' : 'CAPSULE SEALED'}
                     </Text>
                 </View>
-
-                {isUnlockedBanner && isOwner && (
-                    <TouchableOpacity
-                        style={styles.notifyBtn}
-                        onPress={handleNotifyMembers}
-                    >
-                        <Ionicons name="mail-outline" size={20} color={themeColors.primary} />
-                        <Text style={[styles.notifyText, { color: themeColors.primary }]}>Notify</Text>
-                    </TouchableOpacity>
-                )}
+                {!isUnlocked ? (
+                    <Text style={styles.statusSub}>Unlocks {unlockDate.toLocaleDateString()}</Text>
+                ) : null}
             </View>
 
-            {/* CONTENT AREA */}
-            {isUnlockedBanner ? (
-                // UNLOCKED: List Entries
-                <FlatList
-                    data={entries}
-                    keyExtractor={i => i.id}
-                    contentContainerStyle={styles.listContent}
-                    renderItem={({ item }) => (
-                        <View style={styles.entryCard}>
-                            <Text style={styles.entryText}>{item.text}</Text>
-                            {/* We could show author name if we fetched profiles */}
+            {!isUnlocked ? (
+                <Text style={styles.notificationNote}>
+                    Everyone in this Cove who has notifications enabled will be alerted automatically when the capsule opens.
+                </Text>
+            ) : null}
+
+            <View style={styles.content}>
+                {isUnlocked ? (
+                    loadingEntries && entries.length === 0 ? (
+                        <View style={styles.centerAll}>
+                            <ActivityIndicator color={themeColors.primary} />
                         </View>
-                    )}
-                    ListEmptyComponent={
-                        <Text style={styles.emptyList}>The capsule was empty!</Text>
-                    }
-                />
-            ) : (
-                // LOCKED: Add Entry Form
-                <View style={styles.lockedContainer}>
-                    <View style={styles.lockedPlaceholder}>
-                        <Ionicons name="eye-off-outline" size={48} color="#e5e5e5" />
-                        <Text style={styles.lockedHint}>
-                            Contents are hidden.
-                        </Text>
-                    </View>
-
-                    {/* Add Entry Input */}
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Add to the Capsule:</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="Write a memory, a prediction, or a secret..."
-                            multiline
-                            value={newEntryText}
-                            onChangeText={setNewEntryText}
-                        />
-                        <TouchableOpacity
-                            style={[styles.btnPrimary, { marginTop: 16, backgroundColor: themeColors.primary }]}
-                            onPress={handleAddEntry}
-                            disabled={addingEntry}
-                        >
-                            {addingEntry ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.btnText}>Drop into Capsule</Text>
+                    ) : (
+                        <FlatList
+                            data={entries}
+                            keyExtractor={(item) => item.id}
+                            contentContainerStyle={styles.listContent}
+                            showsVerticalScrollIndicator={false}
+                            renderItem={({ item, index }) => (
+                                <View style={[styles.entryCard, { transform: [{ rotate: index % 2 === 0 ? '1deg' : '-1deg' }] }]}>
+                                    <Text style={styles.entryText}>{item.text}</Text>
+                                    <View style={styles.entryFooter}>
+                                        <View style={styles.authorBadge}>
+                                            <Text style={styles.authorText}>A Secret Member</Text>
+                                        </View>
+                                    </View>
+                                </View>
                             )}
-                        </TouchableOpacity>
+                            ListEmptyComponent={
+                                <View style={styles.emptyContainer}>
+                                    <Ionicons name="leaf-outline" size={48} color={Colors.light.border} />
+                                    <Text style={styles.emptyList}>The capsule was empty!</Text>
+                                </View>
+                            }
+                        />
+                    )
+                ) : (
+                    <View style={styles.lockedContainer}>
+                        <View style={styles.envelopeIconContainer}>
+                            <View style={styles.envelopeIcon}>
+                                <Ionicons name="mail" size={100} color="#F9F7F2" />
+                                <View style={styles.waxSeal}>
+                                    <Ionicons name="heart" size={24} color="#FFFFFF" opacity={0.6} />
+                                </View>
+                            </View>
+                            <Text style={styles.lockedHint}>Your shared secrets are safe inside.</Text>
+                        </View>
+
+                        <View style={styles.pocketContainer}>
+                            <Text style={styles.pocketTitle}>Drop a memory into the capsule</Text>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder="Write something for the future..."
+                                placeholderTextColor={Colors.light.textMuted}
+                                multiline
+                                value={newEntryText}
+                                onChangeText={setNewEntryText}
+                            />
+                            <TouchableOpacity
+                                style={[styles.dropBtn, { backgroundColor: Colors.light.primary }]}
+                                onPress={handleAddEntry}
+                                disabled={addingEntry || !newEntryText.trim()}
+                            >
+                                {addingEntry ? (
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                    <Text style={styles.dropBtnText}>Pin it Inside</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            )}
+                )}
+            </View>
+
+            <AppDialog
+                visible={!!dialog}
+                title={dialog?.title || ''}
+                message={dialog?.message || ''}
+                actions={dialog?.actions}
+                onClose={() => setDialog(null)}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -356,100 +377,245 @@ export default function TimeCapsuleScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     centerAll: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    backAbsolute: { position: 'absolute', top: 60, left: 20 },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
         alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingBottom: 20,
     },
-    title: { fontFamily: Fonts.heading, fontSize: 20 },
-
-    // Status Banner
-    statusBanner: {
+    backBtnCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+    },
+    lockBtnCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+    },
+    title: {
+        fontFamily: Fonts.heading,
+        fontSize: 24,
+        color: Colors.light.text,
+    },
+    statusLabel: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 24,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
         marginHorizontal: 20,
-        borderRadius: 16,
-        gap: 16,
-        marginBottom: 24,
-    },
-    bgLocked: { backgroundColor: '#F3F4F6' },
-    bgOpen: { backgroundColor: '#ECFDF5' }, // Emerald-50
-    statusTitle: { fontFamily: Fonts.heading, fontSize: 16, color: '#333' },
-    statusSub: { fontFamily: Fonts.body, fontSize: 13, color: '#666' },
-
-    // Unlocked List
-    listContent: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-    entryCard: {
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#eee',
+        marginBottom: 12,
     },
-    entryText: { fontFamily: Fonts.body, fontSize: 16, color: '#333' },
-    emptyList: { textAlign: 'center', color: '#999', marginTop: 40 },
-
-    // Locked Container
-    lockedContainer: { flex: 1, paddingHorizontal: 20 },
-    lockedPlaceholder: {
+    bgLocked: {
+        backgroundColor: '#FEFCE8',
+        borderColor: '#FEF08A',
+    },
+    bgOpen: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#DCFCE7',
+    },
+    statusLabelContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    statusTitle: {
+        fontFamily: Fonts.bodyBold,
+        fontSize: 13,
+        letterSpacing: 0.5,
+    },
+    statusSub: {
+        fontFamily: Fonts.body,
+        fontSize: 12,
+        color: '#D4A373',
+    },
+    notificationNote: {
+        marginHorizontal: 20,
+        marginBottom: 20,
+        fontFamily: Fonts.body,
+        fontSize: 13,
+        lineHeight: 19,
+        color: Colors.light.textMuted,
+    },
+    content: { flex: 1 },
+    listContent: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },
+    entryCard: {
+        backgroundColor: '#FFFFFF',
+        padding: 24,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#F1EFE9',
+        shadowColor: '#2F2E2C',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 2,
+    },
+    entryText: {
+        fontFamily: Fonts.body,
+        fontSize: 16,
+        color: Colors.light.text,
+        lineHeight: 24,
+    },
+    entryFooter: {
+        marginTop: 16,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F9F7F2',
+    },
+    authorBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: '#F9F7F2',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    authorText: {
+        fontFamily: Fonts.bodyMedium,
+        fontSize: 11,
+        color: Colors.light.textMuted,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        marginTop: 60,
+        opacity: 0.5,
+    },
+    emptyList: {
+        fontFamily: Fonts.body,
+        color: Colors.light.textMuted,
+        marginTop: 12,
+    },
+    lockedContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        justifyContent: 'space-between',
+    },
+    envelopeIconContainer: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        flex: 1,
-        opacity: 0.5
+        opacity: 0.8,
     },
-    lockedHint: { marginTop: 8, color: '#999' },
-
-    // Input
-    inputContainer: {
-        marginBottom: 40,
-        backgroundColor: '#fff',
-        padding: 20,
+    envelopeIcon: {
+        width: 140,
+        height: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FDFBF7',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E8E2D9',
+        marginBottom: 20,
+        position: 'relative',
+    },
+    waxSeal: {
+        position: 'absolute',
+        bottom: -15,
+        width: 40,
+        height: 40,
         borderRadius: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
+        backgroundColor: '#A0522D',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#8B4513',
+    },
+    lockedHint: {
+        fontFamily: Fonts.body,
+        color: Colors.light.textMuted,
+        fontSize: 15,
+    },
+    pocketContainer: {
+        backgroundColor: '#FFFFFF',
+        padding: 24,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderWidth: 1,
+        borderColor: '#E8E2D9',
+        borderBottomWidth: 0,
+        shadowColor: '#2F2E2C',
+        shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
-        elevation: 5,
+        elevation: 10,
     },
-    inputLabel: { fontFamily: Fonts.bodyBold, marginBottom: 12 },
+    pocketTitle: {
+        fontFamily: Fonts.bodyBold,
+        fontSize: 15,
+        color: Colors.light.text,
+        marginBottom: 16,
+    },
     textInput: {
-        backgroundColor: '#f9f9f9',
+        backgroundColor: '#F9F7F2',
         borderRadius: 12,
         padding: 16,
         minHeight: 100,
         textAlignVertical: 'top',
-        fontSize: 16,
+        fontSize: 15,
+        fontFamily: Fonts.body,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
     },
-    btnPrimary: {
-        height: 50,
-        borderRadius: 25,
+    dropBtn: {
+        height: 52,
+        borderRadius: 26,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    btnText: { fontFamily: Fonts.heading, color: '#fff' },
-
-    // Empty State
-    emptyTitle: { fontFamily: Fonts.heading, fontSize: 18, marginTop: 16, color: '#333' },
-    emptySub: { color: '#888', marginTop: 8 },
-    notifyBtn: {
-        marginLeft: 'auto',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#eee',
-        gap: 6,
+    dropBtnText: {
+        fontFamily: Fonts.heading,
+        color: '#FFFFFF',
+        fontSize: 16,
     },
-    notifyText: {
-        fontFamily: Fonts.bodyBold,
-        fontSize: 14,
+    emptyTitle: {
+        fontFamily: Fonts.heading,
+        fontSize: 22,
+        color: Colors.light.text,
+        marginBottom: 12,
+    },
+    emptySub: {
+        fontFamily: Fonts.body,
+        color: Colors.light.textMuted,
+        textAlign: 'center',
+    },
+    btnPrimary: {
+        height: 52,
+        borderRadius: 26,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+    },
+    btnText: {
+        fontFamily: Fonts.heading,
+        color: '#FFFFFF',
+        fontSize: 16,
+    },
+    backAbsolute: {
+        position: 'absolute',
+        top: 60,
+        left: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.light.border,
     },
 });
