@@ -1,9 +1,9 @@
-import { Colors, Fonts } from '@/constants/theme';
+import AppDialog from '@/components/ui/AppDialog';
+import { Colors, Fonts, Layout } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -28,9 +28,9 @@ export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({
     onClose,
     onSubmit,
 }) => {
-    const themeColors = Colors.light;
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
+    const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
 
     const trimmed = content.trim();
     const canSubmit = trimmed.length > 0 && trimmed.length <= MAX_LENGTH && !loading;
@@ -50,62 +50,155 @@ export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({
             setContent('');
             onClose();
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to post');
+            setDialog({ title: 'Error', message: err.message || 'Failed to post' });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.overlay}
-            >
-                <Pressable style={styles.backdrop} onPress={handleClose} />
-                <View style={[styles.card, { backgroundColor: themeColors.card }]}>
-                    <View style={styles.header}>
-                        <Text style={[styles.title, { color: themeColors.text }]}>Add to the Wall</Text>
-                        <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={loading}>
-                            <Ionicons name="close" size={24} color={themeColors.text} />
-                        </TouchableOpacity>
+        <>
+            <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.overlay}
+                >
+                    <Pressable style={styles.backdrop} onPress={handleClose} />
+                    <View style={[styles.card, { backgroundColor: '#FFFFFF' }]}>
+                        <View style={styles.tape} />
+
+                        <View style={styles.header}>
+                            <Text style={styles.title}>NEW NOTE</Text>
+                            <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={loading}>
+                                <Ionicons name="close" size={24} color={Colors.light.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="What's on your mind? A joke, a memory, or just a simple hello..."
+                            placeholderTextColor={Colors.light.textMuted}
+                            multiline
+                            value={content}
+                            onChangeText={setContent}
+                            maxLength={MAX_LENGTH}
+                            textAlignVertical="top"
+                            editable={!loading}
+                        />
+
+                        <View style={styles.footer}>
+                            <Text style={styles.counter}>
+                                {content.length} / {MAX_LENGTH}
+                            </Text>
+                            <TouchableOpacity
+                                style={[
+                                    styles.submit,
+                                    { backgroundColor: canSubmit ? Colors.light.primary : Colors.light.muted },
+                                ]}
+                                onPress={handleSubmit}
+                                disabled={!canSubmit}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                    <Text style={[styles.submitText, { color: canSubmit ? '#FFFFFF' : Colors.light.textMuted }]}>
+                                        PIN TO WALL
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                    <TextInput
-                        style={[styles.input, { color: themeColors.text, backgroundColor: themeColors.muted, borderColor: themeColors.border }]}
-                        placeholder="Quote, inside joke, or moment..."
-                        placeholderTextColor={themeColors.textMuted}
-                        multiline
-                        value={content}
-                        onChangeText={setContent}
-                        maxLength={MAX_LENGTH}
-                        textAlignVertical="top"
-                        editable={!loading}
-                    />
-                    <Text style={[styles.counter, { color: themeColors.textMuted }]}>
-                        {content.length} / {MAX_LENGTH}
-                    </Text>
-                    <TouchableOpacity
-                        style={[styles.submit, { backgroundColor: canSubmit ? themeColors.primary : themeColors.muted }]}
-                        onPress={handleSubmit}
-                        disabled={!canSubmit}
-                    >
-                        {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Post</Text>}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
-        </Modal>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            <AppDialog
+                visible={!!dialog}
+                title={dialog?.title || ''}
+                message={dialog?.message || ''}
+                onClose={() => setDialog(null)}
+            />
+        </>
     );
 };
 
 const styles = StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
-    card: { borderRadius: 24, padding: 24, width: '90%', maxWidth: 420 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    title: { fontFamily: Fonts.heading, fontSize: 22 },
-    closeBtn: { padding: 8 },
-    input: { minHeight: 120, borderRadius: 12, padding: 16, fontFamily: Fonts.body, fontSize: 16, borderWidth: 1, marginBottom: 8 },
-    counter: { fontFamily: Fonts.body, fontSize: 12, marginBottom: 16 },
-    submit: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
-    submitText: { fontFamily: Fonts.heading, fontSize: 16, color: '#fff' },
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(47, 46, 44, 0.4)' },
+    card: {
+        borderRadius: Layout.radiusLarge,
+        padding: 32,
+        width: '90%',
+        maxWidth: 420,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.1,
+        shadowRadius: 0,
+        elevation: 10,
+    },
+    tape: {
+        position: 'absolute',
+        top: -10,
+        alignSelf: 'center',
+        width: 80,
+        height: 24,
+        backgroundColor: Colors.light.secondary,
+        opacity: 0.5,
+        zIndex: 10,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    title: {
+        fontFamily: Fonts.heading,
+        fontSize: 20,
+        color: Colors.light.text,
+        letterSpacing: 1,
+    },
+    closeBtn: { padding: 4 },
+    input: {
+        minHeight: 180,
+        fontFamily: Fonts.body,
+        fontSize: 16,
+        color: Colors.light.text,
+        textAlignVertical: 'top',
+        marginBottom: 24,
+        lineHeight: 24,
+        padding: 16,
+        backgroundColor: '#FDFBF7',
+        borderWidth: 1.5,
+        borderColor: Colors.light.border,
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    counter: {
+        fontFamily: Fonts.body,
+        fontSize: 12,
+        color: Colors.light.textMuted,
+    },
+    submit: {
+        height: 48,
+        paddingHorizontal: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 0,
+        elevation: 4,
+    },
+    submitText: {
+        fontFamily: Fonts.heading,
+        fontSize: 14,
+        letterSpacing: 1,
+    },
 });

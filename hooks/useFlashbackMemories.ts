@@ -1,5 +1,12 @@
 import { db } from '@/firebaseConfig';
-import { collection, collectionGroup, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import {
+    collection,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    where,
+} from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 
 export type FlashbackSource = 'quote' | 'pin' | 'human' | 'capsule';
@@ -15,15 +22,13 @@ export interface FlashbackMemory {
 }
 
 const MAX_PER_SOURCE = 200;
+const MAX_CAPSULES_TO_SCAN = 24;
+const MAX_ENTRIES_PER_CAPSULE = 25;
 const today = new Date();
 const TARGET_MONTH = today.getMonth();
 const TARGET_DATE = today.getDate();
 const CURRENT_YEAR = today.getFullYear();
 
-/**
- * Fetches recent memories from each source, then filters client-side by same month/day as today (past years only).
- * Avoids composite indexes; scales by limiting per-source fetch size.
- */
 export function useFlashbackMemories(coveId: string | undefined) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -34,85 +39,126 @@ export function useFlashbackMemories(coveId: string | undefined) {
         setLoading(true);
         setError(null);
         setMemories([]);
+
         try {
             const collected: FlashbackMemory[] = [];
             const base = (path: string[]) => collection(db, 'coves', coveId, ...path);
 
-            const addFromSnap = (
-                snap: import('firebase/firestore').QuerySnapshot<import('firebase/firestore').DocumentData>,
+            const addMemory = (
                 source: FlashbackSource,
+                id: string,
+                data: Record<string, any>,
                 contentKey: string,
-                titleKey?: string
+                titleKey?: string,
+                fallbackAuthorName?: string
             ) => {
-                snap.docs.forEach((d) => {
-                    const data = d.data();
-                    const createdAt = data.createdAt ?? null;
-                    // Filter past years only (current year memories aren't "flashbacks")
-                    if (createdAt?.seconds) {
-                        const dDate = new Date(createdAt.seconds * 1000);
-                        if (dDate.getFullYear() >= CURRENT_YEAR) return;
+                const createdAt = data.createdAt ?? null;
+                if (createdAt?.seconds) {
+                    const createdDate = new Date(createdAt.seconds * 1000);
+                    if (createdDate.getFullYear() >= CURRENT_YEAR) {
+                        return;
                     }
+                }
 
-                    collected.push({
-                        source,
-                        id: d.id,
-                        content: data[contentKey] ?? data.text ?? '',
-                        title: titleKey ? data[titleKey] : undefined,
-                        authorName: data.authorName,
-                        year: data.year ?? (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).getFullYear() : CURRENT_YEAR - 1),
-                        createdAt: data.createdAt ?? null,
-                    });
+                collected.push({
+                    source,
+                    id,
+                    content: data[contentKey] ?? data.text ?? '',
+                    title: titleKey ? data[titleKey] : undefined,
+                    authorName: fallbackAuthorName ?? data.authorName,
+                    year: data.year ?? (createdAt?.seconds ? new Date(createdAt.seconds * 1000).getFullYear() : CURRENT_YEAR - 1),
+                    createdAt,
                 });
             };
 
-            // Queries are now server-side filtered by day and month
             const commonFilters = [
                 where('day', '==', TARGET_DATE),
                 where('month', '==', TARGET_MONTH),
                 orderBy('createdAt', 'desc'),
-                limit(MAX_PER_SOURCE)
+                limit(MAX_PER_SOURCE),
             ];
 
-            const qQuotes = query(base(['quotes']), ...commonFilters);
-            const qPins = query(base(['pins']), ...commonFilters);
-            const qHumans = query(base(['humans']), ...commonFilters);
+            const sourceQueries = [
+                {
+                    source: 'quote' as const,
+                    run: async () => {
+                        const snap = await getDocs(query(base(['quotes']), ...commonFilters));
+                        snap.docs.forEach((docSnap) => addMemory('quote', docSnap.id, docSnap.data(), 'content'));
+                    },
+                },
+                {
+                    source: 'pin' as const,
+                    run: async () => {
+                        const snap = await getDocs(query(base(['pins']), ...commonFilters));
+                        snap.docs.forEach((docSnap) => addMemory('pin', docSnap.id, docSnap.data(), 'description', 'title'));
+                    },
+                },
+                {
+                    source: 'human' as const,
+                    run: async () => {
+                        const snap = await getDocs(query(base(['humans']), ...commonFilters));
+                        snap.docs.forEach((docSnap) => {
+                            const data = docSnap.data();
+                            addMemory(
+                                'human',
+                                docSnap.id,
+                                data,
+                                'content',
+                                undefined,
+                                data.isAnonymous ? 'Anonymous' : data.authorName
+                            );
+                        });
+                    },
+                },
+                {
+                    source: 'capsule' as const,
+                    run: async () => {
+                        const capsuleSnap = await getDocs(
+                            query(base(['timeCapsules']), orderBy('createdAt', 'desc'), limit(MAX_CAPSULES_TO_SCAN))
+                        );
 
-            // Capsule entries are nested, so we use collectionGroup
-            const qCapsules = query(
-                collectionGroup(db, 'entries'),
-                where('coveId', '==', coveId),
-                ...commonFilters
-            );
+                        const entryFetches = capsuleSnap.docs
+                            .filter((capsuleDoc) => {
+                                const capsule = capsuleDoc.data();
+                                const unlockAtMs = capsule.unlockAt?.seconds ? capsule.unlockAt.seconds * 1000 : 0;
+                                return capsule.isEmergencyOpened === true || unlockAtMs <= Date.now();
+                            })
+                            .map(async (capsuleDoc) => {
+                                const entrySnap = await getDocs(
+                                    query(
+                                        collection(db, 'coves', coveId, 'timeCapsules', capsuleDoc.id, 'entries'),
+                                        where('day', '==', TARGET_DATE),
+                                        where('month', '==', TARGET_MONTH),
+                                        orderBy('createdAt', 'desc'),
+                                        limit(MAX_ENTRIES_PER_CAPSULE)
+                                    )
+                                );
 
-            // Fetch all in parallel
-            const [snapQuotes, snapPins, snapHumans, snapCapsules] = await Promise.all([
-                getDocs(qQuotes),
-                getDocs(qPins),
-                getDocs(qHumans),
-                getDocs(qCapsules)
-            ]);
+                                entrySnap.docs.forEach((docSnap) => addMemory('capsule', docSnap.id, docSnap.data(), 'text'));
+                            });
 
-            addFromSnap(snapQuotes, 'quote', 'content');
-            addFromSnap(snapPins, 'pin', 'description', 'title');
-            
-            // Special handling for humans (anonymity)
-            snapHumans.docs.forEach((d) => {
-                const data = d.data();
-                if (data.year && data.year >= CURRENT_YEAR) return;
-                collected.push({
-                    source: 'human',
-                    id: d.id,
-                    content: data.content ?? '',
-                    authorName: data.isAnonymous ? 'Anonymous' : data.authorName,
-                    year: data.year ?? (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).getFullYear() : CURRENT_YEAR - 1),
-                    createdAt: data.createdAt ?? null,
-                });
+                        await Promise.all(entryFetches);
+                    },
+                },
+            ];
+
+            const results = await Promise.allSettled(sourceQueries.map((item) => item.run()));
+            const failedSources = results
+                .map((result, index) => ({ result, source: sourceQueries[index].source }))
+                .filter((entry) => entry.result.status === 'rejected');
+
+            failedSources.forEach((entry) => {
+                console.error(`Flashback ${entry.source} source failed:`, (entry.result as PromiseRejectedResult).reason);
             });
-
-            addFromSnap(snapCapsules, 'capsule', 'text');
 
             collected.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
             setMemories(collected);
+
+            if (failedSources.length === sourceQueries.length) {
+                setError('Failed to load flashbacks');
+            } else if (failedSources.length > 0) {
+                setError('Some memories could not be loaded, but flashbacks are still available.');
+            }
         } catch (err: any) {
             console.error('Flashback error:', err);
             setError(err.message || 'Failed to load flashbacks');

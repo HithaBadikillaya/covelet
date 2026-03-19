@@ -56,8 +56,8 @@ const Avatar = React.forwardRef<View, AvatarProps>(
           ref={ref}
           style={[
             styles.avatar,
-            dimensions.width && { width: dimensions.width },
-            dimensions.height && { height: dimensions.height },
+            dimensions.width ? { width: dimensions.width } : undefined,
+            dimensions.height ? { height: dimensions.height } : undefined,
             style,
           ]}
         >
@@ -82,8 +82,8 @@ const AvatarImage = React.forwardRef<View, AvatarImageProps>(
           source={{ uri: src }}
           style={[
             styles.image,
-            dimensions.width && { width: dimensions.width },
-            dimensions.height && { height: dimensions.height },
+            dimensions.width ? { width: dimensions.width } : undefined,
+            dimensions.height ? { height: dimensions.height } : undefined,
           ]}
           contentFit="cover"
           onLoad={() => setImageLoaded(true)}
@@ -115,8 +115,8 @@ const AvatarFallback = React.forwardRef<View, AvatarFallbackProps>(
           styles.fallback,
           bgPrimary && styles.bgPrimary,
           bgMuted && styles.bgMuted,
-          dimensions.width && { width: dimensions.width },
-          dimensions.height && { height: dimensions.height },
+          dimensions.width ? { width: dimensions.width } : undefined,
+          dimensions.height ? { height: dimensions.height } : undefined,
           style,
         ]}
       >
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: 9999, // Fully rounded
+    borderRadius: 0,
     overflow: "hidden",
     position: "relative",
     justifyContent: "center",
@@ -140,21 +140,21 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-    borderRadius: 9999,
+    borderRadius: 0,
   },
   fallback: {
     width: "100%",
     height: "100%",
-    borderRadius: 9999,
+    borderRadius: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#404040", // Default muted
+    backgroundColor: "#E8E2D9", // Using theme border color for fallback
   },
   bgPrimary: {
-    backgroundColor: "#0EA5E9", // Sky blue
+    backgroundColor: "#4A6741", // Sage Green
   },
   bgMuted: {
-    backgroundColor: "#404040", // Dark gray
+    backgroundColor: "#F0EBE0", // Muted Cream
   },
 });
 

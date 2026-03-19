@@ -1,156 +1,363 @@
-import { Colors, Fonts } from '@/constants/theme';
-import { auth } from '@/firebaseConfig';
-import { Quote, QuoteReply } from '@/hooks/useQuotes';
-import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import AppDialog, { type AppDialogAction } from "@/components/ui/AppDialog";
+import { Colors, Fonts, Layout } from "@/constants/theme";
+import { auth } from "@/firebaseConfig";
+import { Quote, QuoteReply } from "@/hooks/useQuotes";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-    Alert,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
-} from 'react-native';
+} from "react-native";
 
 interface QuoteCardProps {
-    quote: Quote;
-    onUpvote: () => void;
-    onDelete: () => void;
-    hasUpvoted: boolean;
-    onSubscribeReplies: (quoteId: string, onReplies: (r: QuoteReply[]) => void) => () => void;
-    onAddReply: (quoteId: string, content: string) => Promise<void>;
+  quote: Quote;
+  onUpvote: () => void;
+  onDelete: () => void;
+  hasUpvoted: boolean;
+  onSubscribeReplies: (
+    quoteId: string,
+    onReplies: (r: QuoteReply[]) => void,
+  ) => () => void;
+  onAddReply: (quoteId: string, content: string) => Promise<void>;
+  index: number;
 }
 
+type DialogState = {
+  title: string;
+  message: string;
+  actions?: AppDialogAction[];
+} | null;
+
 export const QuoteCard: React.FC<QuoteCardProps> = ({
-    quote,
-    onUpvote,
-    onDelete,
-    hasUpvoted,
-    onSubscribeReplies,
-    onAddReply,
+  quote,
+  onUpvote,
+  onDelete,
+  hasUpvoted,
+  onSubscribeReplies,
+  onAddReply,
+  index,
 }) => {
-    const themeColors = Colors.light;
-    const [replies, setReplies] = useState<QuoteReply[]>([]);
-    const [showReplies, setShowReplies] = useState(false);
-    const [replyText, setReplyText] = useState('');
-    const [submittingReply, setSubmittingReply] = useState(false);
-    const currentUser = auth.currentUser;
-    const isAuthor = currentUser?.uid === quote.authorId;
+  const paperColors = [
+    { bg: "#FFFFFF", border: Colors.light.border },
+    { bg: "#FDFBF7", border: Colors.light.border },
+  ];
+  const paper = paperColors[index % paperColors.length];
 
-    useEffect(() => {
-        if (!showReplies) return;
-        return onSubscribeReplies(quote.id, setReplies);
-    }, [quote.id, showReplies, onSubscribeReplies]);
+  const [replies, setReplies] = useState<QuoteReply[]>([]);
+  const [showReplies, setShowReplies] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const currentUser = auth.currentUser;
+  const isAuthor = currentUser?.uid === quote.authorId;
 
-    const formatTime = (seconds: number) => {
-        const now = Date.now();
-        const t = seconds * 1000;
-        const d = Math.floor((now - t) / 86400000);
-        if (d < 1) return 'Today';
-        if (d < 7) return `${d}d ago`;
-        return new Date(t).toLocaleDateString();
-    };
+  useEffect(() => {
+    if (!showReplies) return;
+    return onSubscribeReplies(quote.id, setReplies);
+  }, [quote.id, showReplies, onSubscribeReplies]);
 
-    const handleDelete = () => {
-        Alert.alert('Delete', 'Remove this from the wall?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: onDelete },
-        ]);
-    };
+  const formatTime = (seconds: number) => {
+    const now = Date.now();
+    const t = seconds * 1000;
+    const d = Math.floor((now - t) / 86400000);
+    if (d < 1) return "Today";
+    if (d < 7) return `${d}d ago`;
+    return new Date(t).toLocaleDateString();
+  };
 
-    const handleAddReply = async () => {
-        const t = replyText.trim();
-        if (!t || submittingReply) return;
-        setSubmittingReply(true);
-        try {
-            await onAddReply(quote.id, t);
-            setReplyText('');
-        } catch (e) {
-            Alert.alert('Error', 'Could not add reply');
-        } finally {
-            setSubmittingReply(false);
-        }
-    };
+  const handleDelete = () => {
+    setDialog({
+      title: "Delete",
+      message: "Remove this from the wall?",
+      actions: [
+        { label: "Cancel", variant: "secondary" },
+        { label: "Delete", variant: "danger", onPress: onDelete },
+      ],
+    });
+  };
 
-    return (
-        <View style={[styles.card, { backgroundColor: themeColors.card }]}>
-            <View style={styles.row}>
-                <Text style={[styles.content, { color: themeColors.text }]}>{quote.content}</Text>
-                {isAuthor && (
-                    <TouchableOpacity onPress={handleDelete} hitSlop={8}>
-                        <Ionicons name="trash-outline" size={18} color={themeColors.textMuted} />
-                    </TouchableOpacity>
-                )}
+  const handleAddReply = async () => {
+    const t = replyText.trim();
+    if (!t || submittingReply) return;
+    setSubmittingReply(true);
+    try {
+      await onAddReply(quote.id, t);
+      setReplyText("");
+    } catch {
+      setDialog({ title: "Error", message: "Could not add reply" });
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  return (
+    <>
+      <View style={styles.wrapper}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: paper.bg, borderColor: paper.border },
+          ]}
+        >
+          <View
+            style={[
+              styles.tape,
+              {
+                backgroundColor:
+                  index % 2 === 0
+                    ? Colors.light.secondary
+                    : Colors.light.primary,
+                opacity: 0.4,
+              },
+            ]}
+          />
+
+          <View style={styles.row}>
+            <Text style={styles.quoteText}>{`${quote.content}`}</Text>
+            {isAuthor ? (
+              <TouchableOpacity
+                onPress={handleDelete}
+                hitSlop={12}
+                style={styles.deleteBtn}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={16}
+                  color={Colors.light.textMuted}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View style={styles.meta}>
+            <View style={styles.authorBadge}>
+              <Text style={styles.author}>
+                {quote.authorName.toUpperCase()}
+              </Text>
             </View>
-            <View style={styles.meta}>
-                <Text style={[styles.author, { color: themeColors.textMuted }]}>{quote.authorName}</Text>
-                <Text style={[styles.time, { color: themeColors.textMuted }]}>
-                    {quote.createdAt?.seconds != null ? formatTime(quote.createdAt.seconds) : 'Just now'}
-                </Text>
-            </View>
-            <View style={styles.actions}>
-                <TouchableOpacity style={styles.upvoteBtn} onPress={onUpvote}>
-                    <Ionicons
-                        name={hasUpvoted ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
-                        size={22}
-                        color={hasUpvoted ? themeColors.primary : themeColors.textMuted}
-                    />
-                    <Text style={[styles.upvoteCount, { color: themeColors.textMuted }]}>{quote.upvotesCount ?? 0}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowReplies(!showReplies)}>
-                    <Text style={[styles.replyToggle, { color: themeColors.primary }]}>
-                        {showReplies ? 'Hide replies' : `Replies (${replies.length})`}
+            <Text style={styles.time}>
+              {quote.createdAt?.seconds != null
+                ? formatTime(quote.createdAt.seconds)
+                : "Just now"}
+            </Text>
+          </View>
+
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.actionBtn} onPress={onUpvote}>
+              <Ionicons
+                name={hasUpvoted ? "heart" : "heart-outline"}
+                size={18}
+                color={hasUpvoted ? "#EF4444" : Colors.light.text}
+              />
+              <Text
+                style={[styles.actionText, hasUpvoted && { color: "#EF4444" }]}
+              >
+                {quote.upvotesCount ?? 0}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowReplies(!showReplies)}
+              style={styles.actionBtn}
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={16}
+                color={Colors.light.text}
+              />
+              <Text style={styles.actionText}>{quote.repliesCount || 0}</Text>
+            </TouchableOpacity>
+          </View>
+          {showReplies ? (
+            <View style={styles.replies}>
+              <ScrollView
+                style={styles.repliesScroll}
+                showsVerticalScrollIndicator
+                nestedScrollEnabled
+              >
+                {replies.map((r) => (
+                  <View key={r.id} style={styles.replyRow}>
+                    <Text style={styles.replyAuthor}>
+                      {r.authorName.toUpperCase()}
                     </Text>
+                    <Text style={styles.replyContent}>{r.content}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.replyInputRow}>
+                <TextInput
+                  style={styles.replyInput}
+                  placeholder="Add a reply..."
+                  placeholderTextColor={Colors.light.textMuted}
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  editable={!submittingReply}
+                />
+                <TouchableOpacity
+                  style={styles.sendBtn}
+                  onPress={handleAddReply}
+                  disabled={!replyText.trim() || submittingReply}
+                >
+                  <Ionicons name="send" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
+              </View>
             </View>
-            {showReplies && (
-                <View style={styles.replies}>
-                    {replies.map((r) => (
-                        <View key={r.id} style={[styles.replyRow, { borderTopColor: themeColors.border }]}>
-                            <Text style={[styles.replyAuthor, { color: themeColors.textMuted }]}>{r.authorName}</Text>
-                            <Text style={[styles.replyContent, { color: themeColors.text }]}>{r.content}</Text>
-                        </View>
-                    ))}
-                    <View style={styles.replyInputRow}>
-                        <TextInput
-                            style={[styles.replyInput, { color: themeColors.text, backgroundColor: themeColors.muted }]}
-                            placeholder="Add a reply..."
-                            placeholderTextColor={themeColors.textMuted}
-                            value={replyText}
-                            onChangeText={setReplyText}
-                            editable={!submittingReply}
-                        />
-                        <TouchableOpacity
-                            style={[styles.replyBtn, { backgroundColor: themeColors.primary }]}
-                            onPress={handleAddReply}
-                            disabled={!replyText.trim() || submittingReply}
-                        >
-                            <Text style={styles.replyBtnText}>Reply</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            )}
+          ) : null}
         </View>
-    );
+      </View>
+
+      <AppDialog
+        visible={!!dialog}
+        title={dialog?.title || ""}
+        message={dialog?.message || ""}
+        actions={dialog?.actions}
+        onClose={() => setDialog(null)}
+      />
+    </>
+  );
 };
 
 const styles = StyleSheet.create({
-    card: { padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-    content: { flex: 1, fontFamily: Fonts.body, fontSize: 16, lineHeight: 22 },
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    author: { fontFamily: Fonts.bodyBold, fontSize: 13 },
-    time: { fontFamily: Fonts.body, fontSize: 12 },
-    actions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    upvoteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    upvoteCount: { fontFamily: Fonts.bodyMedium, fontSize: 14 },
-    replyToggle: { fontFamily: Fonts.body, fontSize: 14 },
-    replies: { marginTop: 12, paddingTop: 12 },
-    replyRow: { borderTopWidth: 1, paddingVertical: 8 },
-    replyAuthor: { fontFamily: Fonts.bodyBold, fontSize: 12, marginBottom: 2 },
-    replyContent: { fontFamily: Fonts.body, fontSize: 14 },
-    replyInputRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-    replyInput: { flex: 1, borderRadius: 8, padding: 10, fontFamily: Fonts.body, fontSize: 14 },
-    replyBtn: { paddingHorizontal: 16, justifyContent: 'center', borderRadius: 20 },
-    replyBtnText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: '#fff' },
+  wrapper: {
+    marginBottom: 28,
+    padding: 4,
+  },
+  card: {
+    padding: 24,
+    paddingTop: 32,
+    borderRadius: Layout.radiusLarge,
+    borderWidth: 2,
+    borderColor: Colors.light.text,
+    shadowColor: "#000",
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 0,
+    elevation: 4,
+  },
+  tape: {
+    position: "absolute",
+    top: -10,
+    alignSelf: "center",
+    width: 60,
+    height: 20,
+    zIndex: 10,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  quoteText: {
+    flex: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 18,
+    lineHeight: 26,
+    color: Colors.light.text,
+    fontStyle: "italic",
+  },
+  deleteBtn: {
+    marginLeft: 12,
+    padding: 4,
+  },
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  authorBadge: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: Colors.light.secondary,
+    paddingBottom: 2,
+  },
+  author: {
+    fontFamily: Fonts.heading,
+    fontSize: 11,
+    color: Colors.light.text,
+    letterSpacing: 1,
+  },
+  time: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.light.textMuted,
+  },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    borderTopWidth: 1.5,
+    borderTopColor: Colors.light.border,
+    paddingTop: 16,
+  },
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  actionText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.light.text,
+  },
+  replies: {
+    marginTop: 20,
+    padding: 16,
+    paddingBottom: 8,
+    backgroundColor: "#FDFBF7",
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  repliesScroll: {
+    maxHeight: 220,
+    marginBottom: 8,
+  },
+  replyRow: {
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8E2D9",
+  },
+  replyAuthor: {
+    fontFamily: Fonts.heading,
+    fontSize: 10,
+    color: Colors.light.text,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  replyContent: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.light.text,
+    lineHeight: 20,
+  },
+  replyInputRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  replyInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: Colors.light.border,
+    paddingHorizontal: 12,
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    backgroundColor: Colors.light.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.light.text,
+  },
 });
