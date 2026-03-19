@@ -2,22 +2,22 @@ import { Colors, Fonts, Layout } from "@/constants/theme";
 import { router, Stack } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import {
-    resetPassword as authResetPassword,
-    signIn,
-    signUp,
+  resetPassword as authResetPassword,
+  signIn,
+  signUp,
 } from "@/components/auth/authService";
 
 export default function LoginScreen() {
@@ -46,7 +46,7 @@ export default function LoginScreen() {
       } else {
         await signUp(name, email, password);
       }
-      router.replace("/(tabs)/dashboard");
+      router.replace("/");
     } catch (err: any) {
       setError(err.message);
     } finally {
