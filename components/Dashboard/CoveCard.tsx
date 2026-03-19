@@ -1,124 +1,178 @@
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, Layout } from '@/constants/theme';
+import { getCoveBackgroundUrl } from '@/utils/avatar';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface CoveCardProps {
-    name: string;
-    description?: string;
-    memberCount: number;
-    isOwner: boolean;
+    cove: {
+        name: string;
+        description?: string;
+        members?: string[];
+        avatarSeed?: string;
+    };
+    isOwner?: boolean;
     onPress: () => void;
+    index: number;
 }
 
-export const CoveCard: React.FC<CoveCardProps> = ({ name, description, memberCount, isOwner, onPress }) => {
-    const themeColors = Colors.light;
+const CoveCard = ({ cove, isOwner, onPress, index }: CoveCardProps) => {
+    const bgUrl = getCoveBackgroundUrl(cove.avatarSeed || '');
 
     return (
-        <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={onPress}
-            style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
-        >
-            <View style={styles.header}>
-                <View style={styles.titleWrapper}>
-                    <View style={styles.titleRow}>
-                        <Text style={[styles.title, { color: themeColors.text }]} numberOfLines={1}>
-                            {name}
-                        </Text>
-                        {isOwner && (
-                            <View style={[styles.ownerBadge, { backgroundColor: themeColors.primary + '20', borderColor: themeColors.primary }]}>
-                                <Text style={[styles.ownerBadgeText, { color: themeColors.primary }]}>Owner</Text>
-                            </View>
-                        )}
-                    </View>
-                    {description ? (
-                        <Text style={[styles.description, { color: themeColors.textMuted }]} numberOfLines={2}>
-                            {description}
-                        </Text>
-                    ) : null}
-                </View>
-                <View style={[styles.iconBox, { backgroundColor: themeColors.primary + '10' }]}>
-                    <Ionicons name="boat-outline" size={24} color={themeColors.primary} />
-                </View>
-            </View>
+        <View style={styles.wrapper}>
+            <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+                <View
+                    style={[
+                        styles.tape,
+                        {
+                            backgroundColor: index % 3 === 0 ? '#4A6741' : '#D4A373',
+                            opacity: 0.4,
+                        },
+                    ]}
+                />
 
-            <View style={[styles.footer, { borderTopColor: themeColors.border }]}>
-                <View style={styles.stats}>
-                    <Ionicons name="people-outline" size={16} color={themeColors.textMuted} />
-                    <Text style={[styles.statText, { color: themeColors.textMuted }]}>
-                        {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                    </Text>
+                <View style={styles.photoArea}>
+                    <Image source={{ uri: bgUrl }} style={styles.backgroundImage} contentFit="cover" />
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={themeColors.textMuted} />
-            </View>
-        </TouchableOpacity>
+
+                <View style={styles.labelArea}>
+                    <View style={styles.header}>
+                        <Text style={styles.name} numberOfLines={1}>{cove.name}</Text>
+                        {isOwner ? (
+                            <View style={styles.ownerBadge}>
+                                <Text style={styles.ownerText}>OWNER</Text>
+                            </View>
+                        ) : null}
+                    </View>
+
+                    {cove.description ? (
+                        <Text style={styles.description} numberOfLines={2}>{cove.description}</Text>
+                    ) : null}
+
+                    <View style={styles.footer}>
+                        <Ionicons name="people-outline" size={12} color={Colors.light.textMuted} />
+                        <Text style={styles.members}>{cove.members?.length || 0}</Text>
+                    </View>
+                </View>
+            </Pressable>
+        </View>
     );
 };
 
+export default CoveCard;
+
 const styles = StyleSheet.create({
-    card: {
+    wrapper: {
         width: '100%',
-        padding: 24,
-        borderWidth: 1,
         marginBottom: 20,
+        padding: 4,
+    },
+    featuredWrapper: {
+        marginBottom: 32,
+    },
+    card: {
+        backgroundColor: '#FFFFFF',
+        padding: 10,
+        paddingBottom: 24,
+        borderRadius: Layout.radiusLarge,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#2F2E2C',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 0,
+        elevation: 4,
+    },
+    cardPressed: {
+        backgroundColor: '#F9F7F2',
+        transform: [{ translateX: 2 }, { translateY: 2 }],
+        shadowOffset: { width: 2, height: 2 },
+    },
+    tape: {
+        position: 'absolute',
+        top: -8,
+        alignSelf: 'center',
+        width: 70,
+        height: 18,
+        zIndex: 10,
+    },
+    photoArea: {
+        aspectRatio: 1,
+        backgroundColor: '#FDFBF7',
+        borderRadius: 0,
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 1.5,
+        borderColor: Colors.light.border,
+    },
+    backgroundImage: {
+        ...StyleSheet.absoluteFillObject,
+        opacity: 0.8,
+    },
+    photoOverlay: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: Colors.light.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+    },
+    labelArea: {
+        paddingHorizontal: 2,
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 24,
-    },
-    titleWrapper: {
-        flex: 1,
-        marginRight: 16,
-    },
-    titleRow: {
-        flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        marginBottom: 8,
+        justifyContent: 'space-between',
+        marginBottom: 6,
     },
-    title: {
+    name: {
         fontFamily: Fonts.heading,
-        fontSize: 22,
+        fontSize: 18,
+        color: Colors.light.text,
+        flex: 1,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     ownerBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
         borderWidth: 1,
-        borderRadius: 4,
+        borderColor: Colors.light.primary,
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 0,
+        marginLeft: 8,
     },
-    ownerBadgeText: {
+    ownerText: {
         fontFamily: Fonts.bodyBold,
-        fontSize: 10,
-        textTransform: 'uppercase',
+        fontSize: 9,
+        color: Colors.light.primary,
     },
     description: {
         fontFamily: Fonts.body,
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    iconBox: {
-        width: 48,
-        height: 48,
-        justifyContent: 'center',
-        alignItems: 'center',
+        fontSize: 13,
+        color: Colors.light.textMuted,
+        lineHeight: 18,
+        marginBottom: 12,
     },
     footer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: 16,
-        borderTopWidth: 1,
+        marginTop: 'auto',
     },
-    stats: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    statText: {
+    members: {
         fontFamily: Fonts.bodyMedium,
-        fontSize: 14,
+        fontSize: 12,
+        color: Colors.light.textMuted,
+        marginLeft: 4,
     },
 });

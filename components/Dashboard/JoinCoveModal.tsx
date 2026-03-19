@@ -1,18 +1,11 @@
-import { db } from "@/firebaseConfig";
-import { getAuth } from "firebase/auth";
-import {
-    arrayUnion,
-    collection,
-    doc,
-    getDocs,
-    query,
-    updateDoc,
-    where,
-} from "firebase/firestore";
-import React, { useRef, useState } from "react";
+import { findCoveIdByJoinCode, joinCoveById } from '@/utils/coveJoinCodes';
+import { isValidJoinCode, normalizeJoinCode } from '@/utils/security';
+import { Colors, Fonts, Layout } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { getAuth } from 'firebase/auth';
+import React, { useRef, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -23,7 +16,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
-} from "react-native";
+} from 'react-native';
 
 interface Props {
     visible: boolean;
@@ -32,115 +25,77 @@ interface Props {
 }
 
 export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
-    const [code, setCode] = useState("");
+    const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const inputRef = useRef<TextInput>(null);
     const auth = getAuth();
 
     const handleCloseInternal = () => {
-        setCode("");
+        setCode('');
+        setErrorMsg(null);
         inputRef.current?.clear();
         Keyboard.dismiss();
         onClose();
     };
 
     const handleJoin = async () => {
-        const trimmedCode = code.trim().toUpperCase();
-        if (trimmedCode.length !== 6) return;
-
-        // Validate alphanumeric only before query
-        if (!/^[A-Z0-9]+$/.test(trimmedCode)) {
-            Alert.alert("Invalid Code", "Cove codes only contain letters and numbers.");
+        const trimmedCode = normalizeJoinCode(code);
+        if (!isValidJoinCode(trimmedCode)) {
+            setErrorMsg('Enter a valid 6-character invite code.');
             return;
         }
 
-        if (!auth.currentUser) return;
+        if (!auth.currentUser) {
+            setErrorMsg('Sign in first to join a Cove.');
+            return;
+        }
 
         setLoading(true);
+        setErrorMsg(null);
+
         try {
-            // 1. Query cove by joinCode
-            const q = query(
-                collection(db, "coves"),
-                where("joinCode", "==", trimmedCode)
-            );
-            const snapshot = await getDocs(q);
-
-            if (snapshot.empty) {
-                Alert.alert("Invalid Code", "No Cove found with this join code.");
+            const coveId = await findCoveIdByJoinCode(trimmedCode);
+            if (!coveId) {
+                setErrorMsg('No Cove found with this code. Double check it.');
                 setLoading(false);
                 return;
             }
 
-            const coveDoc = snapshot.docs[0];
-            const coveData = coveDoc.data();
-            const coveId = coveDoc.id;
-            const userId = auth.currentUser.uid;
+            await joinCoveById(coveId, auth.currentUser.uid);
 
-            // 2. Prevent re-joining or joining own cove
-            if (coveData.createdBy === userId) {
-                Alert.alert("Cannot Join", "You are the creator of this Cove.");
-                setLoading(false);
-                handleCloseInternal();
-                return;
-            }
-
-            if (coveData.members.includes(userId)) {
-                Alert.alert("Already a Member", "You are already a member of this Cove.");
-                setLoading(false);
-                handleCloseInternal();
-                return;
-            }
-
-            // 3. Atomically join
-            await updateDoc(doc(db, "coves", coveId), {
-                members: arrayUnion(userId),
-            });
-
-            // 4. Cleanup and Navigate
             setLoading(false);
             handleCloseInternal();
-            // Pass the coveId to the onJoin callback for navigation
             onJoin(coveId);
         } catch (error: any) {
-            console.error("Error joining cove:", error);
-
-            // Handle permission denied specifically (Security Rules check)
-            if (error.code === 'permission-denied' || error.message?.includes('permissions')) {
-                Alert.alert(
-                    "Security Restriction",
-                    "You don't have permission to search for this Cove. Please ensure you have the correct code"
-                );
+            if (error.code === 'permission-denied' || error.code === 'not-found') {
+                setErrorMsg('That invite code is invalid, expired, or you already belong to this Cove.');
             } else {
-                Alert.alert("Join Failed", "Something went wrong. Please try again later.");
+                setErrorMsg('Something went wrong. Please try again later.');
             }
             setLoading(false);
         }
     };
 
     const handleCodeChange = (text: string) => {
-        // Allow all characters visually to prevent "trapped" backspace in uncontrolled input.
-        // We only capitalize. Validation happens on Join.
-        const upperText = text.toUpperCase();
-
-        if (upperText.length <= 6) {
-            setCode(upperText);
-        }
+        setErrorMsg(null);
+        setCode(normalizeJoinCode(text));
     };
 
     const renderBoxes = () => {
         const boxes = [];
-        for (let i = 0; i < 6; i++) {
-            const char = code[i] || "";
+        for (let i = 0; i < 6; i += 1) {
+            const char = code[i] || '';
             const isFocused = i === code.length;
             boxes.push(
                 <View
                     key={i}
                     style={[
                         styles.box,
-                        isFocused ? styles.boxFocused : styles.boxUnfocused
+                        isFocused ? styles.boxFocused : styles.boxUnfocused,
                     ]}
                 >
-                    <Text style={styles.boxText}>{char}</Text>
+                    <Text style={[styles.boxText, isFocused && { color: Colors.light.primary }]}>{char}</Text>
                 </View>
             );
         }
@@ -151,30 +106,36 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
         <Modal
             visible={visible}
             transparent
-            animationType="fade"
+            animationType="none"
             statusBarTranslucent
             onRequestClose={handleCloseInternal}
         >
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.overlay}
             >
                 <Pressable style={styles.backdrop} onPress={handleCloseInternal} />
 
                 <View style={styles.modalCard}>
-                    <Text style={styles.title}>Join a Cove</Text>
-                    <Text style={styles.subtitle}>Enter the invitation code to enter a sanctuary.</Text>
+                    <View style={styles.tape} />
 
-                    {/* Code Input Area with Ghost Input Overlay */}
+                    <TouchableOpacity style={styles.closeIcon} onPress={handleCloseInternal}>
+                        <Ionicons name="close" size={24} color={Colors.light.text} />
+                    </TouchableOpacity>
+
+                    <Text style={styles.title}>JOIN A COVE</Text>
+                    <Text style={styles.subtitle}>Enter the invitation code to enter a shared sanctuary.</Text>
+
                     <View style={styles.codeRow}>
                         {renderBoxes()}
                         <TextInput
                             ref={inputRef}
                             onChangeText={handleCodeChange}
+                            value={code}
                             maxLength={6}
                             autoCapitalize="characters"
                             autoCorrect={false}
-                            autoFocus={false} // Handled in useEffect
+                            autoFocus={false}
                             caretHidden={true}
                             allowFontScaling={false}
                             contextMenuHidden={true}
@@ -184,31 +145,23 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
                         />
                     </View>
 
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={handleCloseInternal}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.cancelButtonText}>CANCEL</Text>
-                        </TouchableOpacity>
+                    {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
-                        <TouchableOpacity
-                            style={[
-                                styles.joinButton,
-                                (code.length === 6 && !loading) ? styles.joinButtonActive : styles.joinButtonDisabled
-                            ]}
-                            onPress={handleJoin}
-                            disabled={code.length !== 6 || loading}
-                            activeOpacity={0.7}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <Text style={styles.joinButtonText}>JOIN</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity
+                        style={[
+                            styles.joinButton,
+                            code.length === 6 && !loading ? styles.joinButtonActive : styles.joinButtonDisabled,
+                        ]}
+                        onPress={handleJoin}
+                        disabled={code.length !== 6 || loading}
+                        activeOpacity={0.8}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text style={styles.joinButtonText}>ENTER COVE</Text>
+                        )}
+                    </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
         </Modal>
@@ -218,114 +171,136 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.7)",
-        justifyContent: "center",
-        alignItems: "center",
+        backgroundColor: 'rgba(47, 46, 44, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     backdrop: {
-        position: "absolute",
+        position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
     },
     modalCard: {
-        width: "90%",
+        width: '90%',
         maxWidth: 400,
-        backgroundColor: "#09090b", // zinc-950
-        padding: 24,
-        borderWidth: 1,
-        borderColor: "#27272a", // zinc-800
-        borderRadius: 0,
+        backgroundColor: '#FFFFFF',
+        padding: 32,
+        paddingTop: 48,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        borderRadius: Layout.radiusLarge,
+        shadowColor: '#000',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 0,
+        elevation: 8,
+    },
+    tape: {
+        position: 'absolute',
+        top: -12,
+        alignSelf: 'center',
+        width: 80,
+        height: 24,
+        backgroundColor: Colors.light.secondary,
+        opacity: 0.5,
+    },
+    closeIcon: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        padding: 4,
     },
     title: {
-        color: "#ffffff",
+        color: Colors.light.text,
+        fontFamily: Fonts.heading,
         fontSize: 24,
-        fontWeight: "bold",
         marginBottom: 8,
-        textAlign: "center",
+        textAlign: 'center',
+        letterSpacing: 1,
     },
     subtitle: {
-        color: "#a1a1aa", // zinc-400
+        color: Colors.light.textMuted,
+        fontFamily: Fonts.body,
         fontSize: 14,
-        marginBottom: 24,
-        textAlign: "center",
+        marginBottom: 32,
+        textAlign: 'center',
+        lineHeight: 20,
     },
     ghostInput: {
-        position: "absolute",
+        position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        opacity: 0, // Completely invisible
-        // It's important that it COVERS the boxes.
-        // We set opacity to effectively 0 but let it capture touches.
-        color: "transparent",
+        opacity: 0,
+        color: 'transparent',
     },
     codeRow: {
-        flexDirection: "row",
-        justifyContent: "center",
-        marginBottom: 32,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginBottom: 24,
     },
     box: {
         width: 44,
-        height: 48,
+        height: 54,
         borderWidth: 2,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#18181b", // zinc-900
-        marginHorizontal: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FDFBF7',
+        marginHorizontal: 3,
         borderRadius: 0,
+        borderColor: Colors.light.border,
     },
     boxFocused: {
-        borderColor: "#6366f1", // indigo-500
-        backgroundColor: "#27272a", // zinc-800
+        borderColor: Colors.light.primary,
+        backgroundColor: '#FFFFFF',
+        shadowColor: Colors.light.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.2,
+        elevation: 2,
     },
     boxUnfocused: {
-        borderColor: "#27272a", // zinc-800
+        borderColor: Colors.light.border,
     },
     boxText: {
-        color: "#ffffff",
-        fontSize: 20,
-        fontWeight: "bold",
+        color: Colors.light.text,
+        fontFamily: Fonts.heading,
+        fontSize: 22,
     },
-    buttonRow: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    cancelButton: {
-        flex: 1,
-        height: 48,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#27272a", // zinc-800
-        borderWidth: 1,
-        borderColor: "#3f3f46", // zinc-700
-    },
-    cancelButtonText: {
-        color: "#ffffff",
-        fontWeight: "600",
-        fontStyle: "italic",
-        fontSize: 12,
+    errorText: {
+        color: '#DC2626',
+        fontFamily: Fonts.body,
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 20,
     },
     joinButton: {
-        flex: 1,
-        height: 48,
-        alignItems: "center",
-        justifyContent: "center",
+        height: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: Layout.radiusMedium,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 0,
+        elevation: 4,
     },
     joinButtonActive: {
-        backgroundColor: "#4f46e5", // indigo-600
+        backgroundColor: Colors.light.primary,
     },
     joinButtonDisabled: {
-        backgroundColor: "#312e81", // indigo-900
-        opacity: 0.5,
+        backgroundColor: Colors.light.muted,
+        borderColor: Colors.light.border,
+        opacity: 0.6,
     },
     joinButtonText: {
-        color: "#ffffff",
-        fontWeight: "600",
-        fontStyle: "italic",
-        letterSpacing: 1.5,
-        fontSize: 12,
+        color: '#FFFFFF',
+        fontFamily: Fonts.heading,
+        fontSize: 14,
+        letterSpacing: 1,
     },
 });

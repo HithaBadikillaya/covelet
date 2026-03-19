@@ -1,16 +1,24 @@
 import { subscribeToAuthChanges } from '@/components/auth/authService';
-import { CoveCard } from '@/components/Dashboard/CoveCard';
-import { CreateCoveModal } from '@/components/Dashboard/CreateCoveModal';
-import JoinCoveModal from "@/components/Dashboard/JoinCoveModal";
-import { NAVBAR_HEIGHT } from '@/components/Navbar';
-import { Colors, Fonts } from '@/constants/theme';
+import CoveCard from '@/components/Dashboard/CoveCard';
+import CreateCoveModal from '@/components/Dashboard/CreateCoveModal';
+import JoinCoveModal from '@/components/Dashboard/JoinCoveModal';
+import { Colors, Fonts, Layout } from '@/constants/theme';
+import { ensureCoveJoinCodeIndex } from '@/utils/coveJoinCodes';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { User } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    ActivityIndicator,
+    FlatList,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Cove {
@@ -25,23 +33,23 @@ interface Cove {
 
 const DashboardScreen = () => {
     const insets = useSafeAreaInsets();
-    const themeColors = Colors.light; // Single theme
     const [cuser, setCUser] = useState<User | null>(null);
-
     const [coves, setCoves] = useState<Cove[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showJoinModal, setShowJoinModal] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [createModalVisible, setCreateModalVisible] = useState(false);
-    const [joinModalVisible, setJoinModalVisible] = useState(false);
 
     useEffect(() => {
         const unsubscribeAuth = subscribeToAuthChanges((user: User | null) => {
             setCUser(user);
             if (!user) {
-                return; // AuthGuard handles redirect
+                setLoading(false);
+                setCoves([]);
+                return;
             }
 
-            // Real-time listener for Coves where the user is a member
             const q = query(
                 collection(db, 'coves'),
                 where('members', 'array-contains', user.uid)
@@ -62,16 +70,9 @@ const DashboardScreen = () => {
                 setCoves(sortedCoves);
                 setLoading(false);
                 setError(null);
-            }, (error) => {
-                // Handle permission errors gracefully - usually happens if a document is deleted 
-                // but the listener is still trying to access it before catching up.
-                if (error.code === 'permission-denied') {
-                    console.warn("Permission denied for dashboard query - likely during document deletion.");
-                    // We don't set a hard error state here to avoid UI flicker/crashes
-                } else {
-                    console.error("Dashboard listener error:", error);
-                    setError("Failed to sync your sanctuaries. Please check your connection.");
-                }
+            }, (err) => {
+                console.error("Dashboard listener error:", err);
+                setError("Failed to sync your scrapbook. Please check your connection.");
                 setLoading(false);
             });
 
@@ -81,199 +82,265 @@ const DashboardScreen = () => {
         return () => unsubscribeAuth();
     }, []);
 
+    useEffect(() => {
+        if (coves.length === 0) {
+            return;
+        }
+
+        void Promise.allSettled(
+            coves.map((cove) => ensureCoveJoinCodeIndex(cove.id, cove.joinCode, cove.createdBy))
+        );
+    }, [coves]);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        setTimeout(() => setRefreshing(false), 800);
+    };
+
     const handleCovePress = (id: string) => {
         router.push(`/dashboard/cove/${id}` as any);
     };
 
-    return (
-        <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-            <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
+    const renderBentoGrid = () => {
+        if (loading && !refreshing) {
+            return (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={Colors.light.primary} />
+                </View>
+            );
+        }
 
-            <View style={[styles.header, { backgroundColor: themeColors.card, paddingTop: insets.top + NAVBAR_HEIGHT + 20 }]}>
-                <View style={styles.headerContent}>
-                    <Text style={[styles.greeting, { color: themeColors.text }]}>
-                        Your Sanctuaries
-                    </Text>
-                    <Text style={[styles.subGreeting, { color: themeColors.textMuted }]}>
-                        Manage your circles and revisited memories.
+        if (error) {
+            return (
+                <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle-outline" size={24} color={Colors.light.error} />
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            );
+        }
+
+        if (coves.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIllustration}>
+                        <Ionicons name="images-outline" size={64} color={Colors.light.border} />
+                    </View>
+                    <Text style={styles.emptyTitle}>Your scrapbook is empty</Text>
+                    <Text style={styles.emptySubtitle}>
+                        Every story starts with a first page. Create a cove to begin sharing memories.
                     </Text>
                 </View>
-            </View>
+            );
+        }
 
-            <View style={[styles.content, { backgroundColor: themeColors.background }]}>
-                <View style={styles.actionRow}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
-                        onPress={() => {
-                            console.log("Create Cove button pressed");
-                            setCreateModalVisible(true);
-                        }}
-                    >
-                        <Ionicons name="add" size={24} color={themeColors.background} />
-                        <Text style={[styles.actionButtonText, { color: themeColors.background }]}>Create Cove</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.actionButtonSecondary, { borderColor: themeColors.primary }]}
-                        onPress={() => {
-                            console.log("Join Cove button pressed");
-                            setJoinModalVisible(true);
-                        }}
-                    >
-                        <Ionicons name="enter-outline" size={24} color={themeColors.primary} />
-                        <Text style={[styles.actionButtonTextSecondary, { color: themeColors.primary }]}>Join Cove</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {error && (
-                    <View style={[styles.errorBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: themeColors.error }]}>
-                        <Ionicons name="alert-circle-outline" size={24} color={themeColors.error} />
-                        <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
-                    </View>
-                )}
-
-                {loading ? (
-                    <View style={styles.loaderBox}>
-                        <ActivityIndicator size="large" color={themeColors.primary} />
-                    </View>
-                ) : coves.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="boat-outline" size={64} color={themeColors.muted} />
-                        <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No Coves Yet</Text>
-                        <Text style={[styles.emptySubtitle, { color: themeColors.textMuted }]}>
-                            Create your own cove or join one using a code shared by a friend.
-                        </Text>
-                    </View>
-                ) : (
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.scrollContent}
-                    >
-                        {coves.map((cove) => (
+        return (
+            <View style={styles.gridContainer}>
+                {coves.map((cove, index) => {
+                    return (
+                        <View
+                            key={cove.id}
+                            style={styles.gridItem}
+                        >
                             <CoveCard
-                                key={cove.id}
-                                name={cove.name}
-                                description={cove.description}
-                                memberCount={cove.members?.length || 0}
+                                cove={cove}
+                                index={index}
                                 isOwner={cuser?.uid === cove.createdBy}
                                 onPress={() => handleCovePress(cove.id)}
                             />
-                        ))}
-                    </ScrollView>
-                )}
+                        </View>
+                    );
+                })}
             </View>
+        );
+    };
+
+    return (
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            <FlatList
+                data={[]}
+                renderItem={null}
+                ListHeaderComponent={
+                    <>
+                        <View style={styles.header}>
+                            <Text style={styles.greeting}>Hey there!</Text>
+                            <Text style={styles.title}>MY SCRAPBOOK</Text>
+                        </View>
+
+                        <View style={styles.ctaRow}>
+                            <Pressable
+                                onPress={() => setShowCreateModal(true)}
+                                style={({ pressed }) => [
+                                    styles.ctaButton, 
+                                    styles.createBtn, 
+                                    { flex: 1.2 },
+                                    pressed && styles.ctaPressed
+                                ]}
+                            >
+                                <Ionicons name="add" size={24} color="#FFFFFF" />
+                                <Text style={styles.ctaText}>CREATE COVE</Text>
+                            </Pressable>
+
+                            <Pressable
+                                onPress={() => setShowJoinModal(true)}
+                                style={({ pressed }) => [
+                                    styles.ctaButton, 
+                                    styles.joinBtn, 
+                                    { flex: 1 },
+                                    pressed && styles.ctaPressed
+                                ]}
+                            >
+                                <Ionicons name="people" size={22} color={Colors.light.text} />
+                                <Text style={[styles.ctaText, { color: Colors.light.text }]}>JOIN</Text>
+                            </Pressable>
+                        </View>
+
+                        {renderBentoGrid()}
+                    </>
+                }
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={Colors.light.primary}
+                    />
+                }
+            />
+
             <CreateCoveModal
-                visible={createModalVisible}
-                onClose={() => setCreateModalVisible(false)}
+                visible={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
             />
             <JoinCoveModal
-                visible={joinModalVisible}
-                onClose={() => setJoinModalVisible(false)}
-                onJoin={(coveId) => handleCovePress(coveId)}
+                visible={showJoinModal}
+                onClose={() => setShowJoinModal(false)}
+                onJoin={(id) => router.push(`/dashboard/cove/${id}` as any)}
             />
         </View>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    header: {
-        paddingHorizontal: 24,
-        paddingBottom: 32,
-    },
-    headerContent: {
-        // No margin needed
-    },
-    greeting: {
-        fontFamily: Fonts.heading,
-        fontSize: 32,
-        marginBottom: 8,
-    },
-    subGreeting: {
-        fontFamily: Fonts.body,
-        fontSize: 16,
-        opacity: 0.8,
-    },
-    content: {
-        flex: 1,
-        borderTopLeftRadius: 0, // Enforce sharp edges
-        marginTop: -20,
-        paddingHorizontal: 24,
-    },
-    actionRow: {
-        flexDirection: 'row',
-        gap: 16,
-        marginBottom: 32,
-        marginTop: 32,
-    },
-    actionButton: {
-        flex: 1,
-        height: 56,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    actionButtonSecondary: {
-        flex: 1,
-        height: 56,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        borderWidth: 1,
-    },
-    actionButtonText: {
-        fontFamily: Fonts.heading,
-        fontSize: 16,
-    },
-    actionButtonTextSecondary: {
-        fontFamily: Fonts.heading,
-        fontSize: 16,
-    },
-    scrollList: {
-        paddingBottom: 100,
+        backgroundColor: Colors.light.background,
     },
     scrollContent: {
-        paddingBottom: 100,
+        padding: 20,
+        paddingBottom: 40,
     },
-    loaderBox: {
-        flex: 1,
+    header: {
+        marginBottom: 28,
+        marginTop: 10,
+    },
+    greeting: {
+        fontFamily: Fonts.bodyMedium,
+        fontSize: 15,
+        color: Colors.light.textMuted,
+        marginBottom: -4,
+    },
+    title: {
+        fontFamily: Fonts.heading,
+        fontSize: 34,
+        color: Colors.light.text,
+        letterSpacing: 1,
+    },
+    ctaRow: {
+        flexDirection: 'row',
+        marginBottom: 32,
+        gap: 12,
+    },
+    ctaButton: {
+        flexDirection: 'row',
+        height: 56,
+        borderRadius: Layout.radiusMedium,
+        alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 0,
+        elevation: 4,
+    },
+    ctaPressed: {
+        transform: [{ translateX: 2 }, { translateY: 2 }],
+        shadowOffset: { width: 2, height: 2 },
+    },
+    createBtn: {
+        backgroundColor: Colors.light.primary,
+        borderColor: Colors.light.text,
+    },
+    joinBtn: {
+        backgroundColor: '#FFFFFF',
+    },
+    ctaText: {
+        fontFamily: Fonts.heading,
+        fontSize: 14,
+        color: '#FFFFFF',
+        marginLeft: 8,
+        letterSpacing: 0.5,
+    },
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginHorizontal: -10,
+    },
+    gridItem: {
+        width: '100%',
+        paddingHorizontal: 10,
+    },
+    loadingContainer: {
+        paddingVertical: 100,
         alignItems: 'center',
     },
-    emptyState: {
-        flex: 1,
+    emptyContainer: {
+        alignItems: 'center',
+        paddingVertical: 80,
+    },
+    emptyIllustration: {
+        width: 100,
+        height: 100,
+        borderRadius: 0,
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 40,
-        opacity: 0.6,
+        marginBottom: 24,
+        borderWidth: 2,
+        borderColor: Colors.light.border,
     },
     emptyTitle: {
         fontFamily: Fonts.heading,
-        fontSize: 24,
-        marginTop: 16,
+        fontSize: 22,
+        color: Colors.light.text,
         marginBottom: 8,
+        textAlign: 'center',
+        textTransform: 'uppercase',
     },
     emptySubtitle: {
         fontFamily: Fonts.body,
-        fontSize: 16,
+        fontSize: 15,
+        color: Colors.light.textMuted,
         textAlign: 'center',
-        lineHeight: 24,
+        lineHeight: 22,
+        paddingHorizontal: 32,
     },
     errorBox: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
+        backgroundColor: '#FFFFFF',
+        borderColor: Colors.light.error,
+        borderWidth: 2,
+        borderRadius: 0,
         marginBottom: 24,
         gap: 12,
-        borderWidth: 1,
     },
     errorText: {
         fontFamily: Fonts.bodyMedium,
         fontSize: 14,
+        color: Colors.light.error,
         flex: 1,
     },
 });

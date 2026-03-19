@@ -1,9 +1,11 @@
 import { auth, db } from '@/firebaseConfig';
+import { deleteQuoteCascade } from '@/utils/firestoreDelete';
+import { getRequiredUserProfile } from '@/utils/memberProfile';
+import { normalizeMultilineText, SECURITY_LIMITS } from '@/utils/security';
 import {
     addDoc,
     collection,
     collectionGroup,
-    deleteDoc,
     doc,
     increment,
     onSnapshot,
@@ -11,7 +13,7 @@ import {
     query,
     serverTimestamp,
     where,
-    writeBatch
+    writeBatch,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
@@ -23,6 +25,7 @@ export interface Quote {
     coveId: string;
     createdAt: { seconds: number; nanoseconds: number } | null;
     upvotesCount?: number;
+    repliesCount?: number;
 }
 
 export interface QuoteReply {
@@ -70,7 +73,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
         const unsub = onSnapshot(
             q,
             (snap) => {
-                setQuotes(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Quote)));
+                setQuotes(snap.docs.map((quoteDoc) => ({ id: quoteDoc.id, ...quoteDoc.data() } as Quote)));
                 setLoading(false);
                 setError(null);
             },
@@ -89,58 +92,66 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
             return;
         }
         const uid = auth.currentUser.uid;
-
-        // Optimized: Single listener for all upvotes by this user across all quotes.
-        // This replaces the N individual listeners that were previously created.
         const q = query(
             collectionGroup(db, 'upvotes'),
             where('userId', '==', uid),
             where('coveId', '==', coveId)
         );
 
-        const unsub = onSnapshot(q, (snap) => {
-            const next = new Set<string>();
-            snap.docs.forEach((doc) => {
-                const data = doc.data();
-                // Prefer the quoteId stored in binary, fallback to path parsing for old docs
-                if (data.quoteId) {
-                    next.add(data.quoteId);
-                } else {
-                    const parts = doc.ref.path.split('/');
-                    if (parts[1] === coveId && parts[3]) {
-                        next.add(parts[3]);
+        const unsub = onSnapshot(
+            q,
+            (snap) => {
+                const next = new Set<string>();
+                snap.docs.forEach((upvoteDoc) => {
+                    const data = upvoteDoc.data();
+                    if (data.quoteId) {
+                        next.add(data.quoteId);
+                    } else {
+                        const parts = upvoteDoc.ref.path.split('/');
+                        if (parts[1] === coveId && parts[3]) {
+                            next.add(parts[3]);
+                        }
                     }
-                }
-            });
-            setUpvotedIds(next);
-        }, (err) => {
-            // Note: If you see an error here about a missing index, 
-            // click the link in the console to create it.
-            console.error('Error in upvote listener:', err);
-        });
+                });
+                setUpvotedIds(next);
+            },
+            (err) => {
+                console.error('Error in upvote listener:', err);
+            }
+        );
 
         return () => unsub();
     }, [coveId]);
 
     const createQuote = async (content: string) => {
-        if (!coveId || !auth.currentUser) throw new Error('You must be logged in');
+        if (!coveId || !auth.currentUser) {
+            throw new Error('You must be logged in');
+        }
+
+        const safeContent = normalizeMultilineText(content, SECURITY_LIMITS.quoteContent);
+        if (!safeContent) {
+            throw new Error('Write something before posting.');
+        }
+
         const user = auth.currentUser;
+        const profile = await getRequiredUserProfile(user.uid);
         const now = new Date();
         await addDoc(collection(db, 'coves', coveId, 'quotes'), {
             authorId: user.uid,
-            authorName: user.displayName || 'Member',
-            content: content.trim(),
+            authorName: profile.name,
+            content: safeContent,
             coveId,
             createdAt: serverTimestamp(),
             day: now.getDate(),
             month: now.getMonth(),
             upvotesCount: 0,
+            repliesCount: 0,
         });
     };
 
     const deleteQuote = async (quoteId: string) => {
         if (!coveId) return;
-        await deleteDoc(doc(db, 'coves', coveId, 'quotes', quoteId));
+        await deleteQuoteCascade(coveId, quoteId);
     };
 
     const toggleUpvote = async (quoteId: string) => {
@@ -153,11 +164,11 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
             batch.delete(upvoteRef);
             batch.update(quoteRef, { upvotesCount: increment(-1) });
         } else {
-            batch.set(upvoteRef, { 
-                userId: uid, 
-                coveId: coveId,
-                quoteId: quoteId,
-                createdAt: serverTimestamp() 
+            batch.set(upvoteRef, {
+                userId: uid,
+                coveId,
+                quoteId,
+                createdAt: serverTimestamp(),
             });
             batch.update(quoteRef, { upvotesCount: increment(1) });
         }
@@ -172,14 +183,14 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     const getReplies = (quoteId: string): QuoteReply[] => repliesCache[quoteId] ?? [];
 
     const subscribeReplies = (quoteId: string, onReplies: (replies: QuoteReply[]) => void): (() => void) => {
-        if (!coveId) return () => { };
+        if (!coveId) return () => {};
         replyListeners[quoteId] = onReplies;
         const q = query(
             collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'),
             orderBy('createdAt', 'asc')
         );
         const unsub = onSnapshot(q, (snap) => {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as QuoteReply));
+            const list = snap.docs.map((replyDoc) => ({ id: replyDoc.id, ...replyDoc.data() } as QuoteReply));
             repliesCache[quoteId] = list;
             replyListeners[quoteId]?.(list);
         });
@@ -190,14 +201,37 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     };
 
     const addReply = async (quoteId: string, content: string) => {
-        if (!coveId || !auth.currentUser) throw new Error('You must be logged in');
+        if (!coveId || !auth.currentUser) {
+            throw new Error('You must be logged in');
+        }
+
+        const safeContent = normalizeMultilineText(content, SECURITY_LIMITS.replyContent);
+        if (!safeContent) {
+            throw new Error('Write something before replying.');
+        }
+
         const user = auth.currentUser;
-        await addDoc(collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'), {
+        const profile = await getRequiredUserProfile(user.uid);
+        const now = new Date();
+        const batch = writeBatch(db);
+
+        const replyRef = doc(collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'));
+        const quoteRef = doc(db, 'coves', coveId, 'quotes', quoteId);
+
+        batch.set(replyRef, {
             authorId: user.uid,
-            authorName: user.displayName || 'Member',
-            content: content.trim(),
+            authorName: profile.name,
+            content: safeContent,
             createdAt: serverTimestamp(),
+            day: now.getDate(),
+            month: now.getMonth(),
         });
+
+        batch.update(quoteRef, {
+            repliesCount: increment(1),
+        });
+
+        await batch.commit();
     };
 
     return {

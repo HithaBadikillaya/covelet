@@ -1,53 +1,55 @@
-import { createCoveWithJoinCode } from '@/utils/coveJoinCodes';
-import { generateRandomSeed, getCoveBackgroundUrl } from '@/utils/avatar';
-import {
-    normalizeAvatarSeed,
-    normalizeMultilineText,
-    normalizeSingleLineText,
-    SECURITY_LIMITS,
-} from '@/utils/security';
 import { Colors, Fonts, Layout } from '@/constants/theme';
-import { auth } from '@/firebaseConfig';
+import { db } from '@/firebaseConfig';
+import { generateRandomSeed, getCoveBackgroundUrl } from '@/utils/avatar';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React, { useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-interface CreateCoveModalProps {
+interface EditCoveModalProps {
     visible: boolean;
     onClose: () => void;
+    coveId: string;
+    initialName: string;
+    initialDescription: string;
+    initialAvatarSeed: string;
 }
 
-const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) => {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [avatarSeed, setAvatarSeed] = useState(generateRandomSeed());
+const resolveAvatarSeed = (seed?: string) => {
+    return seed && seed.trim() ? seed : generateRandomSeed();
+};
+
+export const EditCoveModal: React.FC<EditCoveModalProps> = ({
+    visible,
+    onClose,
+    coveId,
+    initialName,
+    initialDescription,
+    initialAvatarSeed,
+}) => {
+    const [name, setName] = useState(initialName);
+    const [description, setDescription] = useState(initialDescription || '');
+    const [avatarSeed, setAvatarSeed] = useState(resolveAvatarSeed(initialAvatarSeed));
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (visible) {
+            setName(initialName);
+            setDescription(initialDescription || '');
+            setAvatarSeed(resolveAvatarSeed(initialAvatarSeed));
+            setError(null);
+        }
+    }, [visible, initialName, initialDescription, initialAvatarSeed]);
 
     const handleRegenerateAvatar = () => {
         setAvatarSeed(generateRandomSeed());
     };
 
-    const resetForm = () => {
-        setName('');
-        setDescription('');
-        setAvatarSeed(generateRandomSeed());
-        setError(null);
-    };
-
-    const handleCreate = async () => {
-        const safeName = normalizeSingleLineText(name, SECURITY_LIMITS.coveName);
-        const safeDescription = normalizeMultilineText(description, SECURITY_LIMITS.coveDescription);
-
-        if (!safeName) {
-            setError('Please name your cove.');
-            return;
-        }
-
-        const user = auth.currentUser;
-        if (!user) {
-            setError('Account required.');
+    const handleSave = async () => {
+        if (!name.trim()) {
+            setError('Please provide a name for your cove.');
             return;
         }
 
@@ -55,18 +57,15 @@ const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) =
         setError(null);
 
         try {
-            await createCoveWithJoinCode({
-                userId: user.uid,
-                name: safeName,
-                description: safeDescription,
-                avatarSeed: normalizeAvatarSeed(avatarSeed),
+            await updateDoc(doc(db, 'coves', coveId), {
+                name: name.trim(),
+                description: description.trim(),
+                avatarSeed,
             });
-
-            resetForm();
             onClose();
         } catch (err: any) {
-            console.error('Error creating cove:', err);
-            setError(err.message || 'Failed to create.');
+            console.error('Error updating cove:', err);
+            setError(err.message || 'Failed to update details.');
         } finally {
             setLoading(false);
         }
@@ -85,33 +84,45 @@ const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) =
                 <View style={styles.modalCard}>
                     <View style={styles.tape} />
 
-                    <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
+                    <TouchableOpacity
+                        style={styles.closeIcon}
+                        onPress={onClose}
+                    >
                         <Ionicons name="close" size={24} color={Colors.light.text} />
                     </TouchableOpacity>
 
-                    <Text style={styles.title}>NEW COVE</Text>
+                    <Text style={styles.title}>EDIT COVE</Text>
                     <Text style={styles.subtitle}>
-                        Every story needs a title. Give your sanctuary a name.
+                        Update the cove name, description, and avatar theme from one place.
                     </Text>
 
-                    {error ? (
+                    {error && (
                         <View style={styles.errorBox}>
                             <Text style={styles.errorText}>{error}</Text>
                         </View>
-                    ) : null}
+                    )}
 
-                    <Text style={styles.sectionTitle}>COVE PERSONALITY</Text>
+                    <Text style={styles.sectionTitle}>COVE AVATAR</Text>
                     <View style={styles.personalitySection}>
-                        <View style={styles.previewWrapper}>
+                        <View style={styles.previewCard}>
                             <Image
                                 source={{ uri: getCoveBackgroundUrl(avatarSeed) }}
                                 style={styles.previewBg}
                                 contentFit="cover"
                             />
+                            <View style={styles.previewOverlay}>
+                                <Text style={styles.previewName} numberOfLines={1}>
+                                    {(name || 'Your Cove').trim()}
+                                </Text>
+                            </View>
                         </View>
-                        <TouchableOpacity style={styles.shuffleBtn} onPress={handleRegenerateAvatar}>
+
+                        <TouchableOpacity
+                            style={styles.shuffleBtn}
+                            onPress={handleRegenerateAvatar}
+                        >
                             <Ionicons name="shuffle" size={18} color={Colors.light.primary} />
-                            <Text style={styles.shuffleText}>SHUFFLE THEMES</Text>
+                            <Text style={styles.shuffleText}>CHANGE AVATAR THEME</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -123,12 +134,12 @@ const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) =
                             placeholderTextColor={Colors.light.textMuted}
                             value={name}
                             onChangeText={setName}
-                            maxLength={SECURITY_LIMITS.coveName}
+                            maxLength={50}
                         />
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>DESCRIPTION (OPTIONAL)</Text>
+                        <Text style={styles.label}>DESCRIPTION</Text>
                         <TextInput
                             style={[styles.input, styles.textArea]}
                             placeholder="What is this cove for?"
@@ -136,19 +147,19 @@ const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) =
                             value={description}
                             onChangeText={setDescription}
                             multiline
-                            maxLength={SECURITY_LIMITS.coveDescription}
+                            maxLength={180}
                         />
                     </View>
 
                     <TouchableOpacity
-                        onPress={handleCreate}
+                        onPress={handleSave}
                         style={[styles.createButton, loading && { opacity: 0.7 }]}
                         disabled={loading}
                     >
                         {loading ? (
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
-                            <Text style={styles.createButtonText}>CREATE COVE</Text>
+                            <Text style={styles.createButtonText}>SAVE CHANGES</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -203,124 +214,130 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     title: {
+        color: Colors.light.text,
         fontFamily: Fonts.heading,
         fontSize: 24,
-        color: Colors.light.text,
         marginBottom: 8,
         textAlign: 'center',
         letterSpacing: 1,
     },
     subtitle: {
+        color: Colors.light.textMuted,
         fontFamily: Fonts.body,
         fontSize: 14,
-        color: Colors.light.textMuted,
-        marginBottom: 32,
+        marginBottom: 28,
         textAlign: 'center',
         lineHeight: 20,
     },
     sectionTitle: {
-        fontFamily: Fonts.bodyBold,
+        fontFamily: Fonts.heading,
         fontSize: 12,
-        color: Colors.light.text,
+        color: Colors.light.textMuted,
+        letterSpacing: 1.5,
         marginBottom: 12,
-        letterSpacing: 1,
     },
     personalitySection: {
-        alignItems: 'center',
-        marginBottom: 32,
-        backgroundColor: '#FDFBF7',
-        padding: 20,
-        borderWidth: 1.5,
-        borderStyle: 'dashed',
-        borderColor: Colors.light.border,
+        marginBottom: 24,
     },
-    previewWrapper: {
-        width: '100%',
-        height: 120,
-        backgroundColor: '#FFFFFF',
+    previewCard: {
+        height: 132,
+        borderRadius: Layout.radiusMedium,
         borderWidth: 2,
         borderColor: Colors.light.text,
         overflow: 'hidden',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
+        backgroundColor: '#F0F4EF',
     },
     previewBg: {
         ...StyleSheet.absoluteFillObject,
-        opacity: 0.8,
+    },
+    previewOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        padding: 16,
+        backgroundColor: 'rgba(47, 46, 44, 0.12)',
+    },
+    previewName: {
+        fontFamily: Fonts.heading,
+        fontSize: 18,
+        color: '#FFFFFF',
+        letterSpacing: 0.8,
     },
     shuffleBtn: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 8,
-        padding: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#F0F4EF',
+        borderRadius: Layout.radiusMedium,
+        borderWidth: 1.5,
+        borderColor: Colors.light.border,
     },
     shuffleText: {
-        fontFamily: Fonts.bodyBold,
+        fontFamily: Fonts.heading,
         fontSize: 12,
-        color: Colors.light.primary,
-        letterSpacing: 0.5,
+        color: Colors.light.text,
+        letterSpacing: 1,
     },
     inputGroup: {
         marginBottom: 20,
     },
     label: {
-        fontFamily: Fonts.bodyBold,
+        fontFamily: Fonts.heading,
         fontSize: 12,
         color: Colors.light.text,
+        letterSpacing: 1.5,
         marginBottom: 8,
-        letterSpacing: 0.5,
     },
     input: {
-        height: 52,
-        borderWidth: 1.5,
-        borderColor: Colors.light.border,
-        backgroundColor: '#FDFBF7',
-        paddingHorizontal: 16,
         fontFamily: Fonts.body,
-        fontSize: 15,
+        fontSize: 16,
         color: Colors.light.text,
+        backgroundColor: '#FDFBF7',
+        borderWidth: 2,
+        borderColor: Colors.light.border,
         borderRadius: 0,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
     },
     textArea: {
         height: 100,
         textAlignVertical: 'top',
-        paddingTop: 12,
+        paddingTop: 16,
+    },
+    errorBox: {
+        padding: 12,
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1.5,
+        borderColor: Colors.light.error,
+        marginBottom: 24,
+        alignItems: 'center',
+    },
+    errorText: {
+        fontFamily: Fonts.body,
+        fontSize: 14,
+        color: Colors.light.error,
     },
     createButton: {
         height: 56,
-        backgroundColor: Colors.light.primary,
-        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 12,
+        justifyContent: 'center',
+        backgroundColor: Colors.light.primary,
+        borderRadius: Layout.radiusMedium,
         borderWidth: 2,
         borderColor: Colors.light.text,
-        borderRadius: Layout.radiusMedium,
         shadowColor: '#000',
         shadowOffset: { width: 4, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 0,
-        elevation: 4,
+        marginTop: 12,
     },
     createButtonText: {
-        fontFamily: Fonts.heading,
-        fontSize: 15,
         color: '#FFFFFF',
+        fontFamily: Fonts.heading,
+        fontSize: 14,
         letterSpacing: 1,
     },
-    errorBox: {
-        backgroundColor: '#FFF5F5',
-        padding: 12,
-        borderWidth: 1.5,
-        borderColor: Colors.light.error,
-        marginBottom: 20,
-    },
-    errorText: {
-        color: Colors.light.error,
-        fontFamily: Fonts.bodyMedium,
-        fontSize: 13,
-        textAlign: 'center',
-    },
 });
-
-export default CreateCoveModal;
