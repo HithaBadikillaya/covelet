@@ -1,3 +1,4 @@
+import AppDialog from '@/components/ui/AppDialog';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,7 +6,6 @@ import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firesto
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -35,13 +35,12 @@ const TIME_UNITS: { label: string; value: TimeUnit; multiplier: number }[] = [
 ];
 
 export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible, onClose, coveId }) => {
-    const themeColors = Colors.light;
     const [amount, setAmount] = useState('1');
     const [unit, setUnit] = useState<TimeUnit>('days');
     const [loading, setLoading] = useState(false);
     const [unlockDate, setUnlockDate] = useState<Date>(new Date());
+    const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
 
-    // Update preview date
     useEffect(() => {
         const val = parseInt(amount) || 0;
         const multiplier = TIME_UNITS.find(u => u.value === unit)?.multiplier || 0;
@@ -53,111 +52,121 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
         if (!auth.currentUser) return;
         const val = parseInt(amount);
         if (!val || val <= 0) {
-            Alert.alert("Invalid Duration", "Please enter a valid number.");
+            setDialog({ title: 'Invalid Duration', message: 'Please enter a valid number.' });
             return;
         }
 
         setLoading(true);
         try {
             await addDoc(collection(db, 'coves', coveId, 'timeCapsules'), {
-                // MATCHING FIRESTORE RULES:
-                unlockAt: Timestamp.fromDate(unlockDate),       // changed from unlockDate
-                ownerId: auth.currentUser.uid,                  // changed from createdBy
-                isEmergencyOpened: false,                       // changed from isEmergencyOpen
+                unlockAt: Timestamp.fromDate(unlockDate),
+                ownerId: auth.currentUser.uid,
+                isEmergencyOpened: false,
                 createdAt: serverTimestamp(),
-                durationLabel: `${val} ${unit}`
+                durationLabel: `${val} ${unit}`,
             });
 
             onClose();
         } catch (error) {
-            console.error("Error creating capsule:", error);
-            Alert.alert("Error", "Could not create time capsule.");
+            console.error('Error creating capsule:', error);
+            setDialog({ title: 'Error', message: 'Could not create time capsule.' });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.overlay}
+        <>
+            <Modal
+                visible={visible}
+                transparent
+                animationType="slide"
+                onRequestClose={onClose}
             >
-                <Pressable style={styles.backdrop} onPress={onClose} />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.overlay}
+                >
+                    <Pressable style={styles.backdrop} onPress={onClose} />
 
-                <View style={[styles.card, { backgroundColor: themeColors.background }]}>
-                    <View style={styles.header}>
-                        <View>
-                            <Text style={[styles.title, { color: themeColors.text }]}>Initialize Capsule</Text>
-                            <Text style={styles.subtitle}>When should it open?</Text>
+                    <View style={[styles.card, { backgroundColor: '#FFFFFF' }]}>
+                        <View style={styles.tape} />
+
+                        <View style={styles.header}>
+                            <View>
+                                <Text style={styles.title}>Bury a Capsule</Text>
+                                <Text style={styles.subtitle}>How long should it stay hidden?</Text>
+                            </View>
+                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                                <Ionicons name="close" size={24} color={Colors.light.text} />
+                            </TouchableOpacity>
                         </View>
-                        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                            <Ionicons name="close" size={24} color={themeColors.text} />
+
+                        <View style={styles.inputSection}>
+                            <TextInput
+                                style={styles.amountInput}
+                                value={amount}
+                                onChangeText={setAmount}
+                                keyboardType="numeric"
+                                placeholder="0"
+                                placeholderTextColor="#E8E2D9"
+                                selectionColor={Colors.light.primary}
+                            />
+
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.unitScroll}
+                            >
+                                {TIME_UNITS.map((u) => (
+                                    <TouchableOpacity
+                                        key={u.value}
+                                        style={[
+                                            styles.unitChip,
+                                            unit === u.value && styles.unitChipActive,
+                                        ]}
+                                        onPress={() => setUnit(u.value)}
+                                    >
+                                        <Text style={[
+                                            styles.unitText,
+                                            unit === u.value && styles.unitTextActive,
+                                        ]}>
+                                            {u.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
+                        <View style={styles.previewBox}>
+                            <Ionicons name="calendar-outline" size={20} color={Colors.light.primary} />
+                            <Text style={styles.previewText}>
+                                Will open on <Text style={styles.bold}>{unlockDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.buryButton, { backgroundColor: Colors.light.primary }]}
+                            onPress={handleCreate}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#FFFFFF" size="small" />
+                            ) : (
+                                <Text style={styles.buryText}>Seal the Capsule</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
+                </KeyboardAvoidingView>
+            </Modal>
 
-                    <View style={styles.inputSection}>
-                        <TextInput
-                            style={[styles.amountInput, { color: themeColors.text }]}
-                            value={amount}
-                            onChangeText={setAmount}
-                            keyboardType="numeric"
-                            placeholder="0"
-                            placeholderTextColor="#ccc"
-                            selectionColor={themeColors.primary}
-                        />
-
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.unitScroll}
-                        >
-                            {TIME_UNITS.map((u) => (
-                                <TouchableOpacity
-                                    key={u.value}
-                                    style={[
-                                        styles.unitChip,
-                                        unit === u.value && { backgroundColor: themeColors.primary }
-                                    ]}
-                                    onPress={() => setUnit(u.value)}
-                                >
-                                    <Text style={[
-                                        styles.unitText,
-                                        unit === u.value ? { color: '#fff' } : { color: themeColors.textMuted }
-                                    ]}>
-                                        {u.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-
-                    <View style={styles.previewBox}>
-                        <Ionicons name="calendar-outline" size={20} color={themeColors.primary} />
-                        <Text style={styles.previewText}>
-                            Unlocks on <Text style={styles.bold}>{unlockDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
-                        </Text>
-                    </View>
-
-                    <TouchableOpacity
-                        style={[styles.buryButton, { backgroundColor: themeColors.primary }]}
-                        onPress={handleCreate}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.buryText}>Set Lock Timer</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
-        </Modal>
+            <AppDialog
+                visible={!!dialog}
+                title={dialog?.title || ''}
+                message={dialog?.message || ''}
+                onClose={() => setDialog(null)}
+            />
+        </>
     );
 };
 
@@ -168,19 +177,31 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        backgroundColor: 'rgba(47, 46, 44, 0.4)',
     },
     card: {
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
-        padding: 24,
-        paddingBottom: 40,
+        padding: 32,
+        paddingBottom: 48,
         gap: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -4 },
+        borderWidth: 1,
+        borderColor: '#E8E2D9',
+        shadowColor: '#2F2E2C',
+        shadowOffset: { width: 0, height: -12 },
         shadowOpacity: 0.1,
-        shadowRadius: 10,
+        shadowRadius: 24,
         elevation: 10,
+    },
+    tape: {
+        position: 'absolute',
+        top: -10,
+        alignSelf: 'center',
+        width: 80,
+        height: 24,
+        backgroundColor: '#4A6741',
+        opacity: 0.3,
+        zIndex: 10,
     },
     header: {
         flexDirection: 'row',
@@ -190,78 +211,87 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: Fonts.heading,
         fontSize: 24,
+        color: Colors.light.text,
     },
     subtitle: {
         fontFamily: Fonts.body,
         fontSize: 14,
-        color: '#888',
+        color: Colors.light.textMuted,
         marginTop: 4,
     },
     closeBtn: {
         padding: 4,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 20,
     },
     inputSection: {
-        gap: 16,
+        gap: 20,
     },
     amountInput: {
         fontFamily: Fonts.heading,
-        fontSize: 48,
+        fontSize: 64,
         textAlign: 'center',
-        borderBottomWidth: 2,
-        borderBottomColor: '#f0f0f0',
+        color: Colors.light.text,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1EFE9',
         paddingVertical: 8,
     },
     unitScroll: {
-        gap: 8,
+        gap: 10,
         paddingHorizontal: 4,
     },
     unitChip: {
         paddingVertical: 10,
         paddingHorizontal: 20,
-        borderRadius: 24,
-        backgroundColor: '#f5f5f5',
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: 'transparent',
+        borderColor: Colors.light.border,
+    },
+    unitChipActive: {
+        backgroundColor: Colors.light.primary,
+        borderColor: Colors.light.primary,
     },
     unitText: {
         fontFamily: Fonts.bodyBold,
         fontSize: 14,
+        color: Colors.light.textMuted,
+    },
+    unitTextActive: {
+        color: '#FFFFFF',
     },
     previewBox: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        gap: 10,
+        backgroundColor: '#F9F7F2',
         padding: 16,
-        borderRadius: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.02)',
     },
     previewText: {
         fontFamily: Fonts.body,
         fontSize: 14,
-        color: '#555',
+        color: Colors.light.text,
     },
     bold: {
         fontFamily: Fonts.bodyBold,
-        color: '#8B5CF6',
+        color: Colors.light.primary,
     },
     buryButton: {
-        height: 60,
-        borderRadius: 30,
+        height: 56,
+        borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#8B5CF6',
+        shadowColor: Colors.light.primary,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
     },
     buryText: {
         fontFamily: Fonts.heading,
         fontSize: 18,
-        color: '#fff',
-        letterSpacing: 1,
+        color: '#FFFFFF',
     },
 });
