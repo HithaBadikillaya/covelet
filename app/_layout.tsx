@@ -8,7 +8,12 @@ import {
   DMSans_500Medium,
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
-import { Stack, useRouter, useSegments, ErrorBoundary } from 'expo-router';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import { Stack, useRouter, useSegments, ErrorBoundary, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -42,7 +47,13 @@ export default function RootLayout() {
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_700Bold,
   });
+
+  const navigationState = useRootNavigationState();
+  const isNavigationReady = navigationState?.key;
 
   useEffect(() => {
     try {
@@ -58,7 +69,7 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthInitialised || !loaded) return;
+    if (!isAuthInitialised || !loaded || !isNavigationReady) return;
 
     try {
       const inAuthGroup = segments?.[0] === 'login';
@@ -71,7 +82,7 @@ export default function RootLayout() {
     } catch (e) {
       console.error('Navigation Error:', e);
     }
-  }, [user, isAuthInitialised, segments, loaded, router]);
+  }, [user, isAuthInitialised, segments, loaded, router, isNavigationReady]);
 
   useEffect(() => {
     if (loaded || error) {

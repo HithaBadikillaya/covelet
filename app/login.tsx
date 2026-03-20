@@ -77,7 +77,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -85,7 +85,7 @@ export default function LoginScreen() {
             <View style={styles.tapeStrip} />
 
             <Text style={styles.title}>
-              {isLogin ? "WELCOME HOME" : "START YOUR STORY"}
+              {isLogin ? "WELCOME BACK" : "START YOUR STORY"}
             </Text>
             <Text style={styles.subtitle}>
               {isLogin
@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 24,
+    paddingBottom: 40, // Extra space at bottom for better visibility
   },
   loginCard: {
     backgroundColor: "#FFFFFF",
