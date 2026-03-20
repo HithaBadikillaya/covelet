@@ -17,7 +17,17 @@
         "buildType": "apk"
       },
       "env": {
-        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAyWdWJz1DgAXcJdruGGSzBZFMuyuwnYWk",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "covelet-a8121.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "covelet-a8121",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "covelet-a8121.appspot.com",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1070561035950",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1070561035950:android:ecc6947a7aca52229a8f3f",
+        "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-TV7P1583L4",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "105483511557-l1laojmibktntg7scdv6okroufv7hrbu.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "1070561035950-cjfprkfddtaos6il4cit8bp3u42chkv2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "your-ios-client-id.apps.googleusercontent.com"
       }
     }
   },

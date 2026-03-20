@@ -67,78 +67,87 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
         };
 
         const start = async () => {
-            const enabled = await prepareTimeCapsuleNotifications(user.uid);
-            if (!enabled || disposed) {
+            if (!db || !user?.uid) {
+                console.warn('⚠️ Skipping notification sync: Database or User not available.');
                 return;
             }
 
-            const covesQuery = query(collection(db, 'coves'), where('members', 'array-contains', user.uid));
-            unsubscribeCoves = onSnapshot(
-                covesQuery,
-                (snapshot) => {
-                    const nextCoveIds = new Set(snapshot.docs.map((docSnap) => docSnap.id));
-
-                    Array.from(capsuleUnsubscribers.entries()).forEach(([coveId, unsubscribe]) => {
-                        if (!nextCoveIds.has(coveId)) {
-                            unsubscribe();
-                            capsuleUnsubscribers.delete(coveId);
-                            coveNames.delete(coveId);
-                            void clearTimeCapsuleNotificationForCove(user.uid, coveId);
-                        }
-                    });
-
-                    snapshot.docs.forEach((coveDoc) => {
-                        const coveId = coveDoc.id;
-                        const coveData = coveDoc.data();
-                        coveNames.set(coveId, coveData.name || 'Your Cove');
-
-                        if (capsuleUnsubscribers.has(coveId)) {
-                            return;
-                        }
-
-                        const capsuleQuery = query(
-                            collection(db, 'coves', coveId, 'timeCapsules'),
-                            orderBy('createdAt', 'desc'),
-                            limit(1)
-                        );
-
-                        const unsubscribeCapsule = onSnapshot(
-                            capsuleQuery,
-                            (capsuleSnapshot) => {
-                                if (capsuleSnapshot.empty) {
-                                    void clearTimeCapsuleNotificationForCove(user.uid, coveId);
-                                    return;
-                                }
-
-                                const capsuleDoc = capsuleSnapshot.docs[0];
-                                const capsuleData = capsuleDoc.data();
-                                const unlockAtSeconds = capsuleData.unlockAt?.seconds;
-
-                                if (typeof unlockAtSeconds !== 'number') {
-                                    return;
-                                }
-
-                                void syncTimeCapsuleNotification({
-                                    userId: user.uid,
-                                    coveId,
-                                    coveName: coveNames.get(coveId) || 'Your Cove',
-                                    capsuleId: capsuleDoc.id,
-                                    unlockAtSeconds,
-                                    isEmergencyOpened: !!capsuleData.isEmergencyOpened,
-                                });
-                            },
-                            (error) => {
-                                console.error('Time capsule notification listener failed.', error);
-                            }
-                        );
-
-                        capsuleUnsubscribers.set(coveId, unsubscribeCapsule);
-                    });
-                },
-                (error) => {
-                    console.error('Cove notification listener failed.', error);
+            try {
+                const enabled = await prepareTimeCapsuleNotifications(user.uid);
+                if (!enabled || disposed) {
+                    return;
                 }
-            );
+
+                const covesQuery = query(collection(db, 'coves'), where('members', 'array-contains', user.uid));
+                unsubscribeCoves = onSnapshot(
+                    covesQuery,
+                    (snapshot) => {
+                        const nextCoveIds = new Set(snapshot.docs.map((docSnap) => docSnap.id));
+
+                        Array.from(capsuleUnsubscribers.entries()).forEach(([coveId, unsubscribe]) => {
+                            if (!nextCoveIds.has(coveId)) {
+                                unsubscribe();
+                                capsuleUnsubscribers.delete(coveId);
+                                coveNames.delete(coveId);
+                                void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
+                            }
+                        });
+
+                        snapshot.docs.forEach((coveDoc) => {
+                            const coveId = coveDoc.id;
+                            const coveData = coveDoc.data();
+                            coveNames.set(coveId, coveData.name || 'Your Cove');
+
+                            if (capsuleUnsubscribers.has(coveId)) {
+                                return;
+                            }
+
+                            const capsuleQuery = query(
+                                collection(db!, 'coves', coveId, 'timeCapsules'),
+                                orderBy('createdAt', 'desc'),
+                                limit(1)
+                            );
+
+                            const unsubscribeCapsule = onSnapshot(
+                                capsuleQuery,
+                                (capsuleSnapshot) => {
+                                    if (capsuleSnapshot.empty) {
+                                        void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
+                                        return;
+                                    }
+
+                                    const capsuleDoc = capsuleSnapshot.docs[0];
+                                    const capsuleData = capsuleDoc.data();
+                                    const unlockAtSeconds = capsuleData.unlockAt?.seconds;
+
+                                    if (typeof unlockAtSeconds !== 'number') {
+                                        return;
+                                    }
+
+                                    void syncTimeCapsuleNotification({
+                                        userId: user.uid!,
+                                        coveId,
+                                        coveName: coveNames.get(coveId) || 'Your Cove',
+                                        capsuleId: capsuleDoc.id,
+                                        unlockAtSeconds,
+                                        isEmergencyOpened: !!capsuleData.isEmergencyOpened,
+                                    });
+                                },
+                                (error) => {
+                                    console.error('Time capsule notification listener failed.', error);
+                                }
+                            );
+
+                            capsuleUnsubscribers.set(coveId, unsubscribeCapsule);
+                        });
+                    },
+                    (error) => {
+                        console.error('Cove notification listener failed.', error);
+                    }
+                );
+            } catch (error) {
+                console.error('Failed to initialize notification bridge:', error);
+            }
         };
 
         void start();

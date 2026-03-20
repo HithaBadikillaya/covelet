@@ -43,22 +43,31 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges((u) => {
-      setUser(u);
-      setIsAuthInitialised(true);
-    });
-    return unsubscribe;
+    try {
+      const unsubscribe = subscribeToAuthChanges((u) => {
+        setUser(u);
+        setIsAuthInitialised(true);
+      });
+      return unsubscribe;
+    } catch (e) {
+      console.error('Critical Auth Error:', e);
+      setIsAuthInitialised(true); // Don't block the app indefinitely
+    }
   }, []);
 
   useEffect(() => {
     if (!isAuthInitialised || !loaded) return;
 
-    const inAuthGroup = segments[0] === 'login';
+    try {
+      const inAuthGroup = segments[0] === 'login';
 
-    if (!user && !inAuthGroup) {
-      router.replace('/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
+      if (!user && !inAuthGroup) {
+        router.replace('/login');
+      } else if (user && inAuthGroup) {
+        router.replace('/(tabs)');
+      }
+    } catch (e) {
+      console.error('Navigation Error:', e);
     }
   }, [user, isAuthInitialised, segments, loaded, router]);
 

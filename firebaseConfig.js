@@ -16,14 +16,36 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+    if (!firebaseConfig.apiKey) {
+        throw new Error("Firebase API Key is missing. Check your environment variables.");
+    }
+    app = initializeApp(firebaseConfig);
+} catch (error) {
+    console.error("❌ Firebase app initialization failed:", error);
+}
 
 // Initialize Auth for React Native with persistent storage
-export const auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-});
+export const auth = (() => {
+    try {
+        return initializeAuth(app, {
+            persistence: getReactNativePersistence(AsyncStorage),
+        });
+    } catch (error) {
+        console.error("❌ Firebase auth initialization failed:", error);
+        return null;
+    }
+})();
 
 // Initialize Firestore
-export const db = getFirestore(app);
+export const db = (() => {
+    try {
+        return getFirestore(app);
+    } catch (error) {
+        console.error("❌ Firebase firestore initialization failed:", error);
+        return null;
+    }
+})();
 
 console.log("✅ Firebase initialized:", app.name);

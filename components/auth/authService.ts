@@ -32,6 +32,7 @@ const getFriendlyErrorMessage = (error: any) => {
 };
 
 export const signIn = async (email: string, password: string) => {
+    if (!auth) throw new Error('Authentication service is unavailable.');
     try {
         const res = await signInWithEmailAndPassword(auth, email, password);
         await ensureUserProfile(res.user);
@@ -42,6 +43,7 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signUp = async (name: string, email: string, password: string) => {
+    if (!auth || !db) throw new Error('Registration service is unavailable.');
     const safeName = normalizeStoredUserName(name);
     const safeEmail = normalizeStoredUserEmail(email);
 
@@ -64,16 +66,24 @@ export const signUp = async (name: string, email: string, password: string) => {
 };
 
 export const signOut = async () => {
+    if (!auth) return;
     await firebaseSignOut(auth);
 };
 
 export const resetPassword = async (email: string) => {
+    if (!auth) throw new Error('Authentication service is unavailable.');
     await sendPasswordResetEmail(auth, email);
 };
 
 export const subscribeToAuthChanges = (
     callback: (user: User | null) => void
 ) => {
+    if (!auth) {
+        console.warn('⚠️ Skipping auth subscription: Firebase Auth not initialized.');
+        callback(null);
+        return () => { };
+    }
+
     return onAuthStateChanged(auth, async (user) => {
         if (user) {
             try {
