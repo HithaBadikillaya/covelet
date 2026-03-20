@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo.png",
     "scheme": "covelet",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true,
