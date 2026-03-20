@@ -21,8 +21,6 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "permissions": ["NOTIFICATIONS"]
     },
     "web": {
@@ -48,7 +46,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     },
     "extra": {
       "router": {},
