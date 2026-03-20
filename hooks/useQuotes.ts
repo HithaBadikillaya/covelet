@@ -61,7 +61,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     const [upvotedIds, setUpvotedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        if (!coveId) {
+        if (!coveId || !db) {
             setLoading(false);
             return;
         }
@@ -87,13 +87,13 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     }, [coveId, sort]);
 
     useEffect(() => {
-        if (!coveId || !auth.currentUser) {
+        if (!coveId || !auth?.currentUser) {
             setUpvotedIds(new Set());
             return;
         }
-        const uid = auth.currentUser.uid;
+        const uid = auth?.currentUser.uid;
         const q = query(
-            collectionGroup(db, 'upvotes'),
+            collectionGroup(db!, 'upvotes'),
             where('userId', '==', uid),
             where('coveId', '==', coveId)
         );
@@ -124,7 +124,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     }, [coveId]);
 
     const createQuote = async (content: string) => {
-        if (!coveId || !auth.currentUser) {
+        if (!coveId || !auth?.currentUser) {
             throw new Error('You must be logged in');
         }
 
@@ -133,10 +133,10 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
             throw new Error('Write something before posting.');
         }
 
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         const profile = await getRequiredUserProfile(user.uid);
         const now = new Date();
-        await addDoc(collection(db, 'coves', coveId, 'quotes'), {
+        await addDoc(collection(db!, 'coves', coveId, 'quotes'), {
             authorId: user.uid,
             authorName: profile.name,
             content: safeContent,
@@ -155,11 +155,11 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     };
 
     const toggleUpvote = async (quoteId: string) => {
-        if (!coveId || !auth.currentUser) return;
-        const uid = auth.currentUser.uid;
-        const upvoteRef = doc(db, 'coves', coveId, 'quotes', quoteId, 'upvotes', uid);
-        const quoteRef = doc(db, 'coves', coveId, 'quotes', quoteId);
-        const batch = writeBatch(db);
+        if (!coveId || !auth?.currentUser) return;
+        const uid = auth?.currentUser.uid;
+        const upvoteRef = doc(db!, 'coves', coveId, 'quotes', quoteId, 'upvotes', uid);
+        const quoteRef = doc(db!, 'coves', coveId, 'quotes', quoteId);
+        const batch = writeBatch(db!);
         if (upvotedIds.has(quoteId)) {
             batch.delete(upvoteRef);
             batch.update(quoteRef, { upvotesCount: increment(-1) });
@@ -186,7 +186,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
         if (!coveId) return () => {};
         replyListeners[quoteId] = onReplies;
         const q = query(
-            collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'),
+            collection(db!, 'coves', coveId, 'quotes', quoteId, 'replies'),
             orderBy('createdAt', 'asc')
         );
         const unsub = onSnapshot(q, (snap) => {
@@ -201,7 +201,7 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
     };
 
     const addReply = async (quoteId: string, content: string) => {
-        if (!coveId || !auth.currentUser) {
+        if (!coveId || !auth?.currentUser) {
             throw new Error('You must be logged in');
         }
 
@@ -210,13 +210,13 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
             throw new Error('Write something before replying.');
         }
 
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         const profile = await getRequiredUserProfile(user.uid);
         const now = new Date();
-        const batch = writeBatch(db);
+        const batch = writeBatch(db!);
 
-        const replyRef = doc(collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'));
-        const quoteRef = doc(db, 'coves', coveId, 'quotes', quoteId);
+        const replyRef = doc(collection(db!, 'coves', coveId, 'quotes', quoteId, 'replies'));
+        const quoteRef = doc(db!, 'coves', coveId, 'quotes', quoteId);
 
         batch.set(replyRef, {
             authorId: user.uid,

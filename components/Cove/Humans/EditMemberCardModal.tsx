@@ -36,16 +36,16 @@ export const EditMemberCardModal: React.FC<EditMemberCardModalProps> = ({ visibl
     const handleSave = async () => {
         setLoading(true);
         try {
-            const user = auth.currentUser;
-            if (!user) throw new Error('Not authenticated');
+            const user = auth?.currentUser;
+            if (!user || !db) throw new Error('Authentication or database service is unavailable');
 
             const safeAvatarSeed = normalizeAvatarSeed(avatarSeed);
             const safeRole = normalizeSingleLineText(role, SECURITY_LIMITS.memberRole);
             const safeBio = normalizeMultilineText(bio, SECURITY_LIMITS.memberBio);
-            const memberDocRef = doc(db, 'coves', coveId, 'members_data', user.uid);
+            const memberDocRef = doc(db!, 'coves', coveId, 'members_data', user.uid);
             const existingMemberDoc = await getDoc(memberDocRef);
 
-            await updateDoc(doc(db, 'users', user.uid), {
+            await updateDoc(doc(db!, 'users', user.uid), {
                 avatarSeed: safeAvatarSeed,
                 updatedAt: serverTimestamp(),
             });

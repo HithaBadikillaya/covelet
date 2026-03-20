@@ -20,11 +20,11 @@ export function useCoveMembers(coveId: string | undefined) {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!coveId) {
+        if (!coveId || !db) {
             setMembers([]);
             setCoveAvatarSeed('');
             setOwnerId('');
-            setError(null);
+            setError(!db ? 'Database service is unavailable.' : null);
             setLoading(false);
             return;
         }
@@ -38,7 +38,7 @@ export function useCoveMembers(coveId: string | undefined) {
 
             try {
                 const userSnaps = await Promise.all(
-                    memberIds.map((id) => getDoc(doc(db, 'users', id)))
+                    memberIds.map((id) => getDoc(doc(db!, 'users', id)))
                 );
 
                 if (!active || version !== requestVersion) return;
@@ -70,7 +70,7 @@ export function useCoveMembers(coveId: string | undefined) {
             }
         };
 
-        const coveRef = doc(db, 'coves', coveId);
+        const coveRef = doc(db!, 'coves', coveId);
         const unsubscribeCove = onSnapshot(
             coveRef,
             (coveSnap) => {
@@ -97,7 +97,7 @@ export function useCoveMembers(coveId: string | undefined) {
                     return;
                 }
 
-                const membersDataRef = collection(db, 'coves', coveId, 'members_data');
+                const membersDataRef = collection(db!, 'coves', coveId, 'members_data');
                 unsubscribeMembersData = onSnapshot(
                     membersDataRef,
                     (dataSnap) => {

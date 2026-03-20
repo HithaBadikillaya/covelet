@@ -29,6 +29,7 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
   }),
@@ -140,9 +141,14 @@ async function upsertExpoPushToken(userId: string) {
     const token = (await Notifications.getExpoPushTokenAsync({ projectId }))
       .data;
     const installationId = await getInstallationId();
+ 
+    if (!db) {
+        console.warn('Skipping push token update: Database not available.');
+        return;
+    }
 
     await setDoc(
-      doc(db, "users", userId, "devices", installationId),
+      doc(db!, "users", userId, "devices", installationId),
       {
         expoPushToken: token,
         platform: Platform.OS,

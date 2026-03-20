@@ -8,7 +8,7 @@ import {
   DMSans_500Medium,
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, ErrorBoundary } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -21,6 +21,8 @@ import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { User } from 'firebase/auth';
 
 SplashScreen.preventAutoHideAsync();
+
+export { ErrorBoundary };
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -59,7 +61,7 @@ export default function RootLayout() {
     if (!isAuthInitialised || !loaded) return;
 
     try {
-      const inAuthGroup = segments[0] === 'login';
+      const inAuthGroup = segments?.[0] === 'login';
 
       if (!user && !inAuthGroup) {
         router.replace('/login');

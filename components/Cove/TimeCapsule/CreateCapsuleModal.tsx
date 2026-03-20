@@ -49,7 +49,7 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
     }, [amount, unit]);
 
     const handleCreate = async () => {
-        if (!auth.currentUser) return;
+        if (!auth?.currentUser) return;
         const val = parseInt(amount);
         if (!val || val <= 0) {
             setDialog({ title: 'Invalid Duration', message: 'Please enter a valid number.' });
@@ -58,9 +58,9 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
 
         setLoading(true);
         try {
-            await addDoc(collection(db, 'coves', coveId, 'timeCapsules'), {
+            await addDoc(collection(db!, 'coves', coveId, 'timeCapsules'), {
                 unlockAt: Timestamp.fromDate(unlockDate),
-                ownerId: auth.currentUser.uid,
+                ownerId: auth?.currentUser.uid,
                 isEmergencyOpened: false,
                 createdAt: serverTimestamp(),
                 durationLabel: `${val} ${unit}`,

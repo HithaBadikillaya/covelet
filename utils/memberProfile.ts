@@ -45,6 +45,7 @@ export function deriveLegacyName(user: Pick<User, 'displayName' | 'email'> | nul
 }
 
 export async function getStoredUserProfile(userId: string): Promise<StoredUserProfile | null> {
+    if (!db) return null;
     const snap = await getDoc(doc(db, 'users', userId));
     if (!snap.exists()) {
         return null;
@@ -66,6 +67,7 @@ export async function getStoredUserProfile(userId: string): Promise<StoredUserPr
 }
 
 export async function ensureUserProfile(user: Pick<User, 'uid' | 'displayName' | 'email'>) {
+    if (!db) return null;
     const ref = doc(db, 'users', user.uid);
     const snap = await getDoc(ref);
     const existing = snap.exists() ? snap.data() : {};

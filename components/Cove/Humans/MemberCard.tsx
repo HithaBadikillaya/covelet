@@ -12,7 +12,7 @@ interface MemberCardProps {
         avatarSeed: string;
         role?: string;
         bio?: string;
-        joinedAt?: { seconds: number };
+        joinedAt?: { seconds: number } | null;
     };
     coveBackgroundUrl: string;
     isCurrentUser?: boolean;

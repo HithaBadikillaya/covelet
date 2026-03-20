@@ -55,7 +55,7 @@ type DialogState = {
 export default function TimeCapsuleScreen() {
     const { coveId } = useLocalSearchParams<{ coveId: string }>();
     const themeColors = Colors.light;
-    const currentUser = auth.currentUser;
+    const currentUser = auth?.currentUser;
     const insets = useSafeAreaInsets();
 
     const [capsule, setCapsule] = useState<TimeCapsule | null>(null);
@@ -76,7 +76,7 @@ export default function TimeCapsuleScreen() {
     const isUnlocked = isTimeUnlocked || isEmergencyOpen;
 
     useEffect(() => {
-        if (!coveId) return;
+        if (!coveId || !db) return;
 
         const unsub = onSnapshot(doc(db, 'coves', coveId), (snap) => {
             if (snap.exists()) {
@@ -88,8 +88,8 @@ export default function TimeCapsuleScreen() {
     }, [coveId]);
 
     useEffect(() => {
-        if (!coveId) return;
-
+        if (!coveId || !db) return;
+ 
         const capsuleQuery = query(
             collection(db, 'coves', coveId, 'timeCapsules'),
             orderBy('createdAt', 'desc'),
@@ -117,11 +117,11 @@ export default function TimeCapsuleScreen() {
     }, [coveId]);
 
     useEffect(() => {
-        if (!coveId || !capsule || !isUnlocked) {
+        if (!coveId || !capsule || !isUnlocked || !db) {
             setEntries([]);
             return;
         }
-
+ 
         setLoadingEntries(true);
         const entriesQuery = query(
             collection(db, 'coves', coveId, 'timeCapsules', capsule.id, 'entries'),
@@ -160,7 +160,7 @@ export default function TimeCapsuleScreen() {
         setAddingEntry(true);
         try {
             const now = new Date();
-            await addDoc(collection(db, 'coves', coveId!, 'timeCapsules', capsule.id, 'entries'), {
+            await addDoc(collection(db!, 'coves', coveId!, 'timeCapsules', capsule.id, 'entries'), {
                 text: safeEntryText,
                 authorId: currentUser.uid,
                 createdAt: serverTimestamp(),
@@ -199,7 +199,7 @@ export default function TimeCapsuleScreen() {
                     variant: 'danger',
                     onPress: async () => {
                         try {
-                            await updateDoc(doc(db, 'coves', coveId!, 'timeCapsules', capsule.id), {
+                            await updateDoc(doc(db!, 'coves', coveId!, 'timeCapsules', capsule.id), {
                                 isEmergencyOpened: newStatus,
                             });
                         } catch (error) {

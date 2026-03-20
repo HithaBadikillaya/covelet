@@ -52,7 +52,7 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({
   const [replyText, setReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
-  const currentUser = auth.currentUser;
+  const currentUser = auth?.currentUser;
   const isAuthor = currentUser?.uid === quote.authorId;
 
   useEffect(() => {

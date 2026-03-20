@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function HumansScreen() {
     const { coveId } = useLocalSearchParams<{ coveId: string }>();
     const insets = useSafeAreaInsets();
-    const currentUser = auth.currentUser;
+    const currentUser = auth?.currentUser;
 
     const { members, coveAvatarSeed, loading, error } = useCoveMembers(coveId);
     const [editModalVisible, setEditModalVisible] = useState(false);

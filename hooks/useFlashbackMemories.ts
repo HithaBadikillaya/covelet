@@ -35,14 +35,17 @@ export function useFlashbackMemories(coveId: string | undefined) {
     const [memories, setMemories] = useState<FlashbackMemory[]>([]);
 
     const fetchFlashbacks = useCallback(async () => {
-        if (!coveId) return;
+        if (!coveId || !db) {
+            setError(!db ? 'Database service is unavailable.' : null);
+            return;
+        }
         setLoading(true);
         setError(null);
         setMemories([]);
 
         try {
             const collected: FlashbackMemory[] = [];
-            const base = (path: string[]) => collection(db, 'coves', coveId, ...path);
+            const base = (path: string[]) => collection(db!, 'coves', coveId, ...path);
 
             const addMemory = (
                 source: FlashbackSource,
@@ -126,7 +129,7 @@ export function useFlashbackMemories(coveId: string | undefined) {
                             .map(async (capsuleDoc) => {
                                 const entrySnap = await getDocs(
                                     query(
-                                        collection(db, 'coves', coveId, 'timeCapsules', capsuleDoc.id, 'entries'),
+                                        collection(db!, 'coves', coveId, 'timeCapsules', capsuleDoc.id, 'entries'),
                                         where('day', '==', TARGET_DATE),
                                         where('month', '==', TARGET_MONTH),
                                         orderBy('createdAt', 'desc'),

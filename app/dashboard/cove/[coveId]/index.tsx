@@ -43,7 +43,7 @@ export default function CoveScreen() {
     }, []);
 
     useEffect(() => {
-        if (!user || !coveId) return;
+        if (!user || !coveId || !db) return;
         const coveRef = doc(db, 'coves', coveId);
         const unsubscribe = onSnapshot(coveRef, (snap) => {
             if (!snap.exists()) {

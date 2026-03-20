@@ -45,7 +45,7 @@ const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) =
             return;
         }
 
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         if (!user) {
             setError('Account required.');
             return;

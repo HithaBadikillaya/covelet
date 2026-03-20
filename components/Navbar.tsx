@@ -27,7 +27,7 @@ export const Navbar = () => {
     }, []);
 
     useEffect(() => {
-        if (!user) {
+        if (!user || !db) {
             setProfile(null);
             return;
         }
@@ -52,7 +52,11 @@ export const Navbar = () => {
 
     const handleLogout = async () => {
         setShowDropdown(false);
-        await auth.signOut();
+        try {
+            await auth?.signOut();
+        } catch (e) {
+            console.error('Logout failed:', e);
+        }
         router.replace('/');
     };
 

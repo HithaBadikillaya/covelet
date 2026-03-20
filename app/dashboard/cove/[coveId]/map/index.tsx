@@ -157,7 +157,7 @@ export default function MoodBoardScreen() {
   const { pins, loading, error, createPin, updatePin, deletePin } =
     usePins(coveId);
   const { members } = useCoveMembers(coveId);
-  const currentUser = auth.currentUser;
+  const currentUser = auth?.currentUser;
   const isOwner = coveOwnerId === currentUser?.uid;
 
   useEffect(() => {
@@ -165,7 +165,7 @@ export default function MoodBoardScreen() {
   }, []);
 
   useEffect(() => {
-    if (!coveId) return;
+    if (!coveId || !db) return;
     return onSnapshot(doc(db, "coves", coveId), (snap) => {
       if (snap.exists()) setCoveOwnerId(snap.data().createdBy);
     });

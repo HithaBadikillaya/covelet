@@ -52,7 +52,7 @@ export function usePins(coveId: string | undefined): UsePinsResult {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!coveId) {
+        if (!coveId || !db) {
             setLoading(false);
             return;
         }
@@ -84,9 +84,11 @@ export function usePins(coveId: string | undefined): UsePinsResult {
         y: number;
         mediaRef?: string;
     }) => {
-        if (!coveId || !auth.currentUser) {
-            throw new Error('You must be logged in');
+        if (!coveId || !auth?.currentUser || !db) {
+            return;
         }
+        const uid = auth?.currentUser?.uid;
+        if (!uid) return;
 
         const safeTitle = normalizeSingleLineText(data.title, SECURITY_LIMITS.pinTitle);
         const safeDescription = normalizeMultilineText(data.description, SECURITY_LIMITS.pinDescription);
@@ -94,11 +96,11 @@ export function usePins(coveId: string | undefined): UsePinsResult {
             throw new Error('A note title is required.');
         }
 
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         const profile = await getRequiredUserProfile(user.uid);
         const now = new Date();
         const position = clampPinPosition(data.x, data.y);
-        await addDoc(collection(db, 'coves', coveId, 'pins'), {
+        await addDoc(collection(db!, 'coves', coveId, 'pins'), {
             title: safeTitle,
             description: safeDescription,
             x: position.x,
@@ -115,12 +117,12 @@ export function usePins(coveId: string | undefined): UsePinsResult {
     const updatePin = async (pinId: string, x: number, y: number) => {
         if (!coveId) return;
         const position = clampPinPosition(x, y);
-        await updateDoc(doc(db, 'coves', coveId, 'pins', pinId), position);
+        await updateDoc(doc(db!, 'coves', coveId, 'pins', pinId), position);
     };
 
     const deletePin = async (pinId: string) => {
         if (!coveId) return;
-        await deleteDoc(doc(db, 'coves', coveId, 'pins', pinId));
+        await deleteDoc(doc(db!, 'coves', coveId, 'pins', pinId));
     };
 
     return { pins, loading, error, createPin, updatePin, deletePin };

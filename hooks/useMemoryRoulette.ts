@@ -41,8 +41,8 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
     const [memory, setMemory] = useState<RouletteMemory | null>(null);
 
     const spin = useCallback(async () => {
-        if (!coveId || !auth.currentUser) {
-            setError('You must be in a cove to spin.');
+        if (!coveId || !auth?.currentUser || !db) {
+            setError(!auth ? 'Authentication service is unavailable.' : !db ? 'Database service is unavailable.' : 'You must be in a cove to spin.');
             return;
         }
         setLoading(true);
@@ -50,7 +50,7 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
         setMemory(null);
         try {
             const pool: RouletteMemory[] = [];
-            const base = (path: string[]) => collection(db, 'coves', coveId, ...path);
+            const base = (path: string[]) => collection(db!, 'coves', coveId, ...path);
 
             // Quotes
             const qQuotes = query(base(['quotes']), orderBy('createdAt', 'desc'), limit(SAMPLE_SIZE));
@@ -108,7 +108,7 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
                 const now = Date.now();
                 if (isEmergency || now >= unlockAt) {
                     const qEntries = query(
-                        collection(db, 'coves', coveId, 'timeCapsules', cap.id, 'entries'),
+                        collection(db!, 'coves', coveId, 'timeCapsules', cap.id, 'entries'),
                         orderBy('createdAt', 'desc'),
                         limit(SAMPLE_SIZE)
                     );

@@ -51,15 +51,15 @@ export default function CoveSettingsScreen() {
     };
 
     useEffect(() => {
-        if (!auth.currentUser || !coveId) return;
+        if (!auth?.currentUser || !coveId) return;
 
-        const coveRef = doc(db, 'coves', coveId);
+        const coveRef = doc(db!, 'coves', coveId);
         const unsub = onSnapshot(
             coveRef,
             (snap) => {
                 if (snap.exists()) {
                     const data = snap.data() as CoveData;
-                    if (data.createdBy === auth.currentUser?.uid) {
+                    if (data.createdBy === auth?.currentUser?.uid) {
                         setCoveData(data);
                         setIsOwner(true);
                     } else {

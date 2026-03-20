@@ -46,7 +46,7 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
             return;
         }
 
-        if (!auth.currentUser) {
+        if (!auth?.currentUser) {
             setErrorMsg('Sign in first to join a Cove.');
             return;
         }
@@ -62,7 +62,7 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
                 return;
             }
 
-            await joinCoveById(coveId, auth.currentUser.uid);
+            await joinCoveById(coveId, auth?.currentUser.uid);
 
             setLoading(false);
             handleCloseInternal();

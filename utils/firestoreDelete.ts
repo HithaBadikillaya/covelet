@@ -31,7 +31,7 @@ async function deleteCollectionInBatches(
             }
         }
 
-        const batch = writeBatch(db);
+        const batch = writeBatch(db!);
         snapshot.docs.forEach((documentSnapshot) => {
             batch.delete(documentSnapshot.ref);
         });
@@ -44,53 +44,55 @@ async function deleteCollectionInBatches(
 }
 
 async function deleteQuoteChildren(coveId: string, quoteId: string) {
-    await deleteCollectionInBatches(collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'));
-    await deleteCollectionInBatches(collection(db, 'coves', coveId, 'quotes', quoteId, 'upvotes'));
+    await deleteCollectionInBatches(collection(db!, 'coves', coveId, 'quotes', quoteId, 'replies'));
+    await deleteCollectionInBatches(collection(db!, 'coves', coveId, 'quotes', quoteId, 'upvotes'));
 }
 
 async function deleteHumanStoryChildren(coveId: string, storyId: string) {
-    await deleteCollectionInBatches(collection(db, 'coves', coveId, 'humans', storyId, 'likes'));
+    await deleteCollectionInBatches(collection(db!, 'coves', coveId, 'humans', storyId, 'likes'));
 }
 
 async function deleteTimeCapsuleChildren(coveId: string, capsuleId: string) {
-    await deleteCollectionInBatches(collection(db, 'coves', coveId, 'timeCapsules', capsuleId, 'entries'));
+    await deleteCollectionInBatches(collection(db!, 'coves', coveId, 'timeCapsules', capsuleId, 'entries'));
 }
 
 export async function deleteQuoteCascade(coveId: string, quoteId: string) {
+    if (!db) return;
     await deleteQuoteChildren(coveId, quoteId);
-    await deleteDoc(doc(db, 'coves', coveId, 'quotes', quoteId));
+    await deleteDoc(doc(db!, 'coves', coveId, 'quotes', quoteId));
 }
 
 export async function deleteCoveCascade(coveId: string, joinCode?: string) {
+    if (!db) return;
     await deleteCollectionInBatches(
-        collection(db, 'coves', coveId, 'quotes'),
+        collection(db!, 'coves', coveId, 'quotes'),
         async (quoteSnapshot) => {
             await deleteQuoteChildren(coveId, quoteSnapshot.id);
         }
     );
 
     await deleteCollectionInBatches(
-        collection(db, 'coves', coveId, 'humans'),
+        collection(db!, 'coves', coveId, 'humans'),
         async (storySnapshot) => {
             await deleteHumanStoryChildren(coveId, storySnapshot.id);
         }
     );
 
     await deleteCollectionInBatches(
-        collection(db, 'coves', coveId, 'timeCapsules'),
+        collection(db!, 'coves', coveId, 'timeCapsules'),
         async (capsuleSnapshot) => {
             await deleteTimeCapsuleChildren(coveId, capsuleSnapshot.id);
         }
     );
 
-    await deleteCollectionInBatches(collection(db, 'coves', coveId, 'pins'));
-    await deleteCollectionInBatches(collection(db, 'coves', coveId, 'members_data'));
+    await deleteCollectionInBatches(collection(db!, 'coves', coveId, 'pins'));
+    await deleteCollectionInBatches(collection(db!, 'coves', coveId, 'members_data'));
 
     const batch = writeBatch(db);
-    batch.delete(doc(db, 'coves', coveId));
+    batch.delete(doc(db!, 'coves', coveId));
 
     if (joinCode && isValidJoinCode(joinCode)) {
-        batch.delete(doc(db, 'coveJoinCodes', joinCode));
+        batch.delete(doc(db!, 'coveJoinCodes', joinCode));
     }
 
     await batch.commit();
