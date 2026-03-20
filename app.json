@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo.png",
     "scheme": "covelet",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true,
@@ -22,7 +22,8 @@
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["NOTIFICATIONS"]
     },
     "web": {
       "output": "static",
