@@ -149,14 +149,14 @@ export default function LoginScreen() {
               </TouchableOpacity>
             ) : null}
 
-            <Pressable
-              style={({ pressed }) => [
+            <TouchableOpacity
+              style={[
                 styles.button,
-                pressed && styles.buttonPressed,
-                loading && { opacity: 0.8 },
+                loading && { opacity: 0.7 },
               ]}
               onPress={handleAuth}
               disabled={loading}
+              activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -165,7 +165,7 @@ export default function LoginScreen() {
                   {isLogin ? "OPEN COVELET" : "CREATE ACCOUNT"}
                 </Text>
               )}
-            </Pressable>
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => {
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
     padding: 24,
+    paddingTop: 40,
     paddingBottom: 40, // Extra space at bottom for better visibility
   },
   loginCard: {

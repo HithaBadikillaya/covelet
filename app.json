@@ -49,7 +49,9 @@
       "reactCompiler": false
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": "https://covelet.com"
+      },
       "eas": {
         "projectId": "202b9990-0b52-4a40-bd71-f314e65ddb2f"
       }
