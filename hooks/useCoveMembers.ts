@@ -29,6 +29,8 @@ export function useCoveMembers(coveId: string | undefined) {
             return;
         }
 
+        // db is guaranteed non-null from here
+        const database = db;
         let unsubscribeMembersData: (() => void) | null = null;
         let active = true;
         let requestVersion = 0;
@@ -38,7 +40,7 @@ export function useCoveMembers(coveId: string | undefined) {
 
             try {
                 const userSnaps = await Promise.all(
-                    memberIds.map((id) => getDoc(doc(db!, 'users', id)))
+                    memberIds.map((id) => getDoc(doc(database, 'users', id)))
                 );
 
                 if (!active || version !== requestVersion) return;
@@ -70,7 +72,7 @@ export function useCoveMembers(coveId: string | undefined) {
             }
         };
 
-        const coveRef = doc(db!, 'coves', coveId);
+        const coveRef = doc(database, 'coves', coveId);
         const unsubscribeCove = onSnapshot(
             coveRef,
             (coveSnap) => {
@@ -97,7 +99,7 @@ export function useCoveMembers(coveId: string | undefined) {
                     return;
                 }
 
-                const membersDataRef = collection(db!, 'coves', coveId, 'members_data');
+                const membersDataRef = collection(database, 'coves', coveId, 'members_data');
                 unsubscribeMembersData = onSnapshot(
                     membersDataRef,
                     (dataSnap) => {

@@ -3,7 +3,7 @@ import { getCoveBackgroundUrl } from '@/utils/avatar';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface CoveCardProps {
     cove: {
@@ -22,7 +22,11 @@ const CoveCard = ({ cove, isOwner, onPress, index }: CoveCardProps) => {
 
     return (
         <View style={styles.wrapper}>
-            <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+            <TouchableOpacity 
+                onPress={onPress} 
+                activeOpacity={0.9}
+                style={styles.card}
+            >
                 <View
                     style={[
                         styles.tape,
@@ -56,7 +60,7 @@ const CoveCard = ({ cove, isOwner, onPress, index }: CoveCardProps) => {
                         <Text style={styles.members}>{cove.members?.length || 0}</Text>
                     </View>
                 </View>
-            </Pressable>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -74,40 +78,42 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: '#FFFFFF',
-        padding: 10,
-        paddingBottom: 24,
-        borderRadius: Layout.radiusLarge,
-        borderWidth: 2,
-        borderColor: Colors.light.text,
-        shadowColor: '#2F2E2C',
-        shadowOffset: { width: 4, height: 4 },
+        padding: 12,
+        paddingBottom: 48, // Classic Polaroid "chin"
+        borderRadius: 0,
+        borderWidth: 2.5,
+        borderColor: '#2F2E2C', // Explicit Deep Charcoal
+        shadowColor: '#000',
+        shadowOffset: { width: 6, height: 6 },
         shadowOpacity: 0.15,
         shadowRadius: 0,
-        elevation: 4,
+        elevation: 6,
     },
     cardPressed: {
-        backgroundColor: '#F9F7F2',
+        backgroundColor: '#FDFBF7',
         transform: [{ translateX: 2 }, { translateY: 2 }],
         shadowOffset: { width: 2, height: 2 },
     },
     tape: {
         position: 'absolute',
-        top: -8,
+        top: -10,
         alignSelf: 'center',
-        width: 70,
-        height: 18,
+        width: 80,
+        height: 22,
         zIndex: 10,
+        opacity: 0.6,
     },
     photoArea: {
+        width: '100%',
         aspectRatio: 1,
-        backgroundColor: '#FDFBF7',
+        backgroundColor: '#F9F7F2',
         borderRadius: 0,
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
-        borderWidth: 1.5,
-        borderColor: Colors.light.border,
+        borderWidth: 2,
+        borderColor: '#E8E2D9', // Explicit Subtle border
     },
     backgroundImage: {
         ...StyleSheet.absoluteFillObject,

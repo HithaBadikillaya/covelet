@@ -22,7 +22,8 @@ interface CreateCoveInput {
 const MAX_JOIN_CODE_ATTEMPTS = 6;
 
 async function ensureMemberData(coveId: string, userId: string) {
-    const memberRef = doc(db!, 'coves', coveId, 'members_data', userId);
+    if (!db) throw new Error('Database service is unavailable');
+    const memberRef = doc(db, 'coves', coveId, 'members_data', userId);
     const existingMember = await getDoc(memberRef);
     const existingData = existingMember.exists() ? existingMember.data() : {};
 
@@ -41,15 +42,16 @@ async function ensureMemberData(coveId: string, userId: string) {
 
 export async function createCoveWithJoinCode({ userId, name, description, avatarSeed }: CreateCoveInput) {
     if (!db) throw new Error('Database service is unavailable');
+    const database = db; // guaranteed non-null from here
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt += 1) {
         const joinCode = generateJoinCode();
-        const coveRef = doc(collection(db!, 'coves'));
-        const joinCodeRef = doc(db!, 'coveJoinCodes', joinCode);
+        const coveRef = doc(collection(database, 'coves'));
+        const joinCodeRef = doc(database, 'coveJoinCodes', joinCode);
 
         try {
-            await runTransaction(db!, async (transaction) => {
+            await runTransaction(database, async (transaction) => {
                 const existingJoinCode = await transaction.get(joinCodeRef);
                 if (existingJoinCode.exists()) {
                     throw new Error('join-code-collision');
@@ -103,7 +105,7 @@ export async function findCoveIdByJoinCode(joinCode: string) {
 
 export async function joinCoveById(coveId: string, userId: string) {
     if (!db) return;
-    await updateDoc(doc(db!, 'coves', coveId), {
+    await updateDoc(doc(db, 'coves', coveId), {
         members: arrayUnion(userId),
     });
 
@@ -115,9 +117,10 @@ export async function ensureCoveJoinCodeIndex(coveId: string, joinCode: string |
         return;
     }
 
-    const joinCodeRef = doc(db!, 'coveJoinCodes', joinCode);
+    const database = db;
+    const joinCodeRef = doc(database, 'coveJoinCodes', joinCode);
 
-    await runTransaction(db!, async (transaction) => {
+    await runTransaction(database, async (transaction) => {
         const existing = await transaction.get(joinCodeRef);
         if (existing.exists()) {
             return;

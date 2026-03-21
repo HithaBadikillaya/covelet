@@ -5,16 +5,18 @@ import { Image } from 'expo-image';
 import { Colors, Fonts, Layout } from '@/constants/theme';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     ActivityIndicator,
-    Pressable,
+    AppState,
     ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,41 +35,230 @@ interface Cove {
 export default function CoveScreen() {
     const { coveId } = useLocalSearchParams<{ coveId: string }>();
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
     const [cove, setCove] = useState<Cove | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadingStage, setLoadingStage] = useState('Initializing...');
+    const [timedOut, setTimedOut] = useState(false);
+    const safetyTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        const unsubAuth = subscribeToAuthChanges(setUser);
-        return () => unsubAuth();
-    }, []);
-
-    useEffect(() => {
-        if (!user || !coveId || !db) return;
-        const coveRef = doc(db, 'coves', coveId);
-        const unsubscribe = onSnapshot(coveRef, (snap) => {
-            if (!snap.exists()) {
-                router.replace('/(tabs)/dashboard');
-                return;
-            }
-            const data = { id: snap.id, ...snap.data() } as Cove;
-            if (!data.members.includes(user.uid)) {
-                router.replace('/(tabs)/dashboard');
-                return;
-            }
-            setCove(data);
+        console.log("[TRACE] CoveScreen: Mounted", { coveId });
+        
+        if (!coveId) {
+            console.error('[TRACE] CoveScreen: Invalid coveId (undefined/null)');
+            setLoadingStage('Invalid Sanctuary ID');
+            setTimedOut(true);
             setLoading(false);
-        }, (err) => {
-            console.error("Cove detail error:", err);
-            router.replace('/(tabs)/dashboard');
-        });
-        return () => unsubscribe();
-    }, [user, coveId]);
+            return;
+        }
 
-    if (loading || !cove || !user) {
+        // 1. Start Safety Timer
+        if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+        safetyTimerRef.current = setTimeout(() => {
+            console.warn('[TRACE] CoveScreen: 5s Safety Timeout triggered');
+            setLoadingStage('Timeout reached');
+            setTimedOut(true);
+            setLoading(false);
+        }, 5000); 
+
+        let unsubFirestore: (() => void) | null = null;
+        
+        const unsubAuth = subscribeToAuthChanges(async (authUser) => {
+            try {
+                if (!authUser || !db) {
+                    console.warn('[TRACE] CoveScreen: Auth/DB missing on callback');
+                    setLoadingStage(db ? 'Please log in' : 'DB Offline');
+                    return;
+                }
+
+                console.log("[TRACE] CoveScreen: Auth found:", authUser.uid);
+                setUser(authUser);
+                setLoadingStage(`Fetching...`);
+                
+                if (unsubFirestore) unsubFirestore();
+                
+                const coveRef = doc(db, 'coves', coveId);
+
+                // 3. Initial Fetch
+                console.log("[TRACE] CoveScreen: Fetch START", { coveId });
+                try {
+                    const snap = await getDoc(coveRef);
+                    console.log("[TRACE] CoveScreen: Fetch RESPONSE", snap.exists() ? "DOC_FOUND" : "DOC_MISSING");
+                    
+                    if (snap.exists()) {
+                        const rawData = snap.data();
+                        const members = Array.isArray(rawData?.members) ? rawData.members : [];
+                        const isMember = members.includes(authUser.uid);
+                        
+                        console.log("[TRACE] CoveScreen: Membership check (Initial)", {
+                            docId: snap.id,
+                            userUid: authUser.uid,
+                            members: members,
+                            isMember: isMember
+                        });
+
+                        if (isMember) {
+                            const data = { id: snap.id, ...rawData } as Cove;
+                            console.log("[TRACE] CoveScreen: Setting Cove state", data.name);
+                            setCove(data);
+                            setLoading(false);
+                            setTimedOut(false);
+                        } else {
+                            console.warn("[TRACE] CoveScreen: User found but NOT A MEMBER of this sanctuary");
+                            setLoadingStage('Not a member');
+                            setLoading(false);
+                        }
+                    } else {
+                        console.error("[TRACE] CoveScreen: Document NOT FOUND in Firestore", coveId);
+                        setLoadingStage('Not found');
+                        setTimedOut(true);
+                    }
+                } catch (fetchErr) {
+                    console.error("[TRACE] CoveScreen: Fetch ERROR", fetchErr);
+                    setLoadingStage('Fetch failed');
+                    setTimedOut(true);
+                } finally {
+                    setLoading(false);
+                }
+
+                // 4. Subscription
+                unsubFirestore = onSnapshot(coveRef, (snap) => {
+                    console.log('[TRACE] CoveScreen: Snapshot sync', snap.exists() ? "DOC_FOUND" : "DOC_MISSING");
+                    
+                    if (!snap.exists()) {
+                        setTimedOut(true);
+                        setLoading(false);
+                        return;
+                    }
+
+                    const rawData = snap.data();
+                    const data = { id: snap.id, ...rawData } as Cove;
+                    const isMember = Array.isArray(data.members) && data.members.includes(authUser.uid);
+
+                    console.log("[TRACE] CoveScreen: Membership check (Sync)", {
+                        isMember: isMember,
+                        memberCount: data.members?.length
+                    });
+
+                    if (isMember) {
+                        if (safetyTimerRef.current) {
+                            clearTimeout(safetyTimerRef.current);
+                            safetyTimerRef.current = null;
+                        }
+                        console.log("[TRACE] CoveScreen: State Update (Sync)", data.name);
+                        setCove(data);
+                        setLoading(false);
+                        setTimedOut(false);
+                    } else {
+                        console.warn("[TRACE] CoveScreen: Snapshot received but user no longer a member");
+                        // Optional: redirect to dashboard
+                        // router.replace('/(tabs)/dashboard');
+                    }
+                }, (err) => {
+                    console.error("[TRACE] CoveScreen: Subscription ERROR", err);
+                    setLoading(false);
+                    setTimedOut(true);
+                });
+            } catch (outerErr) {
+                console.error("[TRACE] CoveScreen: Critical Error", outerErr);
+                setLoading(false);
+                setTimedOut(true);
+            }
+        });
+
+        return () => {
+            unsubAuth();
+            if (unsubFirestore) unsubFirestore();
+            if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+        };
+    }, [coveId, isFocused]); // Re-fetch when screen focused
+
+    // AppState listener for rehydration
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            console.log("CoveScreen: App state changed to:", nextState);
+            if (nextState === 'active') {
+                console.log("CoveScreen: App resumed, verifying sanctuary data...");
+                if (user && !cove && !loading) {
+                    console.log("CoveScreen: Data missing on resume, forcing reload");
+                    setLoading(true);
+                    // The useEffect above will naturally re-run or we can trigger it
+                }
+            }
+        });
+        return () => subscription.remove();
+    }, [user, cove, loading]);
+
+    // Error / Timeout UI
+    if (timedOut && (!cove || !user)) {
+        console.log("[TRACE] CoveScreen: Rendering TIMEOUT_UI");
         return (
-            <View style={styles.loading}>
+            <View style={[styles.loading, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity
+                    onPress={() => router.replace('/(tabs)/dashboard')}
+                    style={[styles.backButton, { position: 'absolute', top: insets.top + 20, left: 20 }]}
+                >
+                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+                </TouchableOpacity>
+
+                <Ionicons name="cloud-offline-outline" size={48} color={Colors.light.textMuted} />
+                <Text style={styles.errorText}>
+                    {loadingStage.includes('error') ? 'Network connection failed.' : 'Sanctuary connection timed out.'}
+                </Text>
+                <Text style={[styles.errorText, { fontSize: 13, marginTop: -16, opacity: 0.6 }]}>
+                    Status: {loadingStage}
+                </Text>
+                <TouchableOpacity 
+                    onPress={() => router.replace('/(tabs)/dashboard')}
+                    style={styles.retryButton}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.retryText}>Return to Dashboard</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    // Spinner UI
+    if (loading || (!cove && !timedOut)) {
+        console.log("[TRACE] CoveScreen: Rendering SPINNER_UI", { loading, hasCove: !!cove, timedOut });
+        return (
+            <View style={[styles.loading, { paddingTop: insets.top + 20 }]}>
+                 <TouchableOpacity
+                    onPress={() => router.replace('/(tabs)/dashboard')}
+                    style={[styles.backButton, { position: 'absolute', top: insets.top + 20, left: 20 }]}
+                >
+                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+                </TouchableOpacity>
+
                 <ActivityIndicator size="large" color={Colors.light.primary} />
+                <Text style={[styles.errorText, { fontSize: 14, opacity: 0.5, marginTop: 12 }]}>{loadingStage}</Text>
+            </View>
+        );
+    }
+
+    // Backup Error UI (loading false but no cove/user and not timed out)
+    if (!cove || !user) {
+        console.log("[TRACE] CoveScreen: Rendering BACKUP_ERROR_UI", { hasCove: !!cove, hasUser: !!user });
+        return (
+            <View style={[styles.loading, { paddingTop: insets.top + 20 }]}>
+                <TouchableOpacity
+                    onPress={() => router.replace('/(tabs)/dashboard')}
+                    style={[styles.backButton, { position: 'absolute', top: insets.top + 20, left: 20 }]}
+                >
+                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+                </TouchableOpacity>
+
+                <Ionicons name="alert-circle-outline" size={48} color={Colors.light.error} />
+                <Text style={styles.errorText}>Oops! We couldn't find this sanctuary.</Text>
+                <TouchableOpacity 
+                    onPress={() => router.replace('/(tabs)/dashboard')}
+                    style={styles.retryButton}
+                >
+                    <Text style={styles.retryText}>Return to Dashboard</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -83,6 +274,13 @@ export default function CoveScreen() {
 
     const coveBgUrl = cove?.avatarSeed ? getCoveBackgroundUrl(cove.avatarSeed) : null;
 
+    if (!cove || !user) {
+        console.warn("CoveScreen: Rendering bailout - cove:", !!cove, "user:", !!user);
+        return null; // Should be handled by Backup Error UI above
+    }
+
+    console.log("[TRACE] CoveScreen: Rendering MAIN_CONTENT", cove.name);
+
     return (
         <View style={styles.container}>
             <ScrollView
@@ -93,12 +291,13 @@ export default function CoveScreen() {
                 ]}
             >
                 {/* BACK BUTTON */}
-                <Pressable
+                <TouchableOpacity
                     onPress={() => router.replace('/(tabs)/dashboard')}
                     style={styles.backButton}
+                    activeOpacity={0.7}
                 >
                     <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </Pressable>
+                </TouchableOpacity>
 
                 {/* HEADER CARD */}
                 <View style={styles.headerCard}>
@@ -214,14 +413,14 @@ const FeatureCard = ({ title, icon, description, color, onPress, size }: any) =>
     const isSmall = size === 'small';
 
     return (
-        <Pressable
+        <TouchableOpacity
             onPress={onPress}
-            style={({ pressed }) => [
+            activeOpacity={0.8}
+            style={[
                 styles.cardWrapper,
                 size === 'large' && styles.cardLarge,
                 size === 'wide' && styles.cardWide,
                 size === 'small' && styles.cardSmall,
-                pressed && { transform: [{ translateX: 2 }, { translateY: 2 }] }
             ]}
         >
             <View
@@ -230,7 +429,8 @@ const FeatureCard = ({ title, icon, description, color, onPress, size }: any) =>
                     isSmall && { flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
                     {
                         backgroundColor: '#FFFFFF',
-                        borderColor: Colors.light.text,
+                        borderColor: '#2F2E2C', // Explicit Deep Charcoal
+                        borderWidth: 2.5,
                     }
                 ]}
             >
@@ -258,7 +458,7 @@ const FeatureCard = ({ title, icon, description, color, onPress, size }: any) =>
                     <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
                 )}
             </View>
-        </Pressable>
+        </TouchableOpacity>
     );
 };
 
@@ -295,16 +495,44 @@ const styles = StyleSheet.create({
     },
     headerCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: Layout.radiusLarge,
-        marginBottom: 32,
-        borderWidth: 2,
-        borderColor: Colors.light.text,
+        padding: 12,
+        paddingBottom: 48,
+        borderRadius: 0,
+        borderWidth: 2.5, // Thicker
+        borderColor: '#2F2E2C', // Deep Charcoal explicit
         shadowColor: '#000',
-        shadowOffset: { width: 8, height: 8 },
-        shadowOpacity: 0.1,
+        shadowOffset: { width: 6, height: 6 },
+        shadowOpacity: 0.15,
         shadowRadius: 0,
         elevation: 6,
         overflow: 'hidden',
+    },
+    cardPressed: {
+        backgroundColor: '#FDFBF7',
+        transform: [{ translateX: 2 }, { translateY: 2 }],
+        shadowOffset: { width: 2, height: 2 },
+    },
+    tape: {
+        position: 'absolute',
+        top: -10,
+        alignSelf: 'center',
+        width: 80,
+        height: 22,
+        zIndex: 10,
+        backgroundColor: '#D4A373', // Explicit secondary
+        opacity: 0.7,
+    },
+    photoArea: {
+        width: '100%',
+        aspectRatio: 1,
+        backgroundColor: '#F9F7F2',
+        borderRadius: 0,
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 2, // Thicker
+        borderColor: '#E8E2D9', // Subtle explicit
     },
     headerBg: {
         ...StyleSheet.absoluteFillObject,
@@ -374,6 +602,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         marginHorizontal: -8,
+        width: '100%', // FORCE WIDTH
     },
     cardWrapper: {
         padding: 8,
@@ -392,15 +621,15 @@ const styles = StyleSheet.create({
     },
     featureCard: {
         flex: 1,
-        borderRadius: Layout.radiusLarge,
+        borderRadius: 0, // Sharp corners
         padding: 16,
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: Colors.light.text,
+        borderWidth: 2.5,
+        borderColor: '#2F2E2C',
         shadowColor: '#000',
         shadowOffset: { width: 4, height: 4 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.12,
         shadowRadius: 0,
         elevation: 3,
     },
@@ -427,5 +656,26 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: Colors.light.textMuted,
         marginTop: 2,
+    },
+    errorText: {
+        fontFamily: Fonts.bodyMedium,
+        fontSize: 16,
+        color: Colors.light.text,
+        marginTop: 16,
+        marginBottom: 24,
+        textAlign: 'center',
+    },
+    retryButton: {
+        backgroundColor: Colors.light.primary,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 0,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+    },
+    retryText: {
+        fontFamily: Fonts.heading,
+        fontSize: 14,
+        color: '#FFFFFF',
     },
 });

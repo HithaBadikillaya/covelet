@@ -148,7 +148,7 @@ async function upsertExpoPushToken(userId: string) {
     }
 
     await setDoc(
-      doc(db!, "users", userId, "devices", installationId),
+      doc(db, "users", userId, "devices", installationId),
       {
         expoPushToken: token,
         platform: Platform.OS,

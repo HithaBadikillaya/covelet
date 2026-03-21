@@ -50,7 +50,8 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
         setMemory(null);
         try {
             const pool: RouletteMemory[] = [];
-            const base = (path: string[]) => collection(db!, 'coves', coveId, ...path);
+            const database = db; // guaranteed non-null
+            const base = (path: string[]) => collection(database, 'coves', coveId, ...path);
 
             // Quotes
             const qQuotes = query(base(['quotes']), orderBy('createdAt', 'desc'), limit(SAMPLE_SIZE));
@@ -108,7 +109,7 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
                 const now = Date.now();
                 if (isEmergency || now >= unlockAt) {
                     const qEntries = query(
-                        collection(db!, 'coves', coveId, 'timeCapsules', cap.id, 'entries'),
+                        collection(database, 'coves', coveId, 'timeCapsules', cap.id, 'entries'),
                         orderBy('createdAt', 'desc'),
                         limit(SAMPLE_SIZE)
                     );

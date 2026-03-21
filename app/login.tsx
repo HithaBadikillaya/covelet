@@ -201,6 +201,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "center",
     padding: 24,
     paddingTop: 40,
     paddingBottom: 40, // Extra space at bottom for better visibility

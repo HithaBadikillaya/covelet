@@ -14,6 +14,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    console.log('SplashScreen: Mounting and starting animation');
     Animated.sequence([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -27,6 +28,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         useNativeDriver: true,
       }),
     ]).start(() => {
+      console.log('SplashScreen: Animation complete - calling callback');
       onAnimationComplete();
     });
   }, [fadeAnim, onAnimationComplete]);

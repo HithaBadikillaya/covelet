@@ -50,5 +50,5 @@ export const db = (() => {
 })();
 
 if (app) {
-    console.log("✅ Firebase initialized:", app.name);
+
 }

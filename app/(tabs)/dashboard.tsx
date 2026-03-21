@@ -5,18 +5,21 @@ import JoinCoveModal from '@/components/Dashboard/JoinCoveModal';
 import { Colors, Fonts, Layout } from '@/constants/theme';
 import { ensureCoveJoinCodeIndex } from '@/utils/coveJoinCodes';
 import { db } from '@/firebaseConfig';
+import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { User } from 'firebase/auth';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    AppState,
     FlatList,
-    Pressable,
     RefreshControl,
+    ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +37,7 @@ interface Cove {
 const DashboardScreen = () => {
     const insets = useSafeAreaInsets();
     const [cuser, setCUser] = useState<User | null>(null);
+    const [firstName, setFirstName] = useState<string>('');
     const [coves, setCoves] = useState<Cove[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -47,18 +51,43 @@ const DashboardScreen = () => {
             if (!user) {
                 setLoading(false);
                 setCoves([]);
+                setFirstName('');
                 return;
             }
 
+            if (!db) {
+                console.error('Dashboard: Firestore not initialized');
+                setLoading(false);
+                return;
+            }
+
+            console.log('Dashboard: Fetching profile for user:', user.uid);
+            // Fetch user profile for first name
+            const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data() as { name?: string };
+                    const name = data.name || '';
+                    console.log('Dashboard: Profile received, name:', name);
+                    setFirstName(name.split(' ')[0] || '');
+                } else {
+                    console.warn('Dashboard: Profile not found for UID:', user.uid);
+                }
+            }, (err) => {
+                console.error('Dashboard: Profile listener error:', err);
+                // We don't necessarily stop loading here, as coves are more important
+            });
+
+            console.log('Dashboard: Subscribing to coves for user:', user.uid);
             const q = query(
                 collection(db, 'coves'),
                 where('members', 'array-contains', user.uid)
             );
 
             const unsubscribeCoves = onSnapshot(q, (snapshot) => {
-                const covesList = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...(doc.data() as any)
+                console.log('Dashboard: Coves received, count:', snapshot.size);
+                const covesList = snapshot.docs.map(d => ({
+                    id: d.id,
+                    ...(d.data() as any)
                 })) as Cove[];
 
                 const sortedCoves = covesList.sort((a, b) => {
@@ -71,16 +100,35 @@ const DashboardScreen = () => {
                 setLoading(false);
                 setError(null);
             }, (err) => {
-                console.error("Dashboard listener error:", err);
+                console.error("Dashboard: Coves listener error:", err);
                 setError("Failed to sync your scrapbook. Please check your connection.");
                 setLoading(false);
             });
 
-            return () => unsubscribeCoves();
+            return () => {
+                console.log('Dashboard: Unsubscribing from listeners');
+                unsubscribeProfile();
+                unsubscribeCoves();
+            };
         });
 
         return () => unsubscribeAuth();
     }, []);
+
+    // AppState listener for rehydration
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            console.log("Dashboard: App state changed to:", nextState);
+            if (nextState === 'active') {
+                console.log("Dashboard: App resumed, verifying data...");
+                if (cuser && coves.length === 0 && !loading) {
+                    console.log("Dashboard: Data missing on resume, forcing reload");
+                    setLoading(true);
+                }
+            }
+        });
+        return () => subscription.remove();
+    }, [cuser, coves, loading]);
 
     useEffect(() => {
         if (coves.length === 0) {
@@ -98,7 +146,13 @@ const DashboardScreen = () => {
     };
 
     const handleCovePress = (id: string) => {
+        console.log("[TRACE] Dashboard: Cove card pressed", id);
         router.push(`/dashboard/cove/${id}` as any);
+    };
+
+    const handleCoveCreated = (id: string) => {
+        console.log("[TRACE] Dashboard: Cove created, navigating to:", id);
+        router.replace(`/dashboard/cove/${id}` as any);
     };
 
     const renderBentoGrid = () => {
@@ -120,6 +174,7 @@ const DashboardScreen = () => {
         }
 
         if (coves.length === 0) {
+            console.log("Dashboard: Render empty state. Loading:", loading, "Error:", error);
             return (
                 <View style={styles.emptyContainer}>
                     <View style={styles.emptyIllustration}>
@@ -129,6 +184,14 @@ const DashboardScreen = () => {
                     <Text style={styles.emptySubtitle}>
                         Every story starts with a first page. Create a cove to begin sharing memories.
                     </Text>
+                    {!loading && (
+                        <TouchableOpacity 
+                            onPress={() => onRefresh()}
+                            style={[styles.retryButton, { marginTop: 20 }]}
+                        >
+                            <Text style={styles.retryText}>REFRESH</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             );
         }
@@ -155,49 +218,10 @@ const DashboardScreen = () => {
     };
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            <FlatList
-                data={[]}
-                renderItem={null}
-                ListHeaderComponent={
-                    <>
-                        <View style={styles.header}>
-                            <Text style={styles.greeting}>Hey there!</Text>
-                            <Text style={styles.title}>MY SCRAPBOOK</Text>
-                        </View>
-
-                        <View style={styles.ctaRow}>
-                            <Pressable
-                                onPress={() => setShowCreateModal(true)}
-                                style={({ pressed }) => [
-                                    styles.ctaButton, 
-                                    styles.createBtn, 
-                                    { flex: 1.2 },
-                                    pressed && styles.ctaPressed
-                                ]}
-                            >
-                                <Ionicons name="add" size={24} color="#FFFFFF" />
-                                <Text style={styles.ctaText}>CREATE COVE</Text>
-                            </Pressable>
-
-                            <Pressable
-                                onPress={() => setShowJoinModal(true)}
-                                style={({ pressed }) => [
-                                    styles.ctaButton, 
-                                    styles.joinBtn, 
-                                    { flex: 1 },
-                                    pressed && styles.ctaPressed
-                                ]}
-                            >
-                                <Ionicons name="people" size={22} color={Colors.light.text} />
-                                <Text style={[styles.ctaText, { color: Colors.light.text }]}>JOIN</Text>
-                            </Pressable>
-                        </View>
-
-                        {renderBentoGrid()}
-                    </>
-                }
-                contentContainerStyle={styles.scrollContent}
+        <View style={styles.container}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + NAVBAR_HEIGHT + 18 }]}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -205,11 +229,41 @@ const DashboardScreen = () => {
                         tintColor={Colors.light.primary}
                     />
                 }
-            />
+            >
+                <View style={styles.header}>
+                    <Text style={styles.greeting}>
+                        {firstName ? `HEY, ${firstName.toUpperCase()}!` : 'HEY THERE!'}
+                    </Text>
+                    <Text style={styles.title}>SCRAPBOOK</Text>
+                </View>
+
+                <View style={styles.ctaRow}>
+                    <TouchableOpacity
+                        onPress={() => setShowCreateModal(true)}
+                        activeOpacity={0.85}
+                        style={styles.createBtn}
+                    >
+                        <Ionicons name="add" size={24} color="#FFFFFF" />
+                        <Text style={styles.ctaText}>CREATE</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setShowJoinModal(true)}
+                        activeOpacity={0.85}
+                        style={styles.joinBtn}
+                    >
+                        <Ionicons name="people" size={22} color="#2F2E2C" />
+                        <Text style={[styles.ctaText, { color: '#2F2E2C' }]}>JOIN</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {renderBentoGrid()}
+            </ScrollView>
 
             <CreateCoveModal
                 visible={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
+                onCreate={handleCoveCreated}
             />
             <JoinCoveModal
                 visible={showJoinModal}
@@ -227,7 +281,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 20,
-        paddingBottom: 40,
+        paddingBottom: 60,
     },
     header: {
         marginBottom: 28,
@@ -249,15 +303,35 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginBottom: 32,
         gap: 12,
+        width: '100%',
+        justifyContent: 'space-between',
     },
-    ctaButton: {
+    createBtn: {
+        width: '48.5%',
         flexDirection: 'row',
         height: 56,
-        borderRadius: Layout.radiusMedium,
+        borderRadius: 0,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: Colors.light.text,
+        borderWidth: 2.5,
+        borderColor: '#2F2E2C', // Explicit hex
+        backgroundColor: '#4A6741', // Explicit Green hex
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 0,
+        elevation: 4,
+    },
+    joinBtn: {
+        width: '48.5%',
+        flexDirection: 'row',
+        height: 56,
+        borderRadius: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2.5,
+        borderColor: '#2F2E2C', // Explicit hex
+        backgroundColor: '#FFFFFF', // Explicit White hex
         shadowColor: '#000',
         shadowOffset: { width: 4, height: 4 },
         shadowOpacity: 0.15,
@@ -268,19 +342,12 @@ const styles = StyleSheet.create({
         transform: [{ translateX: 2 }, { translateY: 2 }],
         shadowOffset: { width: 2, height: 2 },
     },
-    createBtn: {
-        backgroundColor: Colors.light.primary,
-        borderColor: Colors.light.text,
-    },
-    joinBtn: {
-        backgroundColor: '#FFFFFF',
-    },
     ctaText: {
         fontFamily: Fonts.heading,
-        fontSize: 14,
+        fontSize: 15,
         color: '#FFFFFF',
         marginLeft: 8,
-        letterSpacing: 0.5,
+        letterSpacing: 1,
     },
     gridContainer: {
         flexDirection: 'row',
@@ -342,6 +409,19 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.light.error,
         flex: 1,
+    },
+    retryButton: {
+        backgroundColor: Colors.light.primary,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 0,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+    },
+    retryText: {
+        fontFamily: Fonts.heading,
+        fontSize: 14,
+        color: '#FFFFFF',
     },
 });
 

@@ -73,7 +73,7 @@ export const Navbar = () => {
     const displayEmail = profile?.email || user?.email || '';
 
     return (
-        <View style={[styles.navbar, { paddingTop: insets.top, backgroundColor: Colors.light.background, borderBottomWidth: 2, borderBottomColor: Colors.light.border }]}> 
+        <View style={[styles.navbar, { paddingTop: insets.top + 12, backgroundColor: Colors.light.background, borderBottomWidth: 2, borderBottomColor: Colors.light.border }]}> 
             <View style={[styles.container, { height: NAVBAR_HEIGHT }]}> 
                 <TouchableOpacity onPress={() => handleNav('/')} activeOpacity={0.8} style={styles.logoContainer}>
                     <Text style={styles.logoLabel}>COVELET</Text>
@@ -103,7 +103,10 @@ export const Navbar = () => {
 
             {user ? (
                 <Modal visible={showDropdown} transparent animationType="none" onRequestClose={() => setShowDropdown(false)}>
-                    <Pressable style={styles.modalOverlay} onPress={() => setShowDropdown(false)}>
+                    <Pressable 
+                        style={[styles.modalOverlay, { paddingTop: NAVBAR_HEIGHT + insets.top + 20 }]} 
+                        onPress={() => setShowDropdown(false)}
+                    >
                         <View style={styles.dropdown}>
                             <View style={styles.dropdownHeader}>
                                 <Text style={styles.userName}>{displayName}</Text>
@@ -132,7 +135,7 @@ const styles = StyleSheet.create({
     avatarFallback: { backgroundColor: Colors.light.primary },
     avatarFallbackLoggedOut: { backgroundColor: Colors.light.muted },
     avatarText: { color: '#FFFFFF', fontFamily: Fonts.bodyBold, fontSize: 14 },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(47, 46, 44, 0.3)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: NAVBAR_HEIGHT + 40, paddingRight: 20 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(47, 46, 44, 0.3)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingRight: 20 },
     dropdown: { backgroundColor: '#FFFFFF', borderRadius: Layout.radiusLarge, borderWidth: 2, borderColor: Colors.light.text, minWidth: 220, shadowColor: '#000', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.1, shadowRadius: 0, elevation: 0 },
     dropdownHeader: { padding: 20 },
     userName: { color: Colors.light.text, fontFamily: Fonts.heading, fontSize: 18, marginBottom: 2 },

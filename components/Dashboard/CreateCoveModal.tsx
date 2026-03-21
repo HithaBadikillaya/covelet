@@ -7,7 +7,7 @@ import {
     SECURITY_LIMITS,
 } from '@/utils/security';
 import { Colors, Fonts, Layout } from '@/constants/theme';
-import { auth } from '@/firebaseConfig';
+import { auth, db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
@@ -16,9 +16,10 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, Touch
 interface CreateCoveModalProps {
     visible: boolean;
     onClose: () => void;
+    onCreate?: (coveId: string) => void;
 }
 
-const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) => {
+const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose, onCreate }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [avatarSeed, setAvatarSeed] = useState(generateRandomSeed());
@@ -55,17 +56,22 @@ const CreateCoveModal: React.FC<CreateCoveModalProps> = ({ visible, onClose }) =
         setError(null);
 
         try {
-            await createCoveWithJoinCode({
+            console.log("[TRACE] Creation flow: START", { name: safeName });
+            const result = await createCoveWithJoinCode({
                 userId: user.uid,
                 name: safeName,
                 description: safeDescription,
                 avatarSeed: normalizeAvatarSeed(avatarSeed),
             });
 
+            console.log("[TRACE] Creation flow: SUCCESS", result.coveId);
             resetForm();
             onClose();
+            if (onCreate && result.coveId) {
+                onCreate(result.coveId);
+            }
         } catch (err: any) {
-            console.error('Error creating cove:', err);
+            console.error('[TRACE] Creation flow: ERROR', err);
             setError(err.message || 'Failed to create.');
         } finally {
             setLoading(false);

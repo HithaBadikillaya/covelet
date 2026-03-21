@@ -24,6 +24,13 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: "Dashboard",
+          href: null, // Hide from tab bar — accessible via router.push only
+        }}
+      />
     </Tabs>
   );
 }

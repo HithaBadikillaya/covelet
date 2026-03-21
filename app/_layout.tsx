@@ -1,3 +1,13 @@
+// WeakRef polyfill for Hermes JS engine (React Native / Expo)
+// Firebase SDK uses WeakRef internally; Hermes older builds lack it.
+if (typeof global.WeakRef === 'undefined') {
+  (global as any).WeakRef = class WeakRef<T extends object> {
+    private _target: T;
+    constructor(target: T) { this._target = target; }
+    deref(): T { return this._target; }
+  };
+}
+
 import {
   Nunito_600SemiBold,
   Nunito_800ExtraBold,
@@ -18,6 +28,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Navbar } from '@/components/Navbar';
 import { TimeCapsuleNotificationBridge } from '@/components/notifications/TimeCapsuleNotificationBridge';
@@ -58,13 +69,14 @@ export default function RootLayout() {
   useEffect(() => {
     try {
       const unsubscribe = subscribeToAuthChanges((u) => {
+        console.log('RootLayout: Auth state changed:', u?.uid || 'no user');
         setUser(u);
         setIsAuthInitialised(true);
       });
       return unsubscribe;
     } catch (e) {
       console.error('Critical Auth Error:', e);
-      setIsAuthInitialised(true); // Don't block the app indefinitely
+      setIsAuthInitialised(true);
     }
   }, []);
 
@@ -86,7 +98,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded || error) {
-      SplashScreen.hideAsync();
+      console.log('RootLayout: Fonts loaded/error, hiding native splash. Error:', error?.message || 'none');
+      SplashScreen.hideAsync().catch(err => console.warn('SplashScreen.hideAsync error:', err));
     }
   }, [loaded, error]);
 
@@ -97,18 +110,20 @@ export default function RootLayout() {
   const isLoginPage = segments[0] === 'login';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FDFBF7' }}>
-      <Stack screenOptions={{ headerShown: false }} initialRouteName="(tabs)">
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      {user ? <TimeCapsuleNotificationBridge user={user} /> : null}
-      {!isLoginPage && <Navbar />}
-      <StatusBar style="dark" />
-      {isSplashScreenVisible && (
-        <CustomSplashScreen onAnimationComplete={() => setIsSplashScreenVisible(false)} />
-      )}
-    </View>
+    <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: '#FDFBF7' }}>
+        <Stack screenOptions={{ headerShown: false }} initialRouteName="(tabs)">
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        {user ? <TimeCapsuleNotificationBridge user={user} /> : null}
+        {!isLoginPage && <Navbar />}
+        <StatusBar style="dark" />
+        {isSplashScreenVisible && (
+          <CustomSplashScreen onAnimationComplete={() => setIsSplashScreenVisible(false)} />
+        )}
+      </View>
+    </SafeAreaProvider>
   );
 }

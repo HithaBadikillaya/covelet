@@ -84,14 +84,18 @@ export const subscribeToAuthChanges = (
         return () => { };
     }
 
-    return onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            try {
-                await ensureUserProfile(user);
-            } catch (error) {
-                console.error('Failed to repair user profile:', error);
-            }
-        }
+    return onAuthStateChanged(auth, (user) => {
+        // Fire callback IMMEDIATELY — do NOT await profile repair.
+        // Awaiting ensureUserProfile before calling callback blocks all screens
+        // that depend on auth state (e.g. CoveScreen) for 500ms–2s in production,
+        // causing infinite loading states.
         callback(user);
+
+        // Repair/sync the profile in the background after the callback.
+        if (user) {
+            ensureUserProfile(user).catch((error) => {
+                console.error('Failed to repair user profile:', error);
+            });
+        }
     });
 };
