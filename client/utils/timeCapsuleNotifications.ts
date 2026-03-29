@@ -106,10 +106,6 @@ function hasGrantedPermission(
 }
 
 async function ensureNotificationPermission() {
-  if (Platform.OS === "web") {
-    return false;
-  }
-
   const existing = await Notifications.getPermissionsAsync();
   if (hasGrantedPermission(existing)) {
     return true;
@@ -127,7 +123,7 @@ async function ensureNotificationPermission() {
 }
 
 async function upsertExpoPushToken(userId: string) {
-  if (Platform.OS === "web" || !Device.isDevice) {
+  if (!Device.isDevice) {
     return;
   }
 
@@ -277,10 +273,6 @@ export async function clearAllTimeCapsuleNotifications(userId: string) {
 export async function syncTimeCapsuleNotification(
   event: TimeCapsuleNotificationEvent,
 ) {
-  if (Platform.OS === "web") {
-    return;
-  }
-
   const eventKey = buildEventKey({
     coveId: event.coveId,
     capsuleId: event.capsuleId,

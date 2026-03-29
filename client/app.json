@@ -8,7 +8,10 @@
     "scheme": "covelet",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hitha.covelet",
@@ -23,10 +26,7 @@
       },
       "permissions": ["NOTIFICATIONS"]
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
+
     "plugins": [
       "expo-router",
       [
