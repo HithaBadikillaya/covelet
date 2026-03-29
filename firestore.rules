@@ -1,0 +1,466 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function coveData(coveId) {
+      return get(/databases/$(database)/documents/coves/$(coveId)).data;
+    }
+
+    function coveDataAfter(coveId) {
+      return getAfter(/databases/$(database)/documents/coves/$(coveId)).data;
+    }
+
+    function isCoveMember(coveId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/coves/$(coveId)/members/$(request.auth.uid));
+    }
+
+    function isCoveOwner(coveId) {
+      return isAuthenticated() && request.auth.uid == coveData(coveId).createdBy;
+    }
+
+    function isShortString(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+
+    function isOptionalShortString(value, max) {
+      return value == null || (value is string && value.size() <= max);
+    }
+
+    function isNumeric(value) {
+      return value is int || value is float;
+    }
+
+    function isInviteCode(value) {
+      return value is string && value.matches('^[A-Z0-9]{6}$');
+    }
+
+    function validDay(value) {
+      return value is int && value >= 1 && value <= 31;
+    }
+
+    function validMonth(value) {
+      return value is int && value >= 0 && value <= 11;
+    }
+
+    function validAvatarSeed(value) {
+      return isShortString(value, 1, 80);
+    }
+
+    function validCoveMetadata(data) {
+      return isShortString(data.name, 1, 50) &&
+        isOptionalShortString(data.description, 180) &&
+        validAvatarSeed(data.avatarSeed);
+    }
+
+    function validMemberList(members) {
+      return members is list && members.size() >= 1 && members.size() <= 50;
+    }
+
+    function validAuthorName(value) {
+      return isShortString(value, 1, 60);
+    }
+
+    function validQuoteCounter(value) {
+      return value is int && value >= 0 && value <= 100000;
+    }
+
+    function validBoardX(value) {
+      return isNumeric(value) && value >= 0 && value <= 1320;
+    }
+
+    function validBoardY(value) {
+      return isNumeric(value) && value >= 0 && value <= 1360;
+    }
+
+    function canReadCapsuleEntries(coveId, capsuleId) {
+      return isCoveMember(coveId) && (
+        get(/databases/$(database)/documents/coves/$(coveId)/timeCapsules/$(capsuleId)).data.unlockAt <= request.time ||
+        get(/databases/$(database)/documents/coves/$(coveId)/timeCapsules/$(capsuleId)).data.isEmergencyOpened == true
+      );
+    }
+
+    match /coveJoinCodes/{joinCode} {
+      allow list: if false;
+
+      allow get: if isAuthenticated() && isInviteCode(joinCode);
+
+      allow create: if isAuthenticated() &&
+        isInviteCode(joinCode) &&
+        request.resource.data.keys().hasOnly(['coveId', 'createdBy', 'createdAt']) &&
+        request.resource.data.coveId is string &&
+        request.resource.data.createdBy is string &&
+        request.resource.data.createdAt == request.time &&
+        coveDataAfter(request.resource.data.coveId).joinCode == joinCode &&
+        coveDataAfter(request.resource.data.coveId).createdBy == request.resource.data.createdBy &&
+        (
+          ('members' in coveDataAfter(request.resource.data.coveId) && request.auth.uid in coveDataAfter(request.resource.data.coveId).members) ||
+          existsAfter(/databases/$(database)/documents/coves/$(request.resource.data.coveId)/members/$(request.auth.uid))
+        );
+
+      allow update: if false;
+
+      allow delete: if isAuthenticated() &&
+        resource.data.coveId is string &&
+        isCoveOwner(resource.data.coveId);
+    }
+
+    match /coves/{coveId} {
+      allow list: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/coves/$(coveId)/members/$(request.auth.uid));
+
+      allow get: if isCoveMember(coveId);
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasOnly([
+          'name',
+          'description',
+          'avatarSeed',
+          'createdBy',
+          'joinCode',
+          'createdAt',
+          'isActive'
+        ]) &&
+        validCoveMetadata(request.resource.data) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        isInviteCode(request.resource.data.joinCode) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.isActive == true;
+
+      allow update: if isAuthenticated() && (
+        (
+          isCoveOwner(coveId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'avatarSeed']) &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.joinCode == resource.data.joinCode &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.isActive == resource.data.isActive &&
+          validCoveMetadata(request.resource.data)
+        ) ||
+        (
+          isCoveOwner(coveId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.joinCode == resource.data.joinCode &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.isActive == resource.data.isActive &&
+          validCoveMetadata(request.resource.data) &&
+          validMemberList(request.resource.data.members) &&
+          request.resource.data.members.hasAll([resource.data.createdBy]) &&
+          resource.data.members.hasAll(request.resource.data.members)
+        ) ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+          !(request.auth.uid in resource.data.members) &&
+          validMemberList(request.resource.data.members) &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.joinCode == resource.data.joinCode &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.isActive == resource.data.isActive &&
+          validCoveMetadata(request.resource.data) &&
+          request.resource.data.members.hasAll(resource.data.members) &&
+          request.auth.uid in request.resource.data.members &&
+          request.resource.data.members.size() == resource.data.members.size() + 1 &&
+          get(/databases/$(database)/documents/coveJoinCodes/$(resource.data.joinCode)).data.coveId == coveId
+        )
+      );
+
+      allow delete: if isCoveOwner(coveId);
+
+      match /timeCapsules/{capsuleId} {
+        allow read: if isCoveMember(coveId);
+
+        allow create: if isCoveOwner(coveId) &&
+          request.resource.data.keys().hasOnly(['unlockAt', 'ownerId', 'isEmergencyOpened', 'createdAt', 'durationLabel']) &&
+          request.resource.data.ownerId == request.auth.uid &&
+          request.resource.data.isEmergencyOpened == false &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.unlockAt is timestamp &&
+          request.resource.data.unlockAt > request.time &&
+          request.resource.data.unlockAt < request.time + duration.value(3650, 'd') &&
+          isShortString(request.resource.data.durationLabel, 1, 30);
+
+        allow update: if isCoveOwner(coveId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isEmergencyOpened']) &&
+          request.resource.data.ownerId == resource.data.ownerId &&
+          request.resource.data.unlockAt == resource.data.unlockAt &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.durationLabel == resource.data.durationLabel &&
+          request.resource.data.isEmergencyOpened is bool;
+
+        allow delete: if isCoveOwner(coveId);
+
+        match /entries/{entryId} {
+          allow read: if canReadCapsuleEntries(coveId, capsuleId);
+
+          allow create: if isCoveMember(coveId) &&
+            get(/databases/$(database)/documents/coves/$(coveId)/timeCapsules/$(capsuleId)).data.unlockAt > request.time &&
+            get(/databases/$(database)/documents/coves/$(coveId)/timeCapsules/$(capsuleId)).data.isEmergencyOpened == false &&
+            request.resource.data.keys().hasOnly(['text', 'authorId', 'createdAt', 'coveId', 'capsuleId', 'day', 'month']) &&
+            isShortString(request.resource.data.text, 1, 500) &&
+            request.resource.data.authorId == request.auth.uid &&
+            request.resource.data.createdAt == request.time &&
+            request.resource.data.coveId == coveId &&
+            request.resource.data.capsuleId == capsuleId &&
+            validDay(request.resource.data.day) &&
+            validMonth(request.resource.data.month);
+
+          allow update: if false;
+          allow delete: if isCoveOwner(coveId);
+        }
+      }
+
+      match /humans/{storyId} {
+        allow read: if isCoveMember(coveId);
+
+        allow create: if isCoveMember(coveId) &&
+          request.resource.data.keys().hasOnly(['authorId', 'content', 'createdAt', 'day', 'month']) &&
+          request.resource.data.authorId == request.auth.uid &&
+          isShortString(request.resource.data.content, 1, 500) &&
+          request.resource.data.createdAt == request.time &&
+          validDay(request.resource.data.day) &&
+          validMonth(request.resource.data.month);
+
+        allow update: if isCoveMember(coveId) &&
+          resource.data.authorId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content']) &&
+          isShortString(request.resource.data.content, 1, 500) &&
+          request.resource.data.authorId == resource.data.authorId &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.day == resource.data.day &&
+          request.resource.data.month == resource.data.month;
+
+        allow delete: if isCoveMember(coveId) && (resource.data.authorId == request.auth.uid || isCoveOwner(coveId));
+
+        match /likes/{userId} {
+          allow read: if isCoveMember(coveId);
+          allow create: if isAuthenticated() &&
+            request.auth.uid == userId &&
+            isCoveMember(coveId) &&
+            request.resource.data.keys().hasOnly(['userId', 'coveId', 'storyId', 'createdAt']) &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.coveId == coveId &&
+            request.resource.data.storyId == storyId &&
+            request.resource.data.createdAt == request.time;
+          allow delete: if isAuthenticated() && isCoveMember(coveId) && (
+            request.auth.uid == userId ||
+            isCoveOwner(coveId) ||
+            get(/databases/$(database)/documents/coves/$(coveId)/humans/$(storyId)).data.authorId == request.auth.uid
+          );
+          allow update: if false;
+        }
+      }
+
+      match /quotes/{quoteId} {
+        allow read: if isCoveMember(coveId);
+
+        allow create: if isCoveMember(coveId) &&
+          request.resource.data.keys().hasOnly(['authorId', 'authorName', 'content', 'coveId', 'createdAt', 'day', 'month', 'upvotesCount', 'repliesCount']) &&
+          request.resource.data.authorId == request.auth.uid &&
+          validAuthorName(request.resource.data.authorName) &&
+          isShortString(request.resource.data.content, 1, 500) &&
+          request.resource.data.coveId == coveId &&
+          request.resource.data.createdAt == request.time &&
+          validDay(request.resource.data.day) &&
+          validMonth(request.resource.data.month) &&
+          request.resource.data.upvotesCount == 0 &&
+          request.resource.data.repliesCount == 0;
+
+        allow update: if isCoveMember(coveId) && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotesCount']) &&
+            validQuoteCounter(request.resource.data.upvotesCount) &&
+            request.resource.data.repliesCount == resource.data.repliesCount &&
+            request.resource.data.authorId == resource.data.authorId &&
+            request.resource.data.authorName == resource.data.authorName &&
+            request.resource.data.content == resource.data.content &&
+            request.resource.data.coveId == resource.data.coveId &&
+            request.resource.data.createdAt == resource.data.createdAt &&
+            request.resource.data.day == resource.data.day &&
+            request.resource.data.month == resource.data.month &&
+            math.abs(request.resource.data.upvotesCount - resource.data.upvotesCount) == 1
+          ) ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repliesCount']) &&
+            validQuoteCounter(request.resource.data.repliesCount) &&
+            request.resource.data.upvotesCount == resource.data.upvotesCount &&
+            request.resource.data.authorId == resource.data.authorId &&
+            request.resource.data.authorName == resource.data.authorName &&
+            request.resource.data.content == resource.data.content &&
+            request.resource.data.coveId == resource.data.coveId &&
+            request.resource.data.createdAt == resource.data.createdAt &&
+            request.resource.data.day == resource.data.day &&
+            request.resource.data.month == resource.data.month &&
+            math.abs(request.resource.data.repliesCount - resource.data.repliesCount) == 1
+          )
+        );
+
+        allow delete: if isCoveMember(coveId) && (resource.data.authorId == request.auth.uid || isCoveOwner(coveId));
+
+        match /upvotes/{userId} {
+          allow read: if isCoveMember(coveId);
+          allow create: if isAuthenticated() &&
+            request.auth.uid == userId &&
+            isCoveMember(coveId) &&
+            request.resource.data.keys().hasOnly(['userId', 'coveId', 'quoteId', 'createdAt']) &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.coveId == coveId &&
+            request.resource.data.quoteId == quoteId &&
+            request.resource.data.createdAt == request.time;
+          allow delete: if isAuthenticated() && isCoveMember(coveId) && (
+            request.auth.uid == userId ||
+            isCoveOwner(coveId) ||
+            get(/databases/$(database)/documents/coves/$(coveId)/quotes/$(quoteId)).data.authorId == request.auth.uid
+          );
+          allow update: if false;
+        }
+
+        match /replies/{replyId} {
+          allow read: if isCoveMember(coveId);
+
+          allow create: if isCoveMember(coveId) &&
+            request.resource.data.keys().hasOnly(['authorId', 'authorName', 'content', 'createdAt', 'day', 'month']) &&
+            request.resource.data.authorId == request.auth.uid &&
+            validAuthorName(request.resource.data.authorName) &&
+            isShortString(request.resource.data.content, 1, 280) &&
+            request.resource.data.createdAt == request.time &&
+            validDay(request.resource.data.day) &&
+            validMonth(request.resource.data.month);
+
+          allow delete: if isCoveMember(coveId) && (
+            resource.data.authorId == request.auth.uid ||
+            isCoveOwner(coveId) ||
+            get(/databases/$(database)/documents/coves/$(coveId)/quotes/$(quoteId)).data.authorId == request.auth.uid
+          );
+          allow update: if false;
+        }
+      }
+
+      match /pins/{pinId} {
+        allow read: if isCoveMember(coveId);
+
+        allow create: if isCoveMember(coveId) &&
+          request.resource.data.keys().hasOnly(['title', 'description', 'x', 'y', 'authorId', 'authorName', 'createdAt', 'day', 'month', 'mediaRef']) &&
+          isShortString(request.resource.data.title, 1, 40) &&
+          isOptionalShortString(request.resource.data.description, 300) &&
+          validBoardX(request.resource.data.x) &&
+          validBoardY(request.resource.data.y) &&
+          request.resource.data.authorId == request.auth.uid &&
+          isShortString(request.resource.data.authorName, 1, 60) &&
+          request.resource.data.createdAt == request.time &&
+          validDay(request.resource.data.day) &&
+          validMonth(request.resource.data.month) &&
+          (!('mediaRef' in request.resource.data) || isShortString(request.resource.data.mediaRef, 1, 240));
+
+        allow delete: if isCoveMember(coveId) && (resource.data.authorId == request.auth.uid || isCoveOwner(coveId));
+
+        allow update: if isCoveMember(coveId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x', 'y']) &&
+          validBoardX(request.resource.data.x) &&
+          validBoardY(request.resource.data.y);
+      }
+
+      match /members_data/{userId} {
+        allow read: if isCoveMember(coveId);
+
+        allow create: if isCoveMember(coveId) &&
+          request.auth.uid == userId &&
+          request.resource.data.keys().hasOnly(['role', 'bio', 'updatedAt', 'joinedAt']) &&
+          isOptionalShortString(request.resource.data.role, 30) &&
+          isOptionalShortString(request.resource.data.bio, 150) &&
+          request.resource.data.updatedAt == request.time &&
+          request.resource.data.joinedAt == request.time;
+
+        allow update: if isCoveMember(coveId) &&
+          request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'bio', 'updatedAt']) &&
+          isOptionalShortString(request.resource.data.role, 30) &&
+          isOptionalShortString(request.resource.data.bio, 150) &&
+          request.resource.data.updatedAt == request.time &&
+          request.resource.data.joinedAt == resource.data.joinedAt;
+
+        allow delete: if isCoveOwner(coveId) || (isAuthenticated() && request.auth.uid == userId);
+      }
+
+      match /members/{userId} {
+        allow read: if isAuthenticated() && (request.auth.uid == userId || isCoveMember(coveId));
+        allow create: if isAuthenticated() && request.auth.uid == userId && (exists(/databases/$(database)/documents/coves/$(coveId)) || existsAfter(/databases/$(database)/documents/coves/$(coveId)));
+        allow update: if isCoveMember(coveId) && request.auth.uid == userId;
+        allow delete: if isCoveOwner(coveId);
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['name', 'email', 'avatarSeed', 'updatedAt']) &&
+        isShortString(request.resource.data.name, 1, 60) &&
+        isShortString(request.resource.data.email, 3, 320) &&
+        request.resource.data.email == request.auth.token.email &&
+        (!('avatarSeed' in request.resource.data) || validAvatarSeed(request.resource.data.avatarSeed)) &&
+        request.resource.data.updatedAt == request.time;
+
+      allow update: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email', 'avatarSeed', 'updatedAt']) &&
+        isShortString(request.resource.data.name, 1, 60) &&
+        isShortString(request.resource.data.email, 3, 320) &&
+        (
+          (resource.data.email is string && request.resource.data.email == resource.data.email) ||
+          (!(resource.data.email is string) && request.resource.data.email == request.auth.token.email)
+        ) &&
+        (!('avatarSeed' in request.resource.data) || validAvatarSeed(request.resource.data.avatarSeed)) &&
+        request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+
+      match /devices/{deviceId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+
+        allow create, update: if isAuthenticated() &&
+          request.auth.uid == userId &&
+          request.resource.data.keys().hasOnly(['expoPushToken', 'platform', 'deviceName', 'updatedAt', 'appVersion']) &&
+          isShortString(request.resource.data.expoPushToken, 1, 255) &&
+          isShortString(request.resource.data.platform, 2, 20) &&
+          (!('deviceName' in request.resource.data) || isOptionalShortString(request.resource.data.deviceName, 120)) &&
+          request.resource.data.updatedAt == request.time &&
+          (!('appVersion' in request.resource.data) || isOptionalShortString(request.resource.data.appVersion, 40));
+
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    match /{path=**}/entries/{entryId} {
+      allow read: if resource.data.coveId is string &&
+        resource.data.capsuleId is string &&
+        canReadCapsuleEntries(resource.data.coveId, resource.data.capsuleId);
+      allow create, update, delete: if false;
+    }
+
+    match /{path=**}/likes/{userId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        resource.data.coveId is string &&
+        isCoveMember(resource.data.coveId);
+      allow create, update, delete: if false;
+    }
+
+    match /{path=**}/upvotes/{userId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        resource.data.coveId is string &&
+        isCoveMember(resource.data.coveId);
+      allow create, update, delete: if false;
+    }
+
+    match /{path=**}/members/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+    }
+  }
+}

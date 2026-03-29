@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+ * Global Design System - Covelet
+ * Strict black/white/sky blue theme with semantic HEX tokens
+ */
+
+@layer base {
+    :root {
+        /* Core Colors */
+        --background: #000000;
+        --primary: #0EA5E9;
+        --secondary: #FFFFFF;
+
+        /* Text Colors */
+        --text: #FFFFFF;
+        --text-muted: #A3A3A3;
+
+        /* UI States */
+        --error: #EF4444;
+        --success: #10B981;
+        --warning: #F59E0B;
+
+        /* Borders & Inputs */
+        --border: #404040;
+        --input: #404040;
+        --ring: #0EA5E9;
+
+        /* Muted/Disabled */
+        --muted: #262626;
+        --muted-foreground: #737373;
+
+        /* Cards & Surfaces */
+        --card: #0A0A0A;
+        --card-foreground: #FFFFFF;
+
+        /* Popover/Dropdown */
+        --popover: #171717;
+        --popover-foreground: #FFFFFF;
+
+        /* Radius */
+        --radius: 0rem;
+    }
+}
+
+@layer base {
+    * {
+        border-color: var(--border);
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--text);
+    }
+}
