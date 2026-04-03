@@ -1,16 +1,16 @@
 import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { getCoveBackgroundUrl } from '@/utils/avatar';
+import { migrateLegacyCoveMembers, resolveMemberCount } from '@/utils/coveMembership';
 import { Image } from 'expo-image';
-import { Colors, Fonts, Layout } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { db } from '@/firebaseConfig';
 import { logger } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { User } from 'firebase/auth';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     AppState,
@@ -26,17 +26,17 @@ interface Cove {
     id: string;
     name: string;
     description?: string;
-    members: string[];
+    memberCount?: number;
     createdBy: string;
     joinCode: string;
     createdAt?: { seconds: number };
     avatarSeed?: string;
+    members?: string[];
 }
 
 export default function CoveScreen() {
     const { coveId } = useLocalSearchParams<{ coveId: string }>();
     const insets = useSafeAreaInsets();
-    const isFocused = useIsFocused();
     const [cove, setCove] = useState<Cove | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -75,7 +75,9 @@ export default function CoveScreen() {
                 }
 
                 logger.log("[TRACE] CoveScreen: Auth found:", authUser.uid);
-                setUser(authUser);
+                
+                // Only update user if it actually changed to avoid redundant renders
+                setUser(prev => prev?.uid === authUser.uid ? prev : authUser);
                 setLoadingStage(`Fetching...`);
                 
                 if (unsubFirestore) unsubFirestore();
@@ -86,37 +88,35 @@ export default function CoveScreen() {
                 logger.log("[TRACE] CoveScreen: Fetch START", { coveId });
                 try {
                     const snap = await getDoc(coveRef);
-                    logger.log("[TRACE] CoveScreen: Fetch RESPONSE", snap.exists() ? "DOC_FOUND" : "DOC_MISSING");
-                    
                     if (snap.exists()) {
                         const rawData = snap.data();
-                        const members = Array.isArray(rawData?.members) ? rawData.members : [];
-                        const isMember = members.includes(authUser.uid);
-                        
-                        logger.log("[TRACE] CoveScreen: Membership check (Initial)", {
-                            docId: snap.id,
-                            userUid: authUser.uid,
-                            members: members,
-                            isMember: isMember
-                        });
+                        const data = {
+                            id: snap.id,
+                            ...rawData,
+                            memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
+                        } as Cove;
+                        logger.log("[TRACE] CoveScreen: Setting Cove state", data.name);
+                        setCove(data);
+                        setTimedOut(false);
 
-                        if (isMember) {
-                            const data = { id: snap.id, ...rawData } as Cove;
-                            logger.log("[TRACE] CoveScreen: Setting Cove state", data.name);
-                            setCove(data);
-                            setLoading(false);
-                            setTimedOut(false);
-                        } else {
-                            logger.warn("[TRACE] CoveScreen: User found but NOT A MEMBER of this sanctuary");
-                            setLoadingStage('Not a member');
-                            setLoading(false);
-                        }
+                        void migrateLegacyCoveMembers({
+                            coveId,
+                            currentUserId: authUser.uid,
+                            createdBy: data.createdBy,
+                            memberCount: data.memberCount,
+                            legacyMembers: data.members,
+                        });
                     } else {
-                        logger.error("[TRACE] CoveScreen: Document NOT FOUND in Firestore", coveId);
+                        logger.error("[TRACE] CoveScreen: Document NOT FOUND", coveId);
                         setLoadingStage('Not found');
                         setTimedOut(true);
                     }
                 } catch (fetchErr) {
+                    if ((fetchErr as { code?: string } | null)?.code === 'permission-denied' || (fetchErr as { code?: string } | null)?.code === 'not-found') {
+                        router.replace('/(tabs)/dashboard');
+                        return;
+                    }
+
                     logger.error("[TRACE] CoveScreen: Fetch ERROR", fetchErr);
                     setLoadingStage('Fetch failed');
                     setTimedOut(true);
@@ -126,46 +126,38 @@ export default function CoveScreen() {
 
                 // 4. Subscription
                 unsubFirestore = onSnapshot(coveRef, (snap) => {
-                    logger.log('[TRACE] CoveScreen: Snapshot sync', snap.exists() ? "DOC_FOUND" : "DOC_MISSING");
-                    
                     if (!snap.exists()) {
-                        setTimedOut(true);
-                        setLoading(false);
+                        router.replace('/(tabs)/dashboard');
                         return;
                     }
 
                     const rawData = snap.data();
-                    const data = { id: snap.id, ...rawData } as Cove;
-                    const isMember = Array.isArray(data.members) && data.members.includes(authUser.uid);
+                    const data = {
+                        id: snap.id,
+                        ...rawData,
+                        memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
+                    } as Cove;
 
-                    logger.log("[TRACE] CoveScreen: Membership check (Sync)", {
-                        isMember: isMember,
-                        memberCount: data.members?.length
-                    });
-
-                    if (isMember) {
-                        if (safetyTimerRef.current) {
-                            clearTimeout(safetyTimerRef.current);
-                            safetyTimerRef.current = null;
-                        }
-                        logger.log("[TRACE] CoveScreen: State Update (Sync)", data.name);
-                        setCove(data);
-                        setLoading(false);
-                        setTimedOut(false);
-                    } else {
-                        logger.warn("[TRACE] CoveScreen: Snapshot received but user no longer a member");
-                        // Optional: redirect to dashboard
-                        // router.replace('/(tabs)/dashboard');
+                    if (safetyTimerRef.current) {
+                        clearTimeout(safetyTimerRef.current);
+                        safetyTimerRef.current = null;
                     }
+
+                    setCove(data);
+                    setLoading(false);
+                    setTimedOut(false);
                 }, (err) => {
+                    if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                        router.replace('/(tabs)/dashboard');
+                        return;
+                    }
+
                     logger.error("[TRACE] CoveScreen: Subscription ERROR", err);
                     setLoading(false);
-                    setTimedOut(true);
                 });
             } catch (outerErr) {
                 logger.error("[TRACE] CoveScreen: Critical Error", outerErr);
                 setLoading(false);
-                setTimedOut(true);
             }
         });
 
@@ -174,23 +166,18 @@ export default function CoveScreen() {
             if (unsubFirestore) unsubFirestore();
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
         };
-    }, [coveId, isFocused]); // Re-fetch when screen focused
+    }, [coveId]); // Only re-run when ID changes. Focus is handled by snapshot if active.
 
     // AppState listener for rehydration
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState) => {
-            logger.log("CoveScreen: App state changed to:", nextState);
-            if (nextState === 'active') {
-                logger.log("CoveScreen: App resumed, verifying sanctuary data...");
-                if (user && !cove && !loading) {
-                    logger.log("CoveScreen: Data missing on resume, forcing reload");
-                    setLoading(true);
-                    // The useEffect above will naturally re-run or we can trigger it
-                }
+            if (nextState === 'active' && user && !cove && !loading) {
+                logger.log("CoveScreen: Data missing on resume, forcing reload");
+                setLoading(true);
             }
         });
         return () => subscription.remove();
-    }, [user, cove, loading]);
+    }, [user?.uid, !!cove, loading]); // Stabilized dependencies
 
     // Error / Timeout UI
     if (timedOut && (!cove || !user)) {
@@ -307,6 +294,7 @@ export default function CoveScreen() {
                             source={{ uri: coveBgUrl }} 
                             style={styles.headerBg}
                             contentFit="cover"
+                            transition={200}
                         />
                     )}
                     
@@ -323,7 +311,7 @@ export default function CoveScreen() {
                             </View>
                             <View style={styles.infoItem}>
                                 <Ionicons name="people-outline" size={14} color={Colors.light.text} />
-                                <Text style={styles.infoText}>{cove.members.length} members</Text>
+                                <Text style={styles.infoText}>{resolveMemberCount(cove.memberCount, cove.members)} members</Text>
                             </View>
                         </View>
 

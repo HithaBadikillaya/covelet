@@ -64,10 +64,17 @@ export const AddPinModal: React.FC<AddPinModalProps> = ({
 
     return (
         <>
-            <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+            <Modal
+                visible={visible}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={handleClose}
+            >
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={styles.overlay}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                 >
                     <Pressable style={styles.backdrop} onPress={handleClose} />
                     <View style={[styles.card, { backgroundColor: '#FFFFFF' }]}>

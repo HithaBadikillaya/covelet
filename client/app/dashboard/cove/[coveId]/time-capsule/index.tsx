@@ -3,12 +3,14 @@ import { CreateCapsuleModal } from '@/components/Cove/TimeCapsule/CreateCapsuleM
 import AppDialog, { type AppDialogAction } from '@/components/ui/AppDialog';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
+import { apiGet, apiPut } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
     addDoc,
     collection,
     doc,
+    getDoc,
     limit,
     onSnapshot,
     orderBy,
@@ -16,7 +18,7 @@ import {
     serverTimestamp,
     updateDoc,
 } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -30,6 +32,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalizeMultilineText, SECURITY_LIMITS } from '@/utils/security';
+import {
+    prepareTimeCapsuleNotifications,
+    syncTimeCapsuleNotification,
+} from '@/utils/timeCapsuleNotifications';
 
 interface TimeCapsule {
     id: string;
@@ -47,6 +53,17 @@ interface CapsuleEntry {
     createdAt: { seconds: number };
 }
 
+interface CapsuleStatsResponse {
+    capsuleId: string;
+    entryCount: number;
+}
+
+interface CapsuleEmergencyStatusResponse {
+    capsuleId: string;
+    isEmergencyOpened: boolean;
+    notifiedDevices: number;
+}
+
 type DialogState = {
     title: string;
     message: string;
@@ -60,14 +77,19 @@ export default function TimeCapsuleScreen() {
     const insets = useSafeAreaInsets();
 
     const [capsule, setCapsule] = useState<TimeCapsule | null>(null);
+    const [coveName, setCoveName] = useState<string>('');
     const [coveOwnerId, setCoveOwnerId] = useState<string | null>(null);
     const [entries, setEntries] = useState<CapsuleEntry[]>([]);
+    const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
+    const [entryCount, setEntryCount] = useState(0);
     const [loadingCapsule, setLoadingCapsule] = useState(true);
     const [loadingEntries, setLoadingEntries] = useState(false);
+    const [loadingEntryCount, setLoadingEntryCount] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [newEntryText, setNewEntryText] = useState('');
     const [addingEntry, setAddingEntry] = useState(false);
     const [dialog, setDialog] = useState<DialogState>(null);
+    const notificationsPreparedRef = useRef(false);
 
     const isOwner = coveOwnerId === currentUser?.uid;
     const unlockSeconds = capsule?.unlockAt?.seconds ?? 0;
@@ -79,11 +101,27 @@ export default function TimeCapsuleScreen() {
     useEffect(() => {
         if (!coveId || !db) return;
 
-        const unsub = onSnapshot(doc(db, 'coves', coveId), (snap) => {
-            if (snap.exists()) {
-                setCoveOwnerId(snap.data().createdBy);
+        const unsub = onSnapshot(
+            doc(db, 'coves', coveId),
+            (snap) => {
+                if (!snap.exists()) {
+                    router.replace('/(tabs)/dashboard');
+                    return;
+                }
+
+                const data = snap.data();
+                setCoveOwnerId(data.createdBy);
+                setCoveName(typeof data.name === 'string' ? data.name : '');
+            },
+            (error) => {
+                if (error?.code === 'permission-denied' || error?.code === 'not-found') {
+                    router.replace('/(tabs)/dashboard');
+                    return;
+                }
+
+                logger.error('TimeCapsuleScreen: Failed to subscribe to cove.', error);
             }
-        });
+        );
 
         return () => unsub();
     }, [coveId]);
@@ -109,6 +147,11 @@ export default function TimeCapsuleScreen() {
                 setLoadingCapsule(false);
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    router.replace('/(tabs)/dashboard');
+                    return;
+                }
+
                 logger.error('Error fetching capsule:', err);
                 setLoadingCapsule(false);
             }
@@ -131,15 +174,50 @@ export default function TimeCapsuleScreen() {
 
         const unsub = onSnapshot(
             entriesQuery,
-            (snap) => {
+            async (snap) => {
                 const data = snap.docs.map((entryDoc) => ({
                     id: entryDoc.id,
                     ...entryDoc.data(),
                 })) as CapsuleEntry[];
                 setEntries(data);
+                setEntryCount(data.length);
                 setLoadingEntries(false);
+
+                // Fetch author names for any authors we don't have yet
+                if (db) {
+                    const unknownAuthorIds = data
+                        .map((e) => e.authorId)
+                        .filter((id) => id && !authorNames[id]);
+                    const uniqueUnknown = Array.from(new Set(unknownAuthorIds));
+                    if (uniqueUnknown.length > 0) {
+                        const nameMap: Record<string, string> = {};
+                        await Promise.all(
+                            uniqueUnknown.map(async (authorId) => {
+                                try {
+                                    const userSnap = await getDoc(doc(db!, 'users', authorId));
+                                    if (userSnap.exists()) {
+                                        const userData = userSnap.data();
+                                        nameMap[authorId] = typeof userData.name === 'string' && userData.name
+                                            ? userData.name
+                                            : 'A Member';
+                                    } else {
+                                        nameMap[authorId] = 'A Member';
+                                    }
+                                } catch {
+                                    nameMap[authorId] = 'A Member';
+                                }
+                            })
+                        );
+                        setAuthorNames((prev) => ({ ...prev, ...nameMap }));
+                    }
+                }
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    router.replace('/(tabs)/dashboard');
+                    return;
+                }
+
                 logger.error('Error fetching entries:', err);
                 setLoadingEntries(false);
             }
@@ -148,9 +226,67 @@ export default function TimeCapsuleScreen() {
         return () => unsub();
     }, [coveId, capsule, isUnlocked]);
 
+    useEffect(() => {
+        if (!coveId || !capsule?.id) {
+            setEntryCount(0);
+            setLoadingEntryCount(false);
+            return;
+        }
+
+        let cancelled = false;
+        setLoadingEntryCount(true);
+
+        void apiGet<CapsuleStatsResponse>(
+            `/coves/${coveId}/time-capsules/${capsule.id}/stats`,
+        ).then((response) => {
+            if (cancelled) {
+                return;
+            }
+
+            if (response.data) {
+                setEntryCount(response.data.entryCount);
+            } else if (response.error) {
+                logger.warn('Unable to load time capsule entry count.', response.error);
+            }
+
+            setLoadingEntryCount(false);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [coveId, capsule?.id]);
+
     const showDialog = useCallback((title: string, message: string, actions?: AppDialogAction[]) => {
         setDialog({ title, message, actions });
     }, []);
+
+    // Set up push notification permissions and schedule/sync the capsule notification
+    useEffect(() => {
+        if (!currentUser || !capsule || !coveId || !coveName) return;
+
+        const setupNotifications = async () => {
+            try {
+                if (!notificationsPreparedRef.current) {
+                    notificationsPreparedRef.current = true;
+                    await prepareTimeCapsuleNotifications(currentUser.uid);
+                }
+
+                await syncTimeCapsuleNotification({
+                    userId: currentUser.uid,
+                    coveId,
+                    coveName,
+                    capsuleId: capsule.id,
+                    unlockAtSeconds: capsule.unlockAt?.seconds ?? 0,
+                    isEmergencyOpened: capsule.isEmergencyOpened,
+                });
+            } catch (err) {
+                logger.warn('TimeCapsuleScreen: Unable to sync notification.', err);
+            }
+        };
+
+        void setupNotifications();
+    }, [currentUser?.uid, capsule?.id, capsule?.isEmergencyOpened, coveId, coveName]);
 
     const handleAddEntry = async () => {
         const safeEntryText = normalizeMultilineText(newEntryText, SECURITY_LIMITS.timeCapsuleEntry);
@@ -171,6 +307,7 @@ export default function TimeCapsuleScreen() {
                 month: now.getMonth(),
             });
             setNewEntryText('');
+            setEntryCount((currentCount) => currentCount + 1);
             showDialog('Memory Added', 'Your secret is safe until the capsule opens.');
         } catch (error) {
             logger.error(error);
@@ -200,9 +337,21 @@ export default function TimeCapsuleScreen() {
                     variant: 'danger',
                     onPress: async () => {
                         try {
-                            await updateDoc(doc(db!, 'coves', coveId!, 'timeCapsules', capsule.id), {
-                                isEmergencyOpened: newStatus,
-                            });
+                            const response = await apiPut<CapsuleEmergencyStatusResponse>(
+                                `/coves/${coveId!}/time-capsules/${capsule.id}/emergency-status`,
+                                { isEmergencyOpened: newStatus },
+                            );
+
+                            if (response.error) {
+                                if (response.error.code === 'NETWORK_ERROR' && db) {
+                                    await updateDoc(
+                                        doc(db, 'coves', coveId!, 'timeCapsules', capsule.id),
+                                        { isEmergencyOpened: newStatus },
+                                    );
+                                } else {
+                                    showDialog('Error', response.error.message || 'Failed to toggle emergency mode.');
+                                }
+                            }
                         } catch (error) {
                             logger.error(error);
                             showDialog('Error', 'Failed to toggle emergency mode.');
@@ -245,7 +394,7 @@ export default function TimeCapsuleScreen() {
 
     if (loadingCapsule) {
         return (
-            <View style={styles.centerAll}>
+            <View style={[styles.container, styles.centerAll]}>
                 <ActivityIndicator color={themeColors.primary} />
             </View>
         );
@@ -254,9 +403,9 @@ export default function TimeCapsuleScreen() {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={[styles.container, { backgroundColor: Colors.light.background }]}
+            style={styles.container}
         >
-            <View style={[styles.header, { paddingTop: insets.top + 20 }]}> 
+            <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
                     <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
                 </TouchableOpacity>
@@ -296,6 +445,19 @@ export default function TimeCapsuleScreen() {
                 </Text>
             ) : null}
 
+            <View style={styles.countCard}>
+                <Ionicons
+                    name={isUnlocked ? 'chatbubble-ellipses-outline' : 'mail-outline'}
+                    size={18}
+                    color={Colors.light.primary}
+                />
+                <Text style={styles.countCardText}>
+                    {loadingEntryCount && entryCount === 0
+                        ? 'Checking how many memories are inside...'
+                        : `${entryCount} ${entryCount === 1 ? 'message' : 'messages'} ${isUnlocked ? 'revealed' : 'tucked inside already'}`}
+                </Text>
+            </View>
+
             <View style={styles.content}>
                 {isUnlocked ? (
                     loadingEntries && entries.length === 0 ? (
@@ -308,12 +470,14 @@ export default function TimeCapsuleScreen() {
                             keyExtractor={(item) => item.id}
                             contentContainerStyle={styles.listContent}
                             showsVerticalScrollIndicator={false}
-                            renderItem={({ item, index }) => (
-                                <View style={[styles.entryCard, { transform: [{ rotate: index % 2 === 0 ? '1deg' : '-1deg' }] }]}>
+                            renderItem={({ item }) => (
+                                <View style={styles.entryCard}>
                                     <Text style={styles.entryText}>{item.text}</Text>
                                     <View style={styles.entryFooter}>
                                         <View style={styles.authorBadge}>
-                                            <Text style={styles.authorText}>A Secret Member</Text>
+                                            <Text style={styles.authorText}>
+                                                {authorNames[item.authorId] || item.authorName || 'A Member'}
+                                            </Text>
                                         </View>
                                     </View>
                                 </View>
@@ -376,7 +540,10 @@ export default function TimeCapsuleScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
+    container: {
+        flex: 1,
+        backgroundColor: Colors.light.background,
+    },
     centerAll: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: {
         flexDirection: 'row',
@@ -384,6 +551,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingBottom: 20,
+        backgroundColor: Colors.light.background,
     },
     backBtnCircle: {
         width: 44,
@@ -446,11 +614,31 @@ const styles = StyleSheet.create({
     },
     notificationNote: {
         marginHorizontal: 20,
-        marginBottom: 20,
+        marginBottom: 12,
         fontFamily: Fonts.body,
         fontSize: 13,
         lineHeight: 19,
         color: Colors.light.textMuted,
+    },
+    countCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginHorizontal: 20,
+        marginBottom: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+        borderRadius: 12,
+    },
+    countCardText: {
+        flex: 1,
+        fontFamily: Fonts.bodyMedium,
+        fontSize: 14,
+        color: Colors.light.text,
+        lineHeight: 20,
     },
     content: { flex: 1 },
     listContent: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },

@@ -4,6 +4,7 @@ import { ManageMembersModal } from '@/components/Settings/ManageMembersModal';
 import AppDialog, { type AppDialogAction } from '@/components/ui/AppDialog';
 import { Colors, Fonts, Layout } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
+import { resolveMemberCount } from '@/utils/coveMembership';
 import { deleteCoveWithJoinCode } from '@/utils/coveJoinCodes';
 import { getCoveBackgroundUrl } from '@/utils/avatar';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +26,8 @@ interface CoveData {
     name: string;
     description?: string;
     avatarSeed?: string;
-    members: string[];
+    memberCount?: number;
+    members?: string[];
     createdBy: string;
     joinCode?: string;
 }
@@ -59,7 +61,11 @@ export default function CoveSettingsScreen() {
             coveRef,
             (snap) => {
                 if (snap.exists()) {
-                    const data = snap.data() as CoveData;
+                    const rawData = snap.data() as CoveData;
+                    const data = {
+                        ...rawData,
+                        memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
+                    };
                     if (data.createdBy === auth?.currentUser?.uid) {
                         setCoveData(data);
                         setIsOwner(true);
@@ -70,11 +76,16 @@ export default function CoveSettingsScreen() {
                         ]);
                     }
                 } else {
-                    router.back();
+                    router.replace('/(tabs)/dashboard');
                 }
                 setLoading(false);
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    router.replace('/(tabs)/dashboard');
+                    return;
+                }
+
                 logger.error('Error subscribing to cove:', err);
                 setLoading(false);
             }
@@ -85,6 +96,15 @@ export default function CoveSettingsScreen() {
 
     const coveBackgroundUrl = coveData?.avatarSeed ? getCoveBackgroundUrl(coveData.avatarSeed) : null;
 
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteStep, setDeleteStep] = useState(0);
+
+    const deletionSteps = [
+        { label: 'Connecting', hint: 'Reaching sanctuary server...' },
+        { label: 'Dissolving', hint: 'Wiping core records...' },
+        { label: 'Finalizing', hint: 'Removing shared memories...' },
+    ];
+
     const handleDelete = () => {
         showDialog('Dissolve Cove', 'This action is permanent. All shared memories and capsules will be lost forever.', [
             { label: 'Cancel', variant: 'secondary' },
@@ -93,16 +113,28 @@ export default function CoveSettingsScreen() {
                 variant: 'danger',
                 onPress: async () => {
                     try {
-                        setLoading(true);
+                        setIsDeleting(true);
+                        setDeleteStep(0);
                         if (!coveId) return;
+
+                        // Simulate progress steps to give feedback
+                        const timer = setInterval(() => {
+                            setDeleteStep(prev => (prev < 2 ? prev + 1 : prev));
+                        }, 800);
+
                         await deleteCoveWithJoinCode(coveId, coveData?.joinCode);
-                        showDialog('Cove Dissolved', 'The digital sanctuary has been removed.', [
-                            { label: 'OK', onPress: () => router.replace('/(tabs)/dashboard') },
-                        ]);
+                        
+                        clearInterval(timer);
+                        setDeleteStep(3); // Done
+                        
+                        // Small delay to let user see "Finished" state
+                        setTimeout(() => {
+                            router.replace('/(tabs)/dashboard');
+                        }, 500);
                     } catch (err: any) {
                         logger.error('Error deleting cove:', err);
-                        setLoading(false);
-                        showDialog('Error', 'Failed to delete Cove.');
+                        setIsDeleting(false);
+                        showDialog('Error', 'Failed to delete Cove. Please check your internet connection and ensure the server is reachable.');
                     }
                 },
             },
@@ -113,6 +145,29 @@ export default function CoveSettingsScreen() {
         return (
             <View style={[styles.container, styles.centered]}>
                 <ActivityIndicator size="large" color={Colors.light.primary} />
+            </View>
+        );
+    }
+
+    if (isDeleting) {
+        const currentStep = deletionSteps[Math.min(deleteStep, deletionSteps.length - 1)];
+        const progressPercent = Math.min((deleteStep + 1) * (100 / deletionSteps.length), 100);
+
+        return (
+            <View style={[styles.container, styles.centered, { backgroundColor: Colors.light.background }]}>
+                <View style={styles.deletionBox}>
+                    <ActivityIndicator size="large" color={Colors.light.error} style={{ marginBottom: 24 }} />
+                    <Text style={styles.deletionTitle}>{currentStep.label}...</Text>
+                    <Text style={styles.deletionHint}>{currentStep.hint}</Text>
+                    
+                    <View style={styles.progressBarBg}>
+                        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                    </View>
+                    
+                    <Text style={styles.deletionSubtext}>
+                        Closing the sanctuary and wiping records. Please stay on this screen.
+                    </Text>
+                </View>
             </View>
         );
     }
@@ -150,7 +205,7 @@ export default function CoveSettingsScreen() {
                                 <View style={styles.previewStatsRow}>
                                     <View style={styles.previewStatChip}>
                                         <Ionicons name="people-outline" size={14} color={Colors.light.text} />
-                                        <Text style={styles.previewStatText}>{coveData.members?.length || 0} members</Text>
+                                        <Text style={styles.previewStatText}>{resolveMemberCount(coveData.memberCount, coveData.members)} members</Text>
                                     </View>
                                     {coveData.joinCode ? (
                                         <View style={styles.previewStatChip}>
@@ -422,5 +477,54 @@ const styles = StyleSheet.create({
         color: Colors.light.textMuted,
         textAlign: 'center',
         lineHeight: 20,
+    },
+    deletionBox: {
+        padding: 32,
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        width: '85%',
+        borderRadius: Layout.radiusLarge,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.1,
+        shadowRadius: 0,
+        elevation: 4,
+    },
+    deletionTitle: {
+        fontFamily: Fonts.heading,
+        fontSize: 22,
+        color: Colors.light.text,
+        marginBottom: 8,
+    },
+    deletionHint: {
+        fontFamily: Fonts.body,
+        fontSize: 14,
+        color: Colors.light.textMuted,
+        marginBottom: 28,
+        textAlign: 'center',
+    },
+    progressBarBg: {
+        width: '100%',
+        height: 12,
+        backgroundColor: '#F0F0F0',
+        borderRadius: 6,
+        borderWidth: 1.5,
+        borderColor: Colors.light.text,
+        overflow: 'hidden',
+        marginBottom: 24,
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: Colors.light.error,
+    },
+    deletionSubtext: {
+        fontFamily: Fonts.body,
+        fontSize: 12,
+        color: Colors.light.textMuted,
+        textAlign: 'center',
+        lineHeight: 18,
+        opacity: 0.8,
     },
 });

@@ -80,6 +80,13 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
                 setError(null);
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    setQuotes([]);
+                    setLoading(false);
+                    setError('This cove is no longer available.');
+                    return;
+                }
+
                 logger.error('Error fetching quotes:', err);
                 setError('Failed to load the wall');
                 setLoading(false);
@@ -129,6 +136,11 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
                     });
                     setUpvotedIds(next);
                 }, (err) => {
+                    if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                        setUpvotedIds(new Set());
+                        return;
+                    }
+
                     logger.error('Error in upvote listener:', err);
                 });
             });
@@ -163,6 +175,11 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
                 setUpvotedIds(next);
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    setUpvotedIds(new Set());
+                    return;
+                }
+
                 logger.error('Error in upvote listener:', err);
             }
         );
@@ -240,11 +257,23 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
             collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'),
             orderBy('createdAt', 'asc')
         );
-        const unsub = onSnapshot(q, (snap) => {
-            const list = snap.docs.map((replyDoc) => ({ id: replyDoc.id, ...replyDoc.data() } as QuoteReply));
-            repliesCache[quoteId] = list;
-            replyListeners[quoteId]?.(list);
-        });
+        const unsub = onSnapshot(
+            q,
+            (snap) => {
+                const list = snap.docs.map((replyDoc) => ({ id: replyDoc.id, ...replyDoc.data() } as QuoteReply));
+                repliesCache[quoteId] = list;
+                replyListeners[quoteId]?.(list);
+            },
+            (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    repliesCache[quoteId] = [];
+                    replyListeners[quoteId]?.([]);
+                    return;
+                }
+
+                logger.error('Error fetching replies:', err);
+            }
+        );
         return () => {
             unsub();
             delete replyListeners[quoteId];

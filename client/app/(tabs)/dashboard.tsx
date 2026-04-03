@@ -2,7 +2,8 @@ import { subscribeToAuthChanges } from '@/components/auth/authService';
 import CoveCard from '@/components/Dashboard/CoveCard';
 import CreateCoveModal from '@/components/Dashboard/CreateCoveModal';
 import JoinCoveModal from '@/components/Dashboard/JoinCoveModal';
-import { Colors, Fonts, Layout } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
+import { backfillSelfMembershipsFromLegacy, migrateLegacyCoveMembers, resolveMemberCount } from '@/utils/coveMembership';
 import { ensureCoveJoinCodeIndex } from '@/utils/coveJoinCodes';
 import { db } from '@/firebaseConfig';
 import { NAVBAR_HEIGHT } from '@/components/Navbar';
@@ -10,12 +11,11 @@ import { logger } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { User } from 'firebase/auth';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collectionGroup, doc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     AppState,
-    FlatList,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -29,10 +29,12 @@ interface Cove {
     id: string;
     name: string;
     description?: string;
-    members: string[];
+    memberCount?: number;
     createdBy: string;
     joinCode: string;
     createdAt?: { seconds: number };
+    avatarSeed?: string;
+    members?: string[];
 }
 
 const DashboardScreen = () => {
@@ -47,99 +49,195 @@ const DashboardScreen = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const unsubscribeAuth = subscribeToAuthChanges((user: User | null) => {
+        return subscribeToAuthChanges((user: User | null) => {
             setCUser(user);
-            if (!user) {
-                setLoading(false);
-                setCoves([]);
-                setFirstName('');
-                return;
-            }
-
-            if (!db) {
-                logger.error('Dashboard: Firestore not initialized');
-                setLoading(false);
-                return;
-            }
-
-            logger.log('Dashboard: Fetching profile for user:', user.uid);
-            // Fetch user profile for first name
-            const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-                if (snap.exists()) {
-                    const data = snap.data() as { name?: string };
-                    const name = data.name || '';
-                    logger.log('Dashboard: Profile received, name:', name);
-                    setFirstName(name.split(' ')[0] || '');
-                } else {
-                    logger.warn('Dashboard: Profile not found for UID:', user.uid);
-                }
-            }, (err) => {
-                logger.error('Dashboard: Profile listener error:', err);
-                // We don't necessarily stop loading here, as coves are more important
-            });
-
-            logger.log('Dashboard: Subscribing to coves for user:', user.uid);
-            const q = query(
-                collection(db, 'coves'),
-                where('members', 'array-contains', user.uid)
-            );
-
-            const unsubscribeCoves = onSnapshot(q, (snapshot) => {
-                logger.log('Dashboard: Coves received, count:', snapshot.size);
-                const covesList = snapshot.docs.map(d => ({
-                    id: d.id,
-                    ...(d.data() as any)
-                })) as Cove[];
-
-                const sortedCoves = covesList.sort((a, b) => {
-                    const dateA = a.createdAt?.seconds || 0;
-                    const dateB = b.createdAt?.seconds || 0;
-                    return dateB - dateA;
-                });
-
-                setCoves(sortedCoves);
-                setLoading(false);
-                setError(null);
-            }, (err) => {
-                logger.error("Dashboard: Coves listener error:", err);
-                setError("Failed to sync your scrapbook. Please check your connection.");
-                setLoading(false);
-            });
-
-            return () => {
-                logger.log('Dashboard: Unsubscribing from listeners');
-                unsubscribeProfile();
-                unsubscribeCoves();
-            };
         });
-
-        return () => unsubscribeAuth();
     }, []);
+
+    useEffect(() => {
+        if (!cuser) {
+            setLoading(false);
+            setCoves([]);
+            setFirstName('');
+            return;
+        }
+
+        if (!db) {
+            logger.error('Dashboard: Firestore not initialized');
+            setLoading(false);
+            setError('Database service is unavailable.');
+            return;
+        }
+
+        const database = db;
+
+        let active = true;
+        const coveListeners = new Map<string, () => void>();
+        const coveMap = new Map<string, Cove>();
+        let unsubscribeMemberships: (() => void) | null = null;
+        let unsubscribeProfile: (() => void) | null = null;
+
+        const syncCoves = () => {
+            if (!active) {
+                return;
+            }
+
+            const sortedCoves = Array.from(coveMap.values()).sort((a, b) => {
+                const dateA = a.createdAt?.seconds || 0;
+                const dateB = b.createdAt?.seconds || 0;
+                return dateB - dateA;
+            });
+
+            setCoves(sortedCoves);
+            setLoading(false);
+            setError(null);
+        };
+
+        const start = async () => {
+            try {
+                setLoading(true);
+
+                unsubscribeProfile = onSnapshot(
+                    doc(database, 'users', cuser.uid),
+                    (snap) => {
+                        if (!snap.exists()) {
+                            setFirstName('');
+                            return;
+                        }
+
+                        const data = snap.data() as { name?: string };
+                        const name = data.name || '';
+                        setFirstName(name.split(' ')[0] || '');
+                    },
+                    (err) => {
+                        logger.error('Dashboard: Profile listener error:', err);
+                    },
+                );
+
+                unsubscribeMemberships = onSnapshot(
+                    query(collectionGroup(database, 'members'), where('userId', '==', cuser.uid)),
+                    (snapshot) => {
+                        const nextCoveIds = new Set<string>();
+
+                        snapshot.docs.forEach((membershipDoc) => {
+                            const coveId = membershipDoc.ref.parent.parent?.id;
+                            if (!coveId) {
+                                return;
+                            }
+
+                            nextCoveIds.add(coveId);
+
+                            if (coveListeners.has(coveId)) {
+                                return;
+                            }
+
+                            const unsubscribeCove = onSnapshot(
+                                doc(database, 'coves', coveId),
+                                (coveSnap) => {
+                                    if (!coveSnap.exists()) {
+                                        coveMap.delete(coveId);
+                                        coveListeners.get(coveId)?.();
+                                        coveListeners.delete(coveId);
+                                        syncCoves();
+                                        return;
+                                    }
+
+                                    const rawData = coveSnap.data() as Omit<Cove, 'id'>;
+                                    const nextCove: Cove = {
+                                        id: coveSnap.id,
+                                        ...rawData,
+                                        memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
+                                    };
+
+                                    coveMap.set(coveId, nextCove);
+                                    syncCoves();
+
+                                    void ensureCoveJoinCodeIndex(nextCove.id, nextCove.joinCode, nextCove.createdBy).catch((error) => {
+                                        logger.warn('Dashboard: Unable to backfill cove join code index.', { coveId, error });
+                                    });
+                                    void migrateLegacyCoveMembers({
+                                        coveId,
+                                        currentUserId: cuser.uid,
+                                        createdBy: nextCove.createdBy,
+                                        memberCount: nextCove.memberCount,
+                                        legacyMembers: nextCove.members,
+                                    });
+                                },
+                                (err) => {
+                                    if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                                        coveMap.delete(coveId);
+                                        coveListeners.get(coveId)?.();
+                                        coveListeners.delete(coveId);
+                                        syncCoves();
+                                        return;
+                                    }
+
+                                    logger.error('Dashboard: Cove listener error:', err);
+                                    coveMap.delete(coveId);
+                                    syncCoves();
+                                },
+                            );
+
+                            coveListeners.set(coveId, unsubscribeCove);
+                        });
+
+                        Array.from(coveListeners.entries()).forEach(([coveId, unsubscribeCove]) => {
+                            if (!nextCoveIds.has(coveId)) {
+                                unsubscribeCove();
+                                coveListeners.delete(coveId);
+                                coveMap.delete(coveId);
+                            }
+                        });
+
+                        syncCoves();
+                    },
+                    (err) => {
+                        logger.error('Dashboard: Membership listener error:', err);
+                        if (!active) {
+                            return;
+                        }
+
+                        setError('Failed to sync your scrapbook. Please check your connection.');
+                        setLoading(false);
+                    },
+                );
+
+                void backfillSelfMembershipsFromLegacy(cuser.uid).catch((backfillError) => {
+                    logger.warn('Dashboard: Legacy membership backfill failed in the background.', backfillError);
+                });
+            } catch (error) {
+                logger.error('Dashboard: Failed to initialize dashboard listeners.', error);
+                if (!active) {
+                    return;
+                }
+
+                setError('Failed to open your Cove memberships.');
+                setLoading(false);
+            }
+        };
+
+        void start();
+
+        return () => {
+            active = false;
+            unsubscribeMemberships?.();
+            unsubscribeProfile?.();
+            coveListeners.forEach((unsubscribeCove) => unsubscribeCove());
+            coveListeners.clear();
+            coveMap.clear();
+        };
+    }, [cuser]);
 
     // AppState listener for rehydration
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState) => {
             logger.log("Dashboard: App state changed to:", nextState);
             if (nextState === 'active') {
-                logger.log("Dashboard: App resumed, verifying data...");
-                if (cuser && coves.length === 0 && !loading) {
-                    logger.log("Dashboard: Data missing on resume, forcing reload");
-                    setLoading(true);
-                }
+                logger.log("Dashboard: App resumed.");
             }
         });
         return () => subscription.remove();
     }, [cuser, coves, loading]);
-
-    useEffect(() => {
-        if (coves.length === 0) {
-            return;
-        }
-
-        void Promise.allSettled(
-            coves.map((cove) => ensureCoveJoinCodeIndex(cove.id, cove.joinCode, cove.createdBy))
-        );
-    }, [coves]);
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -159,8 +257,8 @@ const DashboardScreen = () => {
     const renderBentoGrid = () => {
         if (loading && !refreshing) {
             return (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={Colors.light.primary} />
+                <View style={[styles.header, { paddingTop: insets.top + 24 }]}> 
+                <ActivityIndicator size="large" color={Colors.light.primary} />
                 </View>
             );
         }
@@ -175,7 +273,6 @@ const DashboardScreen = () => {
         }
 
         if (coves.length === 0) {
-            logger.log("Dashboard: Render empty state. Loading:", loading, "Error:", error);
             return (
                 <View style={styles.emptyContainer}>
                     <View style={styles.emptyIllustration}>
@@ -222,7 +319,7 @@ const DashboardScreen = () => {
         <View style={styles.container}>
             <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + NAVBAR_HEIGHT + 18 }]}
+                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + NAVBAR_HEIGHT + 32 }]}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}

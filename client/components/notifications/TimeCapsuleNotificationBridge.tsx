@@ -1,4 +1,5 @@
 import { logger } from '@/utils/logger';
+import { backfillSelfMembershipsFromLegacy } from '@/utils/coveMembership';
 import {
     clearAllTimeCapsuleNotifications,
     clearTimeCapsuleNotificationForCove,
@@ -7,7 +8,7 @@ import {
 } from '@/utils/timeCapsuleNotifications';
 import { db } from '@/firebaseConfig';
 import type { User } from 'firebase/auth';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, collectionGroup, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -57,7 +58,8 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
         }
 
         let disposed = false;
-        let unsubscribeCoves: (() => void) | null = null;
+        let unsubscribeMemberships: (() => void) | null = null;
+        const coveUnsubscribers = new Map<string, () => void>();
         const capsuleUnsubscribers = new Map<string, () => void>();
         const coveNames = new Map<string, string>();
 
@@ -67,11 +69,18 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
             coveNames.clear();
         };
 
+        const teardownCoves = () => {
+            coveUnsubscribers.forEach((unsubscribe) => unsubscribe());
+            coveUnsubscribers.clear();
+        };
+
         const start = async () => {
             if (!db || !user?.uid) {
                 logger.warn('⚠️ Skipping notification sync: Database or User not available.');
                 return;
             }
+
+            const database = db;
 
             try {
                 const enabled = await prepareTimeCapsuleNotifications(user.uid);
@@ -79,71 +88,124 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
                     return;
                 }
 
-                const covesQuery = query(collection(db, 'coves'), where('members', 'array-contains', user.uid));
-                unsubscribeCoves = onSnapshot(
-                    covesQuery,
-                    (snapshot) => {
-                        const nextCoveIds = new Set(snapshot.docs.map((docSnap) => docSnap.id));
+                await backfillSelfMembershipsFromLegacy(user.uid);
 
-                        Array.from(capsuleUnsubscribers.entries()).forEach(([coveId, unsubscribe]) => {
+                const membershipsQuery = query(
+                    collectionGroup(database, 'members'),
+                    where('userId', '==', user.uid),
+                );
+
+                unsubscribeMemberships = onSnapshot(
+                    membershipsQuery,
+                    (snapshot) => {
+                        const nextCoveIds = new Set<string>();
+
+                        snapshot.docs.forEach((membershipDoc) => {
+                            const coveId = membershipDoc.ref.parent.parent?.id;
+                            if (!coveId) {
+                                return;
+                            }
+
+                            nextCoveIds.add(coveId);
+
+                            if (coveUnsubscribers.has(coveId)) {
+                                return;
+                            }
+
+                            const unsubscribeCove = onSnapshot(
+                                doc(database, 'coves', coveId),
+                                (coveDoc) => {
+                                    if (!coveDoc.exists()) {
+                                        coveUnsubscribers.get(coveId)?.();
+                                        coveUnsubscribers.delete(coveId);
+                                        capsuleUnsubscribers.get(coveId)?.();
+                                        capsuleUnsubscribers.delete(coveId);
+                                        coveNames.delete(coveId);
+                                        void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
+                                        return;
+                                    }
+
+                                    const coveData = coveDoc.data();
+                                    coveNames.set(coveId, coveData.name || 'Your Cove');
+
+                                    if (capsuleUnsubscribers.has(coveId)) {
+                                        return;
+                                    }
+
+                                    const capsuleQuery = query(
+                                        collection(database, 'coves', coveId, 'timeCapsules'),
+                                        orderBy('createdAt', 'desc'),
+                                        limit(1)
+                                    );
+
+                                    const unsubscribeCapsule = onSnapshot(
+                                        capsuleQuery,
+                                        (capsuleSnapshot) => {
+                                            if (capsuleSnapshot.empty) {
+                                                void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
+                                                return;
+                                            }
+
+                                            const capsuleDoc = capsuleSnapshot.docs[0];
+                                            const capsuleData = capsuleDoc.data();
+                                            const unlockAtSeconds = capsuleData.unlockAt?.seconds;
+
+                                            if (typeof unlockAtSeconds !== 'number') {
+                                                return;
+                                            }
+
+                                            void syncTimeCapsuleNotification({
+                                                userId: user.uid!,
+                                                coveId,
+                                                coveName: coveNames.get(coveId) || 'Your Cove',
+                                                capsuleId: capsuleDoc.id,
+                                                unlockAtSeconds,
+                                                isEmergencyOpened: !!capsuleData.isEmergencyOpened,
+                                            });
+                                        },
+                                        (error) => {
+                                            if (error?.code === 'permission-denied' || error?.code === 'not-found') {
+                                                void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
+                                                return;
+                                            }
+
+                                            logger.error('Time capsule notification listener failed.', error);
+                                        }
+                                    );
+
+                                    capsuleUnsubscribers.set(coveId, unsubscribeCapsule);
+                                },
+                                (error) => {
+                                    if (error?.code === 'permission-denied' || error?.code === 'not-found') {
+                                        coveUnsubscribers.get(coveId)?.();
+                                        coveUnsubscribers.delete(coveId);
+                                        capsuleUnsubscribers.get(coveId)?.();
+                                        capsuleUnsubscribers.delete(coveId);
+                                        coveNames.delete(coveId);
+                                        void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
+                                        return;
+                                    }
+
+                                    logger.error('Cove notification listener failed.', error);
+                                }
+                            );
+
+                            coveUnsubscribers.set(coveId, unsubscribeCove);
+                        });
+
+                        Array.from(coveUnsubscribers.entries()).forEach(([coveId, unsubscribe]) => {
                             if (!nextCoveIds.has(coveId)) {
                                 unsubscribe();
+                                coveUnsubscribers.delete(coveId);
+                                capsuleUnsubscribers.get(coveId)?.();
                                 capsuleUnsubscribers.delete(coveId);
                                 coveNames.delete(coveId);
                                 void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
                             }
                         });
-
-                        snapshot.docs.forEach((coveDoc) => {
-                            const coveId = coveDoc.id;
-                            const coveData = coveDoc.data();
-                            coveNames.set(coveId, coveData.name || 'Your Cove');
-
-                            if (capsuleUnsubscribers.has(coveId)) {
-                                return;
-                            }
-
-                            const capsuleQuery = query(
-                                collection(db!, 'coves', coveId, 'timeCapsules'),
-                                orderBy('createdAt', 'desc'),
-                                limit(1)
-                            );
-
-                            const unsubscribeCapsule = onSnapshot(
-                                capsuleQuery,
-                                (capsuleSnapshot) => {
-                                    if (capsuleSnapshot.empty) {
-                                        void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
-                                        return;
-                                    }
-
-                                    const capsuleDoc = capsuleSnapshot.docs[0];
-                                    const capsuleData = capsuleDoc.data();
-                                    const unlockAtSeconds = capsuleData.unlockAt?.seconds;
-
-                                    if (typeof unlockAtSeconds !== 'number') {
-                                        return;
-                                    }
-
-                                    void syncTimeCapsuleNotification({
-                                        userId: user.uid!,
-                                        coveId,
-                                        coveName: coveNames.get(coveId) || 'Your Cove',
-                                        capsuleId: capsuleDoc.id,
-                                        unlockAtSeconds,
-                                        isEmergencyOpened: !!capsuleData.isEmergencyOpened,
-                                    });
-                                },
-                                (error) => {
-                                    logger.error('Time capsule notification listener failed.', error);
-                                }
-                            );
-
-                            capsuleUnsubscribers.set(coveId, unsubscribeCapsule);
-                        });
                     },
                     (error) => {
-                        logger.error('Cove notification listener failed.', error);
+                        logger.error('Membership notification listener failed.', error);
                     }
                 );
             } catch (error) {
@@ -155,7 +217,8 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
 
         return () => {
             disposed = true;
-            unsubscribeCoves?.();
+            unsubscribeMemberships?.();
+            teardownCoves();
             teardownCapsules();
             void clearAllTimeCapsuleNotifications(user.uid);
         };

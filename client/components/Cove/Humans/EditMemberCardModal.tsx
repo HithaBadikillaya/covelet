@@ -2,6 +2,7 @@ import AppDialog from '@/components/ui/AppDialog';
 import { Colors, Fonts, Layout } from '@/constants/theme';
 import { db, auth } from '@/firebaseConfig';
 import { generateRandomSeed, getPfpUrl } from '@/utils/avatar';
+import { ensureCoveMemberRecord } from '@/utils/coveMembership';
 import { getFallbackAvatarSeed } from '@/utils/memberProfile';
 import { normalizeAvatarSeed, normalizeMultilineText, normalizeSingleLineText, SECURITY_LIMITS } from '@/utils/security';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +43,7 @@ export const EditMemberCardModal: React.FC<EditMemberCardModalProps> = ({ visibl
             const safeAvatarSeed = normalizeAvatarSeed(avatarSeed);
             const safeRole = normalizeSingleLineText(role, SECURITY_LIMITS.memberRole);
             const safeBio = normalizeMultilineText(bio, SECURITY_LIMITS.memberBio);
+            await ensureCoveMemberRecord(coveId, user.uid);
             const memberDocRef = doc(db!, 'coves', coveId, 'members_data', user.uid);
             const existingMemberDoc = await getDoc(memberDocRef);
 

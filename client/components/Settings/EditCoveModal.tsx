@@ -59,6 +59,10 @@ export const EditCoveModal: React.FC<EditCoveModalProps> = ({
         setError(null);
 
         try {
+            if (!db) {
+                throw new Error('Database service is unavailable');
+            }
+
             const safeName = normalizeSingleLineText(name, SECURITY_LIMITS.coveName);
             const safeDescription = normalizeMultilineText(description, SECURITY_LIMITS.coveDescription);
 

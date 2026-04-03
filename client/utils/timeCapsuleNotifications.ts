@@ -1,5 +1,6 @@
 import { logger } from '@/utils/logger';
-import { db } from "@/firebaseConfig";
+import { db } from '@/firebaseConfig';
+import { apiPut } from '@/services/api';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
@@ -122,6 +123,28 @@ async function ensureNotificationPermission() {
   return hasGrantedPermission(requested);
 }
 
+async function persistExpoPushTokenWithFirestore(
+  userId: string,
+  installationId: string,
+  token: string,
+) {
+  if (!db) {
+    throw new Error('Database service is unavailable');
+  }
+
+  await setDoc(
+    doc(db, "users", userId, "devices", installationId),
+    {
+      expoPushToken: token,
+      platform: Platform.OS,
+      deviceName: Device.deviceName ?? null,
+      updatedAt: serverTimestamp(),
+      appVersion: Constants.expoConfig?.version ?? null,
+    },
+    { merge: true },
+  );
+}
+
 async function upsertExpoPushToken(userId: string) {
   if (!Device.isDevice) {
     return;
@@ -138,28 +161,34 @@ async function upsertExpoPushToken(userId: string) {
     const token = (await Notifications.getExpoPushTokenAsync({ projectId }))
       .data;
     const installationId = await getInstallationId();
- 
-    if (!db) {
-        logger.warn('Skipping push token update: Database not available.');
-        return;
-    }
 
-    await setDoc(
-      doc(db, "users", userId, "devices", installationId),
+    const response = await apiPut<{ saved: boolean }>(
+      `/users/me/devices/${installationId}`,
       {
         expoPushToken: token,
         platform: Platform.OS,
-        deviceName: Device.deviceName ?? null,
-        updatedAt: serverTimestamp(),
-        appVersion: Constants.expoConfig?.version ?? null,
+        ...(Device.deviceName ? { deviceName: Device.deviceName } : {}),
+        ...(Constants.expoConfig?.version
+          ? { appVersion: Constants.expoConfig.version }
+          : {}),
       },
-      { merge: true },
     );
+
+    if (response.error) {
+      await persistExpoPushTokenWithFirestore(userId, installationId, token);
+    }
   } catch (error) {
-    logger.warn(
-      "Unable to register Expo push token for time capsule notifications.",
-      error,
-    );
+    try {
+      const installationId = await getInstallationId();
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId }))
+        .data;
+      await persistExpoPushTokenWithFirestore(userId, installationId, token);
+    } catch (fallbackError) {
+      logger.warn(
+        "Unable to register Expo push token for time capsule notifications.",
+        fallbackError,
+      );
+    }
   }
 }
 

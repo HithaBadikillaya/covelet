@@ -27,7 +27,7 @@ export default function RouletteScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
-            <View style={[styles.header, { paddingTop: insets.top + 20 }]}> 
+            <View style={[styles.header, { paddingTop: insets.top + 24 }]}> 
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
                     <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
                 </TouchableOpacity>

@@ -4,7 +4,8 @@
 
 const { Router } = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { getProfile } = require('../controllers/userController');
+const { getProfile, upsertDevice } = require('../controllers/userController');
+const { validateBody, validateParams } = require('../middleware/validate');
 
 const router = Router();
 
@@ -24,5 +25,24 @@ router.get('/me', async (req, res, next) => {
     next(err);
   }
 });
+
+router.put(
+  '/me/devices/:deviceId',
+  validateParams('deviceId'),
+  validateBody({
+    expoPushToken: { type: 'string', maxLength: 255, required: true },
+    platform: { type: 'string', maxLength: 20, required: true },
+    deviceName: { type: 'string', maxLength: 120, required: false },
+    appVersion: { type: 'string', maxLength: 40, required: false },
+  }),
+  async (req, res, next) => {
+    try {
+      const result = await upsertDevice(req.user.uid, req.params.deviceId, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 module.exports = router;

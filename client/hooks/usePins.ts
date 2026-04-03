@@ -70,6 +70,13 @@ export function usePins(coveId: string | undefined): UsePinsResult {
                 setError(null);
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    setPins([]);
+                    setLoading(false);
+                    setError(null);
+                    return;
+                }
+
                 logger.error('Error fetching pins:', err);
                 setError('Failed to load board notes');
                 setLoading(false);

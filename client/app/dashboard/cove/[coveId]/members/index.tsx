@@ -54,7 +54,7 @@ export default function HumansScreen() {
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
             <View style={styles.headerWrapper}>
                 <Image source={{ uri: coveBgUrl }} style={styles.headerBg} contentFit="cover" />
-                <View style={[styles.header, { paddingTop: insets.top + 10, paddingBottom: 20 }]}> 
+                <View style={[styles.header, { paddingTop: insets.top + 24, paddingBottom: 20 }]}> 
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
                         <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
                     </TouchableOpacity>

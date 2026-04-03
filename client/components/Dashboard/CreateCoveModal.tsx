@@ -8,7 +8,7 @@ import {
     SECURITY_LIMITS,
 } from '@/utils/security';
 import { Colors, Fonts, Layout } from '@/constants/theme';
-import { auth, db } from '@/firebaseConfig';
+import { auth } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';

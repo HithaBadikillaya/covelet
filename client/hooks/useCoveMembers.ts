@@ -1,5 +1,6 @@
 import { logger } from '@/utils/logger';
-import { db } from '@/firebaseConfig';
+import { auth, db } from '@/firebaseConfig';
+import { getLegacyMemberIds, migrateLegacyCoveMembers } from '@/utils/coveMembership';
 import { getFallbackAvatarSeed } from '@/utils/memberProfile';
 import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -32,11 +33,16 @@ export function useCoveMembers(coveId: string | undefined) {
 
         // db is guaranteed non-null from here
         const database = db;
+        const currentUserId = auth?.currentUser?.uid || '';
+        let memberIds: string[] = [];
+        let memberJoinedAtMap: Record<string, { seconds: number } | null> = {};
+        let memberDataMap: Record<string, any> = {};
         let unsubscribeMembersData: (() => void) | null = null;
+        let unsubscribeMembers: (() => void) | null = null;
         let active = true;
         let requestVersion = 0;
 
-        const syncMembers = async (memberIds: string[], dataMap: Record<string, any>) => {
+        const syncMembers = async () => {
             const version = ++requestVersion;
 
             try {
@@ -48,7 +54,8 @@ export function useCoveMembers(coveId: string | undefined) {
 
                 const fullMembers: Member[] = memberIds.map((id, index) => {
                     const user = userSnaps[index]?.data() || {};
-                    const extra = dataMap[id] || {};
+                    const extra = memberDataMap[id] || {};
+                    const joinedAt = extra.joinedAt || memberJoinedAtMap[id] || null;
 
                     return {
                         id,
@@ -56,7 +63,7 @@ export function useCoveMembers(coveId: string | undefined) {
                         avatarSeed: getFallbackAvatarSeed(id, typeof user.avatarSeed === 'string' ? user.avatarSeed : undefined),
                         role: extra.role || '',
                         bio: extra.bio || '',
-                        joinedAt: extra.joinedAt || null,
+                        joinedAt,
                     };
                 });
 
@@ -86,32 +93,87 @@ export function useCoveMembers(coveId: string | undefined) {
                 }
 
                 const coveData = coveSnap.data();
-                const memberIds = Array.isArray(coveData.members) ? coveData.members : [];
+                const legacyMemberIds = getLegacyMemberIds(coveData.members);
 
                 setCoveAvatarSeed(coveData.avatarSeed || coveId);
                 setOwnerId(coveData.createdBy || '');
                 setLoading(true);
 
+                void migrateLegacyCoveMembers({
+                    coveId,
+                    currentUserId,
+                    createdBy: coveData.createdBy,
+                    memberCount: coveData.memberCount,
+                    legacyMembers: coveData.members,
+                });
+
+                if (unsubscribeMembers) unsubscribeMembers();
                 if (unsubscribeMembersData) unsubscribeMembersData();
 
-                if (memberIds.length === 0) {
-                    setMembers([]);
-                    setLoading(false);
-                    return;
-                }
+                const maybeSyncMembers = () => {
+                    const mergedIds = Array.from(new Set([
+                        ...memberIds,
+                        ...legacyMemberIds,
+                    ]));
+
+                    memberIds = mergedIds;
+
+                    if (mergedIds.length === 0) {
+                        setMembers([]);
+                        setLoading(false);
+                        return;
+                    }
+
+                    void syncMembers();
+                };
+
+                const membersRef = collection(database, 'coves', coveId, 'members');
+                unsubscribeMembers = onSnapshot(
+                    membersRef,
+                    (membersSnap) => {
+                        memberIds = membersSnap.docs.map((snap) => snap.id);
+                        memberJoinedAtMap = membersSnap.docs.reduce<Record<string, { seconds: number } | null>>((acc, snap) => {
+                            acc[snap.id] = snap.data().joinedAt || null;
+                            return acc;
+                        }, {});
+
+                        maybeSyncMembers();
+                    },
+                    (err) => {
+                        if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                            if (!active) return;
+                            setMembers([]);
+                            setLoading(false);
+                            setError('Cove not found');
+                            return;
+                        }
+
+                        logger.error('Error fetching cove members:', err);
+                        if (!active) return;
+                        setError('Failed to load cove membership');
+                        setLoading(false);
+                    }
+                );
 
                 const membersDataRef = collection(database, 'coves', coveId, 'members_data');
                 unsubscribeMembersData = onSnapshot(
                     membersDataRef,
                     (dataSnap) => {
-                        const dataMap: Record<string, any> = {};
+                        memberDataMap = {};
                         dataSnap.forEach((snap) => {
-                            dataMap[snap.id] = snap.data();
+                            memberDataMap[snap.id] = snap.data();
                         });
 
-                        void syncMembers(memberIds, dataMap);
+                        maybeSyncMembers();
                     },
                     (err) => {
+                        if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                            if (!active) return;
+                            memberDataMap = {};
+                            setLoading(false);
+                            return;
+                        }
+
                         logger.error('Error fetching cove member data:', err);
                         if (!active) return;
                         setError('Failed to load member details');
@@ -120,6 +182,15 @@ export function useCoveMembers(coveId: string | undefined) {
                 );
             },
             (err) => {
+                if (err?.code === 'permission-denied' || err?.code === 'not-found') {
+                    if (!active) return;
+                    setMembers([]);
+                    setOwnerId('');
+                    setError('Cove not found');
+                    setLoading(false);
+                    return;
+                }
+
                 logger.error('Error fetching cove:', err);
                 if (!active) return;
                 setError('Failed to load cove members');
@@ -130,9 +201,10 @@ export function useCoveMembers(coveId: string | undefined) {
         return () => {
             active = false;
             unsubscribeCove();
+            if (unsubscribeMembers) unsubscribeMembers();
             if (unsubscribeMembersData) unsubscribeMembersData();
         };
-    }, [coveId]);
+    }, [coveId, auth?.currentUser?.uid]);
 
     return { members, coveAvatarSeed, ownerId, loading, error };
 }

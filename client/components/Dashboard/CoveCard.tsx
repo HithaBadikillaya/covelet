@@ -1,5 +1,6 @@
-import { Colors, Fonts, Layout } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { getCoveBackgroundUrl } from '@/utils/avatar';
+import { resolveMemberCount } from '@/utils/coveMembership';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
@@ -9,6 +10,7 @@ interface CoveCardProps {
     cove: {
         name: string;
         description?: string;
+        memberCount?: number;
         members?: string[];
         avatarSeed?: string;
     };
@@ -19,6 +21,7 @@ interface CoveCardProps {
 
 const CoveCard = ({ cove, isOwner, onPress, index }: CoveCardProps) => {
     const bgUrl = getCoveBackgroundUrl(cove.avatarSeed || '');
+    const memberCount = resolveMemberCount(cove.memberCount, cove.members);
 
     return (
         <View style={styles.wrapper}>
@@ -57,7 +60,7 @@ const CoveCard = ({ cove, isOwner, onPress, index }: CoveCardProps) => {
 
                     <View style={styles.footer}>
                         <Ionicons name="people-outline" size={12} color={Colors.light.textMuted} />
-                        <Text style={styles.members}>{cove.members?.length || 0}</Text>
+                        <Text style={styles.members}>{memberCount}</Text>
                     </View>
                 </View>
             </TouchableOpacity>

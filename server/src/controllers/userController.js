@@ -4,6 +4,7 @@
  */
 
 const { getFirestore } = require('../config/firebase');
+const { admin } = require('../config/firebase');
 
 /**
  * Get the current user's profile.
@@ -31,4 +32,24 @@ async function getProfile(uid) {
   };
 }
 
-module.exports = { getProfile };
+async function upsertDevice(uid, deviceId, payload) {
+  const db = getFirestore();
+
+  await db.collection('users').doc(uid).collection('devices').doc(deviceId).set(
+    {
+      expoPushToken: payload.expoPushToken,
+      platform: payload.platform,
+      deviceName: payload.deviceName ?? null,
+      appVersion: payload.appVersion ?? null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    deviceId,
+    saved: true,
+  };
+}
+
+module.exports = { getProfile, upsertDevice };

@@ -6,8 +6,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
-    Dimensions,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -68,6 +66,10 @@ export default function ConstellationScreen() {
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
@@ -77,11 +79,25 @@ export default function ConstellationScreen() {
       savedScale.value = scale.value;
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
 
-  const initialScroll = (BOARD_SIZE - Dimensions.get("window").width) / 2;
+  const combinedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
 
   if (error && quotes.length === 0) {
     return (
@@ -96,155 +112,143 @@ export default function ConstellationScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtnCircle}
-        >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Constellation</Text>
-        <TouchableOpacity
-          onPress={() => setInfoVisible(true)}
-          style={styles.backBtnCircle}
-        >
-          <Ionicons name="information" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {loading && quotes.length === 0 ? (
-        <View style={[styles.center, { flex: 1 }]}>
-          <ActivityIndicator color="#FFFFFF" />
-        </View>
-      ) : quotes.length === 0 ? (
-        <View style={[styles.center, { flex: 1 }]}>
-          <Ionicons
-            name="sparkles-outline"
-            size={64}
-            color="rgba(255,255,255,0.2)"
-          />
-          <Text style={styles.emptyText}>The night sky is empty.</Text>
-          <Text style={styles.emptySub}>
-            Leave a message on the Wall to light a star.
-          </Text>
-        </View>
-      ) : (
-        <GestureHandlerRootView style={styles.skyWrapper}>
-          <ScrollView
-            style={styles.scrollView}
-            contentOffset={{ x: 0, y: initialScroll }}
-            bounces={false}
-            showsVerticalScrollIndicator={false}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtnCircle}
           >
-            <ScrollView
-              horizontal
-              bounces={false}
-              contentOffset={{ x: initialScroll, y: 0 }}
-              showsHorizontalScrollIndicator={false}
-            >
-              <GestureDetector gesture={pinchGesture}>
-                <Animated.View style={[styles.sky, animatedStyle]}>
-                  {starMap.map((star, index) => {
-                    if (index === starMap.length - 1) return null;
-                    const nextStar = starMap[index + 1];
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Constellation</Text>
+          <TouchableOpacity
+            onPress={() => setInfoVisible(true)}
+            style={styles.backBtnCircle}
+          >
+            <Ionicons name="information" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
 
-                    const dx = nextStar.x - star.x;
-                    const dy = nextStar.y - star.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+        {loading && quotes.length === 0 ? (
+          <View style={[styles.center, { flex: 1 }]}>
+            <ActivityIndicator color="#FFFFFF" />
+          </View>
+        ) : quotes.length === 0 ? (
+          <View style={[styles.center, { flex: 1 }]}>
+            <Ionicons
+              name="sparkles-outline"
+              size={64}
+              color="rgba(255,255,255,0.2)"
+            />
+            <Text style={styles.emptyText}>The night sky is empty.</Text>
+            <Text style={styles.emptySub}>
+              Leave a message on the Wall to light a star.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.skyWrapper}>
+            <GestureDetector gesture={combinedGesture}>
+              <Animated.View style={[styles.sky, animatedStyle]}>
+                {starMap.map((star, index) => {
+                  if (index === starMap.length - 1) return null;
+                  const nextStar = starMap[index + 1];
 
-                    if (dist > 800) return null;
+                  const dx = nextStar.x - star.x;
+                  const dy = nextStar.y - star.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    const centerX = (star.x + nextStar.x) / 2;
-                    const centerY = (star.y + nextStar.y) / 2;
-                    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                  if (dist > 800) return null;
 
-                    return (
-                      <View
-                        key={`line-${star.id}`}
+                  const centerX = (star.x + nextStar.x) / 2;
+                  const centerY = (star.y + nextStar.y) / 2;
+                  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                  return (
+                    <View
+                      key={`line-${star.id}`}
+                      style={[
+                        styles.constellationLine,
+                        {
+                          width: dist,
+                          left: centerX - dist / 2,
+                          top: centerY,
+                          transform: [{ rotate: `${angle}deg` }],
+                        },
+                      ]}
+                    />
+                  );
+                })}
+
+                {starMap.map((star) => {
+                  const isActive = activeQuoteId === star.id;
+                  return (
+                    <React.Fragment key={star.id}>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() =>
+                          setActiveQuoteId(isActive ? null : star.id)
+                        }
                         style={[
-                          styles.constellationLine,
-                          {
-                            width: dist,
-                            left: centerX - dist / 2,
-                            top: centerY,
-                            transform: [{ rotate: `${angle}deg` }],
-                          },
+                          styles.starHitbox,
+                          { left: star.x - 20, top: star.y - 20 },
                         ]}
-                      />
-                    );
-                  })}
-
-                  {starMap.map((star) => {
-                    const isActive = activeQuoteId === star.id;
-                    return (
-                      <React.Fragment key={star.id}>
-                        <TouchableOpacity
-                          activeOpacity={0.8}
-                          onPress={() =>
-                            setActiveQuoteId(isActive ? null : star.id)
-                          }
+                      >
+                        <View
                           style={[
-                            styles.starHitbox,
-                            { left: star.x - 20, top: star.y - 20 },
+                            styles.star,
+                            {
+                              width: star.size,
+                              height: star.size,
+                              borderRadius: star.size / 2,
+                              opacity: isActive ? 1 : 0.6 + star.rand() * 0.4,
+                            },
+                            isActive && styles.activeStar,
+                          ]}
+                        />
+                      </TouchableOpacity>
+
+                      {isActive && (
+                        <View
+                          style={[
+                            styles.tooltip,
+                            {
+                              left: Math.min(star.x + 10, BOARD_SIZE - 200),
+                              top: star.y + 10,
+                            },
                           ]}
                         >
-                          <View
-                            style={[
-                              styles.star,
-                              {
-                                width: star.size,
-                                height: star.size,
-                                borderRadius: star.size / 2,
-                                opacity: isActive ? 1 : 0.6 + star.rand() * 0.4,
-                              },
-                              isActive && styles.activeStar,
-                            ]}
-                          />
-                        </TouchableOpacity>
+                          <Text style={styles.tooltipAuthor}>
+                            {(star.authorName || "Cove Memory").toUpperCase()}
+                          </Text>
+                          <Text
+                            style={styles.tooltipText}
+                            numberOfLines={3}
+                          >{`"${star.content}"`}</Text>
+                        </View>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </Animated.View>
+            </GestureDetector>
+          </View>
+        )}
 
-                        {isActive && (
-                          <View
-                            style={[
-                              styles.tooltip,
-                              {
-                                left: Math.min(star.x + 10, BOARD_SIZE - 200),
-                                top: star.y + 10,
-                              },
-                            ]}
-                          >
-                            <Text style={styles.tooltipAuthor}>
-                              {(star.authorName || "Cove Memory").toUpperCase()}
-                            </Text>
-                            <Text
-                              style={styles.tooltipText}
-                              numberOfLines={3}
-                            >{`"${star.content}"`}</Text>
-                          </View>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </Animated.View>
-              </GestureDetector>
-            </ScrollView>
-          </ScrollView>
-        </GestureHandlerRootView>
-      )}
-
-      <FeatureInfoModal
-        visible={infoVisible}
-        onClose={() => setInfoVisible(false)}
-        title="Constellation"
-        description="A night-sky view of your Cove's memories. Each wall post becomes a star, and the stars link together over time so you can see your shared story take shape."
-        howToUse={[
-          "Pinch to zoom in or out and explore different parts of the sky.",
-          "Tap a star to open the memory attached to it, then tap again to close it.",
-          "Follow the connecting lines to trace how your Cove has grown over time.",
-        ]}
-        iconName="sparkles"
-      />
-    </View>
+        <FeatureInfoModal
+          visible={infoVisible}
+          onClose={() => setInfoVisible(false)}
+          title="Constellation"
+          description="A night-sky view of your Cove's memories. Each wall post becomes a star, and the stars link together over time so you can see your shared story take shape."
+          howToUse={[
+            "Pinch to zoom in or out and explore different parts of the sky.",
+            "Tap a star to open the memory attached to it, then tap again to close it.",
+            "Follow the connecting lines to trace how your Cove has grown over time.",
+          ]}
+          iconName="sparkles"
+        />
+      </View>
+    </GestureHandlerRootView>
   );
 }
 

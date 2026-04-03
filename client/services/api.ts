@@ -12,10 +12,10 @@ import { auth } from '@/firebaseConfig';
 const extra = Constants.expoConfig?.extra || {};
 
 // API base URL — configurable per environment, no localhost dependency
-const API_BASE_URL: string =
-  extra.apiUrl ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:3001';
+const API_BASE_URL: string = extra.apiUrl;
+if (!API_BASE_URL) {
+  throw new Error('API URL not configured. Check your environment variables and expo-constants extra.');
+}
 
 /**
  * Get the current user's Firebase ID token for API authentication.
@@ -111,6 +111,14 @@ async function apiRequest<T>(
 
     return { data: json as T };
   } catch (err: any) {
+    if (__DEV__) {
+      console.warn(`[API] Network Error connecting to ${API_BASE_URL}.`);
+      if (API_BASE_URL.includes('10.0.2.2')) {
+        console.warn('Tip: "10.0.2.2" ONLY works on the Android Emulator. For physical devices, use your computer\'s local IP (e.g., http://192.168.x.x:3001).');
+      } else if (API_BASE_URL.includes('localhost')) {
+        console.warn('Tip: "localhost" does not work on mobile devices. Use your computer\'s local IP (e.g., http://192.168.x.x:3001).');
+      }
+    }
     // Network error (no internet, server down, etc.)
     return {
       error: {

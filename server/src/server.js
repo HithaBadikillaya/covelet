@@ -81,10 +81,11 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // 12. Start server
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, '0.0.0.0', () => {
   logger.info(`🚀 Covelet API server running`, {
     port: config.port,
     env: config.nodeEnv,
+    host: '0.0.0.0',
   });
 });
 

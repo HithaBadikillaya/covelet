@@ -1,4 +1,3 @@
-import { logger } from '@/utils/logger';
 import { Colors, Fonts } from "@/constants/theme";
 import React, { useEffect, useRef } from "react";
 import { Animated, Dimensions, StyleSheet, Text, View } from "react-native";
@@ -15,7 +14,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    logger.log('SplashScreen: Mounting and starting animation');
     Animated.sequence([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -28,10 +26,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         duration: 800,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      logger.log('SplashScreen: Animation complete - calling callback');
-      onAnimationComplete();
-    });
+    ]).start(onAnimationComplete);
   }, [fadeAnim, onAnimationComplete]);
 
   return (

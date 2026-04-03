@@ -4,7 +4,7 @@ import { Colors, Fonts, Layout } from '@/constants/theme';
 import { auth } from '@/firebaseConfig';
 import { useCoveMembers } from '@/hooks/useCoveMembers';
 import { getPfpUrl } from '@/utils/avatar';
-import { apiDelete } from '@/services/api';
+import { removeMemberFromCove } from '@/utils/firestoreDelete';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
@@ -47,13 +47,8 @@ export const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ visible,
                 onPress: async () => {
                     try {
                         setRemovingId(memberId);
-                        const result = await apiDelete(`/coves/${coveId}/members/${memberId}`);
-                        if (result.error) {
-                            logger.error('Error removing member:', result.error.message);
-                            showDialog('Error', result.error.message || 'Failed to remove member.');
-                        } else {
-                            showDialog('Member Removed', `${memberName} has been removed from this Cove.`);
-                        }
+                        await removeMemberFromCove(coveId, memberId);
+                        showDialog('Member Removed', `${memberName} has been removed from this Cove.`);
                     } catch (err) {
                         logger.error('Error removing member:', err);
                         showDialog('Error', 'Failed to remove member.');
@@ -119,7 +114,7 @@ export const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ visible,
                                 }
                                 renderItem={({ item }) => {
                                     const isOwner = item.id === ownerId;
-                                    const isCurrentUser = item.id === auth.currentUser?.uid;
+                                    const isCurrentUser = item.id === auth?.currentUser?.uid;
                                     const isRemoving = removingId === item.id;
                                     const metaLabel = [
                                         isOwner ? 'OWNER' : '',

@@ -15,19 +15,26 @@ import React, {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from "react";
 import {
     ActivityIndicator,
-    Animated,
-    PanResponder,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import {
+    Gesture,
+    GestureDetector,
+    GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Animated, {
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BOARD_SIZE = 1500;
@@ -55,94 +62,78 @@ const BoardPin = memo(function BoardPin({
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onDragStateChange: (dragging: boolean) => void;
 }) {
-  const pan = useRef(
-    new Animated.ValueXY({ x: pin.x ?? 100, y: pin.y ?? 100 }),
-  ).current;
-  const isDragging = useRef(false);
-  const currentPosition = useRef({ x: pin.x ?? 100, y: pin.y ?? 100 });
+  const translateX = useSharedValue(pin.x ?? 100);
+  const translateY = useSharedValue(pin.y ?? 100);
+  const context = useSharedValue({ x: 0, y: 0 });
 
+  // Sync internal shared values with external pin updates (e.g. from server)
+  // but only when NOT dragging to avoid jumping.
   useEffect(() => {
-    const nextX = pin.x ?? 100;
-    const nextY = pin.y ?? 100;
-    currentPosition.current = { x: nextX, y: nextY };
+    translateX.value = pin.x ?? 100;
+    translateY.value = pin.y ?? 100;
+  }, [pin.x, pin.y, translateX, translateY]);
 
-    if (!isDragging.current) {
-      pan.setValue({ x: nextX, y: nextY });
-    }
-  }, [pan, pin.x, pin.y]);
+  const gesture = Gesture.Pan()
+    .onStart(() => {
+      runOnJS(onDragStateChange)(true);
+      context.value = { x: translateX.value, y: translateY.value };
+    })
+    .onUpdate((event) => {
+      translateX.value = context.value.x + event.translationX;
+      translateY.value = context.value.y + event.translationY;
+    })
+    .onEnd(() => {
+      const finalX = Math.max(0, Math.min(translateX.value, BOARD_SIZE - PIN_WIDTH));
+      const finalY = Math.max(0, Math.min(translateY.value, BOARD_SIZE - PIN_HEIGHT));
+      translateX.value = finalX;
+      translateY.value = finalY;
 
-  const finishDrag = useCallback(() => {
-    pan.flattenOffset();
-    const newX = (pan.x as any)._value;
-    const newY = (pan.y as any)._value;
-    const clampedX = Math.max(0, Math.min(newX, BOARD_SIZE - PIN_WIDTH));
-    const clampedY = Math.max(0, Math.min(newY, BOARD_SIZE - PIN_HEIGHT));
+      runOnJS(onDragStateChange)(false);
+      runOnJS(onUpdatePosition)(pin.id, finalX, finalY);
+    });
 
-    currentPosition.current = { x: clampedX, y: clampedY };
-    pan.setValue({ x: clampedX, y: clampedY });
-    isDragging.current = false;
-    onDragStateChange(false);
-    onUpdatePosition(pin.id, clampedX, clampedY);
-  }, [onDragStateChange, onUpdatePosition, pan, pin.id]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        isDragging.current = true;
-        onDragStateChange(true);
-        pan.setOffset(currentPosition.current);
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
-        useNativeDriver: false,
-      }),
-      onPanResponderRelease: finishDrag,
-      onPanResponderTerminate: finishDrag,
-    }),
-  ).current;
-
-  const pseudoRandom = pin.id.charCodeAt(0) % 5;
-  const tilts = ["-3deg", "-1deg", "0deg", "1deg", "3deg"];
-  const tilt = tilts[pseudoRandom];
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+      ],
+    };
+  });
 
   const colors = ["#FDFBF7", "#FFF5E6", "#F0F7F4", "#F4F0F7"];
   const bgColor = colors[pin.id.charCodeAt(1) % colors.length];
 
   return (
-    <Animated.View
-      style={[
-        styles.pinWrapper,
-        {
-          backgroundColor: bgColor,
-          transform: [...pan.getTranslateTransform(), { rotate: tilt }],
-        },
-      ]}
-      {...panResponder.panHandlers}
-    >
-      <View style={styles.pinHeader}>
-        <Ionicons name="pin" size={18} color={Colors.light.primary} />
-        {canDelete ? (
-          <TouchableOpacity onPress={() => onDelete(pin.id)} hitSlop={12}>
-            <Ionicons
-              name="close-circle-outline"
-              size={20}
-              color={Colors.light.textMuted}
-            />
-          </TouchableOpacity>
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[
+          styles.pinWrapper,
+          { backgroundColor: bgColor },
+          animatedStyle,
+        ]}
+      >
+        <View style={styles.pinHeader}>
+          <Ionicons name="pin" size={18} color={Colors.light.primary} />
+          {canDelete ? (
+            <TouchableOpacity onPress={() => onDelete(pin.id)} hitSlop={12}>
+              <Ionicons
+                name="close-circle-outline"
+                size={20}
+                color={Colors.light.textMuted}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        <Text style={styles.pinTitle}>{pin.title}</Text>
+        {pin.description ? (
+          <Text style={styles.pinDesc}>{pin.description}</Text>
         ) : null}
-      </View>
-      <Text style={styles.pinTitle}>{pin.title}</Text>
-      {pin.description ? (
-        <Text style={styles.pinDesc}>{pin.description}</Text>
-      ) : null}
-      <View style={styles.pinFooter}>
-        <Text style={styles.pinMeta}>{authorLabel}</Text>
-      </View>
-    </Animated.View>
+        <View style={styles.pinFooter}>
+          <Text style={styles.pinMeta}>{authorLabel}</Text>
+        </View>
+      </Animated.View>
+    </GestureDetector>
   );
 });
 
@@ -167,9 +158,25 @@ export default function MoodBoardScreen() {
 
   useEffect(() => {
     if (!coveId || !db) return;
-    return onSnapshot(doc(db, "coves", coveId), (snap) => {
-      if (snap.exists()) setCoveOwnerId(snap.data().createdBy);
-    });
+    return onSnapshot(
+      doc(db, "coves", coveId),
+      (snap) => {
+        if (!snap.exists()) {
+          router.replace("/(tabs)/dashboard");
+          return;
+        }
+
+        setCoveOwnerId(snap.data().createdBy);
+      },
+      (error) => {
+        if (error?.code === "permission-denied" || error?.code === "not-found") {
+          router.replace("/(tabs)/dashboard");
+          return;
+        }
+
+        logger.error("MoodBoardScreen: Failed to subscribe to cove.", error);
+      },
+    );
   }, [coveId]);
 
   const memberNames = useMemo(
@@ -253,8 +260,9 @@ export default function MoodBoardScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtnCircle}
@@ -355,7 +363,8 @@ export default function MoodBoardScreen() {
         actions={dialog?.actions}
         onClose={() => setDialog(null)}
       />
-    </View>
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
