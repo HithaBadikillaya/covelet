@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.light.background,
     },
     scrollContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 24,
         paddingBottom: 60,
     },
     backButton: {
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 24,
         borderWidth: 2,
         borderColor: Colors.light.text,
         borderRadius: 0,
@@ -484,11 +484,11 @@ const styles = StyleSheet.create({
     },
     headerCard: {
         backgroundColor: '#FFFFFF',
-        padding: 12,
+        padding: 16,
         paddingBottom: 48,
         borderRadius: 0,
-        borderWidth: 2.5, // Thicker
-        borderColor: '#2F2E2C', // Deep Charcoal explicit
+        borderWidth: 2.5,
+        borderColor: '#2F2E2C',
         shadowColor: '#000',
         shadowOffset: { width: 6, height: 6 },
         shadowOpacity: 0.15,
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 22,
         zIndex: 10,
-        backgroundColor: '#D4A373', // Explicit secondary
+        backgroundColor: '#D4A373',
         opacity: 0.7,
     },
     photoArea: {
@@ -519,17 +519,17 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
-        borderWidth: 2, // Thicker
-        borderColor: '#E8E2D9', // Subtle explicit
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: '#E8E2D9',
     },
     headerBg: {
         ...StyleSheet.absoluteFillObject,
         opacity: 0.15,
     },
     headerContent: {
-        padding: 32,
-        paddingTop: 48,
+        padding: 24,
+        paddingTop: 40,
         alignItems: 'center',
     },
     title: {
@@ -590,11 +590,11 @@ const styles = StyleSheet.create({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginHorizontal: -8,
-        width: '100%', // FORCE WIDTH
+        marginHorizontal: -10,
+        marginTop: 8,
     },
     cardWrapper: {
-        padding: 8,
+        padding: 10,
     },
     cardLarge: {
         width: '100%',
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     },
     cardWide: {
         width: '100%',
-        height: 80,
+        height: 85,
     },
     featureCard: {
         flex: 1,
