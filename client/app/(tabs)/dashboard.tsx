@@ -4,7 +4,6 @@ import CreateCoveModal from '@/components/Dashboard/CreateCoveModal';
 import JoinCoveModal from '@/components/Dashboard/JoinCoveModal';
 import { Colors, Fonts } from '@/constants/theme';
 import { backfillSelfMembershipsFromLegacy, migrateLegacyCoveMembers, resolveMemberCount } from '@/utils/coveMembership';
-import { ensureCoveJoinCodeIndex } from '@/utils/coveJoinCodes';
 import { db } from '@/firebaseConfig';
 import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { logger } from '@/utils/logger';
@@ -152,9 +151,6 @@ const DashboardScreen = () => {
                                     coveMap.set(coveId, nextCove);
                                     syncCoves();
 
-                                    void ensureCoveJoinCodeIndex(nextCove.id, nextCove.joinCode, nextCove.createdBy).catch((error) => {
-                                        logger.warn('Dashboard: Unable to backfill cove join code index.', { coveId, error });
-                                    });
                                     void migrateLegacyCoveMembers({
                                         coveId,
                                         currentUserId: cuser.uid,

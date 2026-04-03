@@ -140,12 +140,7 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.createdAt == request.time &&
         coveDataAfter(request.resource.data.coveId).joinCode == joinCode &&
-        coveDataAfter(request.resource.data.coveId).createdBy == request.resource.data.createdBy &&
-        (
-          existsAfter(/databases/$(database)/documents/coves/$(request.resource.data.coveId)/members/$(request.auth.uid)) ||
-          exists(/databases/$(database)/documents/coves/$(request.resource.data.coveId)/members/$(request.auth.uid)) ||
-          isLegacyListedMember(request.resource.data.coveId, request.auth.uid)
-        );
+        coveDataAfter(request.resource.data.coveId).createdBy == request.auth.uid;
 
       allow update: if false;
 

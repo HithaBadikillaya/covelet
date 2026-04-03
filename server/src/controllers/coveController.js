@@ -280,33 +280,16 @@ async function getJoinCodeRefsForCove(db, coveId, joinCode) {
 
 async function backfillLegacyMemberships(uid) {
   const db = getFirestore();
-  const [ownerCovesSnapshot, memberDataSnapshot, legacyMemberCovesSnapshot] = await Promise.all([
+  const [ownerCovesSnapshot, legacyMemberCovesSnapshot] = await Promise.all([
     db.collection('coves').where('createdBy', '==', uid).get(),
-    db.collectionGroup('members_data')
-      .where(admin.firestore.FieldPath.documentId(), '==', uid)
-      .get(),
     db.collection('coves').where('members', 'array-contains', uid).get(),
   ]);
-  const memberDataCoveSnapshots = await Promise.all(
-    memberDataSnapshot.docs.map((memberDataDoc) => memberDataDoc.ref.parent.parent?.get()),
-  );
-
   const legacyCoveSnapshots = new Map();
-
   ownerCovesSnapshot.docs.forEach((docSnap) => {
     legacyCoveSnapshots.set(docSnap.id, docSnap);
   });
-
   legacyMemberCovesSnapshot.docs.forEach((docSnap) => {
     legacyCoveSnapshots.set(docSnap.id, docSnap);
-  });
-
-  memberDataCoveSnapshots.forEach((coveSnap) => {
-    if (!coveSnap?.exists) {
-      return;
-    }
-
-    legacyCoveSnapshots.set(coveSnap.id, coveSnap);
   });
 
   let backfilledCount = 0;
@@ -317,6 +300,21 @@ async function backfillLegacyMemberships(uid) {
     const coveRef = coveSnap.ref;
     const legacyMemberIds = getLegacyMemberIds(coveData);
     const isOwner = coveData.createdBy === uid;
+
+    // Ensure join code is indexed (backfill the index if missing)
+    if (coveData.joinCode) {
+      const normalizedJoinCode = coveData.joinCode.trim().toUpperCase();
+      const joinCodeRef = db.collection('coveJoinCodes').doc(normalizedJoinCode);
+      const joinCodeSnap = await joinCodeRef.get();
+      
+      if (!joinCodeSnap.exists) {
+        await joinCodeRef.set({
+          coveId: coveSnap.id,
+          createdBy: coveData.createdBy,
+          createdAt: coveData.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
 
     if (isOwner) {
       const targetMemberIds = Array.from(new Set([
