@@ -1,15 +1,14 @@
-import { db } from '@/firebaseConfig';
+import { auth, db } from '@/firebaseConfig';
+import { apiPost } from '@/services/api';
 import { deleteCoveCascade } from '@/utils/firestoreDelete';
 import { generateJoinCode, isValidJoinCode, normalizeAvatarSeed } from '@/utils/security';
 import {
-    arrayUnion,
     collection,
     doc,
     getDoc,
     runTransaction,
     serverTimestamp,
     setDoc,
-    updateDoc,
 } from 'firebase/firestore';
 
 interface CreateCoveInput {
@@ -49,6 +48,7 @@ export async function createCoveWithJoinCode({ userId, name, description, avatar
         const joinCode = generateJoinCode();
         const coveRef = doc(collection(database, 'coves'));
         const joinCodeRef = doc(database, 'coveJoinCodes', joinCode);
+        const memberRef = doc(database, 'coves', coveRef.id, 'members', userId);
 
         try {
             await runTransaction(database, async (transaction) => {
@@ -62,16 +62,21 @@ export async function createCoveWithJoinCode({ userId, name, description, avatar
                     description,
                     avatarSeed: normalizeAvatarSeed(avatarSeed),
                     createdBy: userId,
-                    members: [userId],
                     joinCode,
                     createdAt: serverTimestamp(),
                     isActive: true,
+                    memberCount: 1,
                 });
 
                 transaction.set(joinCodeRef, {
                     coveId: coveRef.id,
                     createdBy: userId,
                     createdAt: serverTimestamp(),
+                });
+
+                transaction.set(memberRef, {
+                    userId,
+                    joinedAt: serverTimestamp(),
                 });
             });
 
@@ -89,31 +94,23 @@ export async function createCoveWithJoinCode({ userId, name, description, avatar
     throw lastError || new Error('Unable to generate a unique invite code right now.');
 }
 
-export async function findCoveIdByJoinCode(joinCode: string) {
-    if (!db || !isValidJoinCode(joinCode)) {
-        return null;
+export async function joinCoveByCode(joinCode: string) {
+    const result = await apiPost<{ coveId: string; joined: boolean; alreadyMember: boolean }>(
+        '/coves/join',
+        { joinCode },
+    );
+
+    if (result.error) {
+        const error = new Error(result.error.message || 'Failed to join cove.');
+        (error as Error & { code?: string }).code = result.error.code;
+        throw error;
     }
 
-    const joinCodeSnap = await getDoc(doc(db!, 'coveJoinCodes', joinCode));
-    if (!joinCodeSnap.exists()) {
-        return null;
-    }
-
-    const data = joinCodeSnap.data();
-    return typeof data.coveId === 'string' ? data.coveId : null;
-}
-
-export async function joinCoveById(coveId: string, userId: string) {
-    if (!db) return;
-    await updateDoc(doc(db, 'coves', coveId), {
-        members: arrayUnion(userId),
-    });
-
-    await ensureMemberData(coveId, userId);
+    return result.data;
 }
 
 export async function ensureCoveJoinCodeIndex(coveId: string, joinCode: string | undefined, createdBy: string | undefined) {
-    if (!db || !joinCode || !createdBy || !isValidJoinCode(joinCode)) {
+    if (!db || !joinCode || !createdBy || !isValidJoinCode(joinCode) || auth?.currentUser?.uid !== createdBy) {
         return;
     }
 

@@ -1,9 +1,9 @@
-import { findCoveIdByJoinCode, joinCoveById } from '@/utils/coveJoinCodes';
-import { isValidJoinCode, normalizeJoinCode } from '@/utils/security';
+import { joinCoveByCode } from '@/utils/coveJoinCodes';
+import { isValidJoinCode, normalizeJoinCode, SECURITY_LIMITS } from '@/utils/security';
 import { Colors, Fonts, Layout } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Keyboard,
@@ -28,21 +28,36 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [isInputFocused, setIsInputFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);
     const auth = getAuth();
+    const normalizedCode = normalizeJoinCode(code);
+    const isJoinCodeComplete = normalizedCode.length === SECURITY_LIMITS.joinCodeLength;
+
+    useEffect(() => {
+        if (!visible) {
+            return;
+        }
+
+        const focusFrame = requestAnimationFrame(() => {
+            inputRef.current?.focus();
+        });
+
+        return () => cancelAnimationFrame(focusFrame);
+    }, [visible]);
 
     const handleCloseInternal = () => {
         setCode('');
         setErrorMsg(null);
-        inputRef.current?.clear();
+        setIsInputFocused(false);
+        inputRef.current?.blur();
         Keyboard.dismiss();
         onClose();
     };
 
     const handleJoin = async () => {
-        const trimmedCode = normalizeJoinCode(code);
-        if (!isValidJoinCode(trimmedCode)) {
-            setErrorMsg('Enter a valid 6-character invite code.');
+        if (!isValidJoinCode(normalizedCode)) {
+            setErrorMsg(`Enter a valid ${SECURITY_LIMITS.joinCodeLength}-character invite code.`);
             return;
         }
 
@@ -55,23 +70,23 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
         setErrorMsg(null);
 
         try {
-            const coveId = await findCoveIdByJoinCode(trimmedCode);
-            if (!coveId) {
-                setErrorMsg('No Cove found with this code. Double check it.');
-                setLoading(false);
-                return;
+            const result = await joinCoveByCode(normalizedCode);
+            if (!result?.coveId) {
+                throw new Error('Failed to join this Cove.');
             }
-
-            await joinCoveById(coveId, auth?.currentUser.uid);
 
             setLoading(false);
             handleCloseInternal();
-            onJoin(coveId);
+            onJoin(result.coveId);
         } catch (error: any) {
-            if (error.code === 'permission-denied' || error.code === 'not-found') {
+            if (error.code === 'NOT_FOUND' || error.code === 'VALIDATION_ERROR') {
                 setErrorMsg('That invite code is invalid, expired, or you already belong to this Cove.');
+            } else if (error.code === 'COVE_FULL') {
+                setErrorMsg('This Cove is full right now.');
+            } else if (error.code === 'NETWORK_ERROR') {
+                setErrorMsg('Unable to reach the server right now. Please try again.');
             } else {
-                setErrorMsg('Something went wrong. Please try again later.');
+                setErrorMsg(error.message || 'Something went wrong. Please try again later.');
             }
             setLoading(false);
         }
@@ -79,27 +94,8 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
 
     const handleCodeChange = (text: string) => {
         setErrorMsg(null);
-        setCode(normalizeJoinCode(text));
-    };
-
-    const renderBoxes = () => {
-        const boxes = [];
-        for (let i = 0; i < 6; i += 1) {
-            const char = code[i] || '';
-            const isFocused = i === code.length;
-            boxes.push(
-                <View
-                    key={i}
-                    style={[
-                        styles.box,
-                        isFocused ? styles.boxFocused : styles.boxUnfocused,
-                    ]}
-                >
-                    <Text style={[styles.boxText, isFocused && { color: Colors.light.primary }]}>{char}</Text>
-                </View>
-            );
-        }
-        return boxes;
+        const nextCode = normalizeJoinCode(text);
+        setCode((current) => (current === nextCode ? current : nextCode));
     };
 
     return (
@@ -126,34 +122,76 @@ export default function JoinCoveModal({ visible, onClose, onJoin }: Props) {
                     <Text style={styles.title}>JOIN A COVE</Text>
                     <Text style={styles.subtitle}>Enter the invitation code to enter a shared sanctuary.</Text>
 
-                    <View style={styles.codeRow}>
-                        {renderBoxes()}
+                    <View style={styles.codeInputWrapper}>
                         <TextInput
                             ref={inputRef}
-                            onChangeText={handleCodeChange}
                             value={code}
-                            maxLength={6}
-                            autoCapitalize="characters"
+                            onChangeText={handleCodeChange}
+                            onFocus={() => setIsInputFocused(true)}
+                            onBlur={() => setIsInputFocused(false)}
+                            autoCapitalize="none"
+                            autoComplete="off"
                             autoCorrect={false}
-                            autoFocus={false}
+                            blurOnSubmit={false}
                             caretHidden={true}
-                            allowFontScaling={false}
                             contextMenuHidden={true}
-                            style={styles.ghostInput}
-                            keyboardType="default"
-                            cursorColor="transparent"
+                            importantForAutofill="no"
+                            keyboardType={
+                                Platform.OS === 'android'
+                                    ? 'visible-password'
+                                    : 'ascii-capable'
+                            }
+                            maxLength={SECURITY_LIMITS.joinCodeLength * 2}
+                            onSubmitEditing={() => {
+                                if (isJoinCodeComplete && !loading) {
+                                    handleJoin();
+                                }
+                            }}
+                            returnKeyType="done"
+                            selectionColor="transparent"
+                            selection={{ start: code.length, end: code.length }}
+                            showSoftInputOnFocus={true}
+                            spellCheck={false}
+                            style={styles.codeOverlayInput}
+                            textContentType="none"
                         />
+
+                        <View pointerEvents="none" style={styles.codeRow}>
+                            {Array.from({ length: SECURITY_LIMITS.joinCodeLength }, (_, index) => {
+                                const char = normalizedCode[index] || '';
+                                const isFilled = Boolean(char);
+                                const isActive = isInputFocused
+                                    && (normalizedCode.length === index
+                                        || (normalizedCode.length === SECURITY_LIMITS.joinCodeLength
+                                            && index === SECURITY_LIMITS.joinCodeLength - 1));
+
+                                return (
+                                    <View
+                                        key={index}
+                                        style={[
+                                            styles.codeCell,
+                                            isFilled && styles.codeCellFilled,
+                                            isActive && styles.codeCellFocused,
+                                        ]}
+                                    >
+                                        <Text style={styles.codeCellText}>{char}</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
                     </View>
+
+                    <Text style={styles.helperText}>Type your 6-letter or number invite code.</Text>
 
                     {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
                     <TouchableOpacity
                         style={[
                             styles.joinButton,
-                            code.length === 6 && !loading ? styles.joinButtonActive : styles.joinButtonDisabled,
+                            isJoinCodeComplete && !loading ? styles.joinButtonActive : styles.joinButtonDisabled,
                         ]}
                         onPress={handleJoin}
-                        disabled={code.length !== 6 || loading}
+                        disabled={!isJoinCodeComplete || loading}
                         activeOpacity={0.8}
                     >
                         {loading ? (
@@ -228,46 +266,57 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 20,
     },
-    ghostInput: {
+    codeInputWrapper: {
+        position: 'relative',
+        marginBottom: 12,
+        minHeight: 58,
+    },
+    codeOverlayInput: {
         position: 'absolute',
         top: 0,
-        left: 0,
         right: 0,
         bottom: 0,
-        opacity: 0,
+        left: 0,
+        zIndex: 2,
         color: 'transparent',
+        backgroundColor: 'transparent',
+        padding: 0,
     },
     codeRow: {
         flexDirection: 'row',
-        justifyContent: 'center',
-        marginBottom: 24,
+        justifyContent: 'space-between',
+        gap: 8,
     },
-    box: {
-        width: 44,
-        height: 54,
+    codeCell: {
+        flex: 1,
+        minHeight: 58,
         borderWidth: 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#FDFBF7',
-        marginHorizontal: 3,
-        borderRadius: 0,
         borderColor: Colors.light.border,
+        borderRadius: 8,
+        backgroundColor: '#FDFBF7',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    boxFocused: {
+    codeCellFilled: {
+        borderColor: Colors.light.text,
+        backgroundColor: '#FFFFFF',
+    },
+    codeCellFocused: {
         borderColor: Colors.light.primary,
         backgroundColor: '#FFFFFF',
-        shadowColor: Colors.light.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.2,
-        elevation: 2,
     },
-    boxUnfocused: {
-        borderColor: Colors.light.border,
-    },
-    boxText: {
-        color: Colors.light.text,
+    codeCellText: {
         fontFamily: Fonts.heading,
-        fontSize: 22,
+        fontSize: 28,
+        color: Colors.light.text,
+        textTransform: 'uppercase',
+    },
+    helperText: {
+        color: Colors.light.textMuted,
+        fontFamily: Fonts.body,
+        fontSize: 13,
+        textAlign: 'center',
+        marginBottom: 20,
     },
     errorText: {
         color: '#DC2626',
