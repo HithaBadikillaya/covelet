@@ -14,6 +14,7 @@ import {
     User,
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 
 const getFriendlyErrorMessage = (error: any) => {
     switch (error.code) {
@@ -99,4 +100,18 @@ export const subscribeToAuthChanges = (
             });
         }
     });
+};
+
+export const useAuth = () => {
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        return subscribeToAuthChanges((u) => {
+            setUser(u);
+            setLoading(false);
+        });
+    }, []);
+
+    return { user, loading };
 };

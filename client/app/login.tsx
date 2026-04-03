@@ -1,4 +1,5 @@
 import { Colors, Fonts, Layout } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -22,6 +23,7 @@ import {
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -133,14 +135,31 @@ export default function LoginScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>PASSWORD</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="********"
-                placeholderTextColor={Colors.light.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="********"
+                  placeholderTextColor={Colors.light.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <Pressable
+                  accessibilityLabel={
+                    showPassword ? "Hide password" : "Show password"
+                  }
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => setShowPassword((current) => !current)}
+                  style={styles.passwordToggle}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={Colors.light.textMuted}
+                  />
+                </Pressable>
+              </View>
             </View>
 
             {isLogin ? (
@@ -264,6 +283,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     backgroundColor: "#FDFBF7",
     borderRadius: 0,
+  },
+  passwordInputContainer: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  passwordInput: {
+    paddingRight: 48,
+  },
+  passwordToggle: {
+    position: "absolute",
+    right: 14,
+    height: 54,
+    justifyContent: "center",
+    alignItems: "center",
   },
   forgotPassword: {
     fontFamily: Fonts.bodyMedium,
