@@ -9,36 +9,38 @@
 
 @layer base {
     :root {
-        /* Core Colors */
-        --background: #000000;
-        --primary: #0EA5E9;
-        --secondary: #FFFFFF;
+        /* Core Colors (The Scrapbook Palette) */
+        --background: #FDFBF7;
+        --surface: #FFFFFF;
+        --primary: #4A6741;
+        --secondary: #D4A373;
+        --tertiary: #A68B6D;
 
         /* Text Colors */
-        --text: #FFFFFF;
-        --text-muted: #A3A3A3;
+        --text: #2F2E2C;
+        --text-muted: #7A7875;
 
         /* UI States */
-        --error: #EF4444;
-        --success: #10B981;
-        --warning: #F59E0B;
+        --error: #C64B4B;
+        --success: #6B8E60;
+        --warning: #D99141;
 
         /* Borders & Inputs */
-        --border: #404040;
-        --input: #404040;
-        --ring: #0EA5E9;
+        --border: #E8E2D9;
+        --input: #FFFFFF;
+        --ring: #4A6741;
 
         /* Muted/Disabled */
-        --muted: #262626;
-        --muted-foreground: #737373;
+        --muted: #F0EBE0;
+        --muted-foreground: #99948D;
 
         /* Cards & Surfaces */
-        --card: #0A0A0A;
-        --card-foreground: #FFFFFF;
+        --card: #FFFFFF;
+        --card-foreground: #2F2E2C;
 
         /* Popover/Dropdown */
-        --popover: #171717;
-        --popover-foreground: #FFFFFF;
+        --popover: #FFFFFF;
+        --popover-foreground: #2F2E2C;
 
         /* Radius */
         --radius: 0rem;

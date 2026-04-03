@@ -9,14 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "platforms": [
-      "android",
-      "ios"
+      "android"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.hitha.covelet",
-      "googleServicesFile": "./GoogleService-Info.plist"
-    },
     "android": {
       "package": "com.hitha.covelet",
       "googleServicesFile": "./google-services.json",

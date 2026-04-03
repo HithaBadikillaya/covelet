@@ -1,49 +1,56 @@
-# Local environment files
+# Dependency directories
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Local environment files (Secrets)
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env
+**/.env.local
 
-# Dependency directories
-node_modules/
-jspm_packages/
+# Firebase Secrets & Logs
+**/service-account.json
+**/google-services.json
+**/GoogleService-Info.plist
+*.log
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.firebase/
 
-# IDE files
+# Firebase Rules (Requested to be ignored)
+*.rules
+*.rules.json
+
+# Expo / React Native
+client/.expo/
+client/android/
+client/ios/
+client/web-build/
+client/npm-debug.log*
+client/yarn-error.log*
+
+# IDE / System files
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
 
-# Temporary files
-/tmp/
-.temp/
-.cache/
-
-# Testing
-coverage/
-
-# Production build directories
+# Build & Cache
 dist/
 build/
 out/
-
-# Mobile specific (client)
-client/node_modules/
-client/.expo/
-client/android/
-client/ios/
-client/*.log
-client/npm-debug.log*
-
-# Backend specific (server)
-server/node_modules/
-server/.env
-server/service-account.json
-server/*.key
-server/*.log
-
-# Firebase
-.firebase/
-firestore-debug.log
-ui-debug.log
-firebase-debug.log
+.parcel-cache/
+.next/
+.serverless/
+/tmp/
+.temp/
+.cache/
+coverage/
