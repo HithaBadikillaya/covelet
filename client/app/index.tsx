@@ -1,5 +1,12 @@
-// Root index — navigation is handled by _layout.tsx auth guard.
-// Do NOT navigate here; doing so fires before the Root Layout mounts.
+import { useAuth } from '@/components/auth/authService';
+import { Redirect } from 'expo-router';
+
 export default function Index() {
-  return null;
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  return <Redirect href={user ? '/(tabs)' : '/login'} />;
 }
