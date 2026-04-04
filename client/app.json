@@ -16,7 +16,7 @@
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE"
+        "backgroundColor": "#FDFBF7"
       },
       "permissions": ["NOTIFICATIONS"]
     },
@@ -26,12 +26,11 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#E6F0E3",
+          "backgroundColor": "#FDFBF7",
           "dark": {
-            "backgroundColor": "#E6F0E3"
+            "backgroundColor": "#FDFBF7"
           }
         }
       ],
