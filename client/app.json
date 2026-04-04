@@ -16,11 +16,12 @@
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#FDFBF7"
+        "backgroundColor": "#F0EBE0"
       },
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
     },
-
     "plugins": [
       "expo-router",
       [
@@ -28,9 +29,9 @@
         {
           "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#FDFBF7",
+          "backgroundColor": "#F0EBE0",
           "dark": {
-            "backgroundColor": "#FDFBF7"
+            "backgroundColor": "#F0EBE0"
           }
         }
       ],
@@ -48,6 +49,9 @@
       "eas": {
         "projectId": "202b9990-0b52-4a40-bd71-f314e65ddb2f"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.hitha.covelet"
     }
   }
 }
