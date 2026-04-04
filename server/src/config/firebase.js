@@ -21,13 +21,24 @@ function initializeFirebase(config) {
   // Method 1: Base64 string from environment (Preferred for Render/Heroku)
   if (config.firebase.serviceAccountBase64) {
     try {
-      const serviceAccount = JSON.parse(
-        Buffer.from(config.firebase.serviceAccountBase64, 'base64').toString('utf8')
-      );
+      // 1. Clean the Base64 input (remove all whitespace/newlines that may have been added during copy-paste)
+      const cleanBase64 = config.firebase.serviceAccountBase64.trim().replace(/\s/g, '');
+      
+      // 2. Decode it
+      const decoded = Buffer.from(cleanBase64, 'base64').toString('utf8');
+      
+      // 3. Parse it
+      const serviceAccount = JSON.parse(decoded);
+      
       credential = admin.credential.cert(serviceAccount);
       console.log('✅ Firebase Admin: Initialized with service account Base64 from env');
     } catch (err) {
       console.error('❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_BASE64:', err.message);
+      if (err instanceof SyntaxError) {
+        console.error('   Hint: JSON was malformed. This is usually due to the Base64 string being truncated during copy-paste into Render.');
+        const decodedLen = Buffer.from(config.firebase.serviceAccountBase64, 'base64').toString('utf8').length;
+        console.error(`   Decoded length: ${decodedLen} characters. Check if it matches your original service-account.json size.`);
+      }
       process.exit(1);
     }
   }
