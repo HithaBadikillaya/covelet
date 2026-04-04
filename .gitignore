@@ -54,3 +54,4 @@ out/
 .temp/
 .cache/
 coverage/
+firestore.rules
