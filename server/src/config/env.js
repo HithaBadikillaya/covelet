@@ -28,6 +28,7 @@ function loadConfig() {
       projectId: process.env.FIREBASE_PROJECT_ID,
       serviceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH || null,
       serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON || null,
+      serviceAccountBase64: process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || null,
     },
 
     cors: {

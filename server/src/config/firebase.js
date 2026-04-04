@@ -18,8 +18,21 @@ function initializeFirebase(config) {
 
   let credential;
 
-  // Method 1: JSON string from environment
-  if (config.firebase.serviceAccountJson) {
+  // Method 1: Base64 string from environment (Preferred for Render/Heroku)
+  if (config.firebase.serviceAccountBase64) {
+    try {
+      const serviceAccount = JSON.parse(
+        Buffer.from(config.firebase.serviceAccountBase64, 'base64').toString('utf8')
+      );
+      credential = admin.credential.cert(serviceAccount);
+      console.log('✅ Firebase Admin: Initialized with service account Base64 from env');
+    } catch (err) {
+      console.error('❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_BASE64:', err.message);
+      process.exit(1);
+    }
+  }
+  // Method 2: JSON string from environment
+  else if (config.firebase.serviceAccountJson) {
     try {
       const serviceAccount = JSON.parse(config.firebase.serviceAccountJson);
       credential = admin.credential.cert(serviceAccount);
