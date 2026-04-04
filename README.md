@@ -1,52 +1,49 @@
-# Covelet Full-Stack Architecture
+# Covelet
 
-Covelet is a secure, decoupled full-stack application for sharing digital memories.
+A premium, secure memory-sharing and digital scrapbooking application. Designed as a digital vault for families and friends to curate their most precious moments with futuristic aesthetics and robust security.
 
-## 📁 Directory Structure
+## Features
 
+- **Protected Coves**: Private group spaces for sharing memories within a trusted, curated circle.
+- **Time Capsules**: Create and unlock scheduled memory sets for collaborative, synchronized reliving.
+- **Secure Vault Architecture**: Advanced server-authoritative data management with reliable cascade deletions.
+- **Memory Discovery**: Relive forgotten moments through dynamic discovery tools like Roulette and Flashbacks.
+- **Unified Experience**: High-performance mobile interface built on Expo with NativeWind styling.
+
+## Tech Stack
+
+Built with React Native (Expo), NativeWind, Firebase, and Node.js.
+
+
+## Setup Instructions
+
+### 1. Install Dependencies
+
+To install all required packages for the root, client, and server:
+
+```bash
+npm run install-all
 ```
-covelet/
-├── client/              # Expo React Native (Frontend)
-├── server/              # Express Node.js (Backend)
-├── firestore.rules      # Firestore Security Rules
-└── package.json         # Root scripts for coordination
+
+### 2. Environment Configuration
+
+Copy the example environment files and populate them with your Firebase credentials:
+
+- **Client**: Create `client/.env` and set all `EXPO_PUBLIC_FIREBASE_*` variables and `EXPO_PUBLIC_API_URL`.
+- **Server**: Create `server/.env` and ensure your `service-account.json` is present in the `server/` directory.
+
+### 3. Connectivity (Physical Android)
+
+If you are using a physical Android device for testing, forward the required development ports:
+
+```bash
+npm run reverse
 ```
 
-## 🚀 Quick Start (Development)
+### 4. Launch Development Servers
 
-1.  **Install dependencies**:
-    ```bash
-    npm run install-all
-    ```
+Start both the Express backend and the Expo development server concurrently:
 
-2.  **Environment Setup**:
-    -   **Server**: Create `server/.env` (see `server/.env.example`) and place your `service-account.json`.
-    -   **Client**: Create `client/.env` (see `client/.env.example`) and set `EXPO_PUBLIC_API_URL`.
-
-3.  **Run Development Servers**:
-    ```bash
-    npm run dev
-    ```
-
-## 🔒 Security Hardening
-
--   **Server-Authoritative Deletions**: Complex cascade deletes and member management are handled by the Express backend using the Firebase Admin SDK.
--   **JWT Verification**: All API calls require a valid Firebase ID token.
--   **Rate Limiting**: Tiered rate limiting protects sensitive endpoints.
--   **Input Sanitization**: Multi-layer sanitization (Client UI + Server Middleware).
--   **Secure Logging**: Custom logger suppresses internal state and PII in production builds.
-
-## 🛠️ Tech Stack
-
--   **Frontend**: Expo (React Native), Firebase Client SDK, Tailwind/Nativewind.
--   **Backend**: Node.js, Express, Firebase Admin SDK.
--   **Security**: Helmet, CORS, Express-Rate-Limit.
-
-## ⚙️ Deployment
-
--   **Server**: Render / Fly.io / Cloud Run.
--   **Client**: EAS Build for Android (APK) and iOS.
-
----
-
-Covelet — *A sanctuary for yours and mine.*
+```bash
+npm run dev
+```
