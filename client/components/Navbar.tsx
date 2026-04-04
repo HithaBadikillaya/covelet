@@ -114,6 +114,11 @@ export const Navbar = () => {
                                 <Text style={styles.userEmail}>{displayEmail}</Text>
                             </View>
                             <View style={styles.divider} />
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => { setShowDropdown(false); router.push('/about' as any); }} activeOpacity={0.7}>
+                                <Ionicons name="information-circle-outline" size={20} color={Colors.light.primary} />
+                                <Text style={styles.dropdownItemText}>About</Text>
+                            </TouchableOpacity>
+                            <View style={styles.divider} />
                             <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout} activeOpacity={0.7}>
                                 <Ionicons name="log-out-outline" size={20} color={Colors.light.primary} />
                                 <Text style={styles.dropdownItemText}>Logout</Text>

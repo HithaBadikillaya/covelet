@@ -34,6 +34,7 @@ import { Navbar } from '@/components/Navbar';
 import { TimeCapsuleNotificationBridge } from '@/components/notifications/TimeCapsuleNotificationBridge';
 import { SplashScreen as CustomSplashScreen } from '@/components/SplashScreen/SplashScreen';
 import { useAuth } from '@/components/auth/authService';
+import { useAppUpdateCheck } from '@/hooks/useUpdateCheck';
 import { logger } from '@/utils/logger';
 
 // Prevent the native splash screen from auto-hiding before asset loading is complete.
@@ -87,6 +88,8 @@ function AuthGate() {
 export default function RootLayout() {
   const [isSplashScreenVisible, setIsSplashScreenVisible] = useState(true);
   const pathname = usePathname();
+
+  useAppUpdateCheck(); // Automatic update check on launch
 
   const [loaded, error] = useFonts({
     Nunito_800ExtraBold,
