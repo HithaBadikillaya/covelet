@@ -1,5 +1,6 @@
 import { Colors, Fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -20,7 +21,9 @@ export const HeroSection = () => {
             </Text>
           </View>
           <View style={styles.dateTag}>
-            <Text style={styles.dateTagText}>VOL. 01</Text>
+            <Text style={styles.dateTagText}>
+              v{Constants.expoConfig?.version || "1.0.0"}
+            </Text>
           </View>
         </View>
 
