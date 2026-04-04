@@ -84,12 +84,18 @@ export async function ensureUserProfile(user: Pick<User, 'uid' | 'displayName' |
     const currentEmail = normalizeStoredUserEmail(existing.email);
     const currentAvatarSeed = typeof existing.avatarSeed === 'string' ? getFallbackAvatarSeed(user.uid, existing.avatarSeed) : '';
 
-    if (!snap.exists() || currentName !== name || currentEmail !== email || currentAvatarSeed !== avatarSeed) {
+    const lastActiveAt = existing.lastActiveAt;
+    const now = Date.now();
+    const lastActiveTime = lastActiveAt?.toMillis() || 0;
+    const isRecentlyActive = (now - lastActiveTime) < (24 * 60 * 60 * 1000); // 24 hours
+
+    if (!snap.exists() || currentName !== name || currentEmail !== email || currentAvatarSeed !== avatarSeed || !isRecentlyActive) {
         await setDoc(ref, {
             name,
             email,
             avatarSeed,
             updatedAt: serverTimestamp(),
+            lastActiveAt: serverTimestamp(),
         }, { merge: true });
     }
 

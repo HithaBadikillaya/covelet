@@ -20,6 +20,7 @@ const { mountRoutes } = require('./routes/index');
 const { errorHandler } = require('./middleware/errorHandler');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { logger } = require('./utils/logger');
+const { startRetentionWorker } = require('./services/retentionService');
 
 // 1. Load and validate environment
 const config = loadConfig();
@@ -27,7 +28,10 @@ const config = loadConfig();
 // 2. Initialize Firebase Admin SDK
 initializeFirebase(config);
 
-// 3. Create Express app
+// 3. Start background workers
+startRetentionWorker();
+
+// 4. Create Express app
 const app = express();
 
 // 4. Security middleware
