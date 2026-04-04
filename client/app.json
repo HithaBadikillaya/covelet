@@ -22,11 +22,17 @@
         "NOTIFICATIONS"
       ]
     },
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F0EBE0"
+    },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
+          "image": "./assets/images/logo.png",
           "imageWidth": 240,
           "resizeMode": "contain",
           "backgroundColor": "#F0EBE0",
