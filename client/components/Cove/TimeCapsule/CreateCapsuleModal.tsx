@@ -62,9 +62,11 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
             await addDoc(collection(db!, 'coves', coveId, 'timeCapsules'), {
                 unlockAt: Timestamp.fromDate(unlockDate),
                 ownerId: auth?.currentUser.uid,
+                status: 'locked',
                 isEmergencyOpened: false,
                 createdAt: serverTimestamp(),
                 durationLabel: `${val} ${unit}`,
+                coveId, // Explicitly store coveId for easier collection group queries
             });
 
             onClose();

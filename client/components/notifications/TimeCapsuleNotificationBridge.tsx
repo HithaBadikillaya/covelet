@@ -59,6 +59,7 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
 
         let disposed = false;
         let unsubscribeMemberships: (() => void) | null = null;
+        let unsubscribeUserPrefs: (() => void) | null = null;
         const coveUnsubscribers = new Map<string, () => void>();
         const capsuleUnsubscribers = new Map<string, () => void>();
         const coveNames = new Map<string, string>();
@@ -83,6 +84,41 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
             const database = db;
 
             try {
+                // Respect the user's notification preference stored in Firestore
+                // Subscribe to user prefs so the bridge reacts live to toggle changes
+                const userRef = doc(database, 'users', user.uid);
+                let notificationsEnabled = true;
+
+                await new Promise<void>((resolve) => {
+                    unsubscribeUserPrefs = onSnapshot(userRef, async (snap) => {
+                        const prev = notificationsEnabled;
+                        notificationsEnabled = snap.exists()
+                            ? snap.data()?.notificationsEnabled !== false
+                            : true;
+
+                        // First call: resolve the promise so we can continue setup
+                        resolve();
+
+                        // If user just re-enabled notifications after disabling, restart
+                        if (!prev && notificationsEnabled && !disposed) {
+                            await start();
+                        }
+
+                        // If user just disabled, tear down listeners and clear local notifs
+                        if (prev && !notificationsEnabled && !disposed) {
+                            teardownCoves();
+                            teardownCapsules();
+                            unsubscribeMemberships?.();
+                            unsubscribeMemberships = null;
+                            void clearAllTimeCapsuleNotifications(user.uid!);
+                        }
+                    });
+                });
+
+                if (!notificationsEnabled || disposed) {
+                    return;
+                }
+
                 const enabled = await prepareTimeCapsuleNotifications(user.uid);
                 if (!enabled || disposed) {
                     return;
@@ -218,6 +254,7 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
         return () => {
             disposed = true;
             unsubscribeMemberships?.();
+            unsubscribeUserPrefs?.();
             teardownCoves();
             teardownCapsules();
             void clearAllTimeCapsuleNotifications(user.uid);

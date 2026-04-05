@@ -1,3 +1,4 @@
+import { apiPost } from '@/services/api';
 import { logger } from '@/utils/logger';
 import { auth, db } from '@/firebaseConfig';
 import { deleteQuoteCascade } from '@/utils/firestoreDelete';
@@ -292,26 +293,16 @@ export function useQuotes(coveId: string | undefined): UseQuotesResult {
 
         const user = auth.currentUser;
         const profile = await getRequiredUserProfile(user.uid);
-        const now = new Date();
-        const batch = writeBatch(db);
 
-        const replyRef = doc(collection(db, 'coves', coveId, 'quotes', quoteId, 'replies'));
-        const quoteRef = doc(db, 'coves', coveId, 'quotes', quoteId);
-
-        batch.set(replyRef, {
-            authorId: user.uid,
-            authorName: profile.name,
+        // --- Refactored to call Backend API for notification support ---
+        const res = await apiPost(`/coves/${coveId}/quotes/${quoteId}/replies`, {
             content: safeContent,
-            createdAt: serverTimestamp(),
-            day: now.getDate(),
-            month: now.getMonth(),
+            authorName: profile.name,
         });
 
-        batch.update(quoteRef, {
-            repliesCount: increment(1),
-        });
-
-        await batch.commit();
+        if (res.error) {
+            throw new Error(res.error.message);
+        }
     };
 
     return {

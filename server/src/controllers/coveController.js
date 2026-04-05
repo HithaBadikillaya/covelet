@@ -541,6 +541,48 @@ async function updateTimeCapsuleEmergencyStatus(uid, coveId, capsuleId, isEmerge
   }
 }
 
+/**
+ * Add a reply to a quote and notify the author.
+ */
+async function addReply(uid, coveId, quoteId, content, authorName) {
+  const { db, coveRef } = await getCoveForMember(uid, coveId);
+  const quoteRef = coveRef.collection('quotes').doc(quoteId);
+  const quoteSnap = await quoteRef.get();
+
+  if (!quoteSnap.exists) {
+    const err = new Error('Quote not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const quoteData = quoteSnap.data();
+  const replyRef = quoteRef.collection('replies').doc();
+
+  const batch = db.batch();
+  batch.set(replyRef, {
+    authorId: uid,
+    authorName,
+    content,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    day: new Date().getDate(),
+    month: new Date().getMonth(),
+  });
+
+  batch.update(quoteRef, {
+    repliesCount: admin.firestore.FieldValue.increment(1),
+  });
+
+  await batch.commit();
+
+  // Send notification to the original post author (if it's not the same person)
+  if (quoteData.authorId && quoteData.authorId !== uid) {
+    const { sendReplyNotification } = require('../services/notificationService');
+    await sendReplyNotification(quoteData.authorId, authorName);
+  }
+
+  return { success: true, replyId: replyRef.id };
+}
+
 module.exports = {
   backfillLegacyMemberships,
   joinCove,
@@ -549,4 +591,5 @@ module.exports = {
   getCoveStats,
   getTimeCapsuleStats,
   updateTimeCapsuleEmergencyStatus,
+  addReply,
 };

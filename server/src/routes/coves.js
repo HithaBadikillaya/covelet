@@ -14,6 +14,7 @@ const {
   getCoveStats,
   getTimeCapsuleStats,
   updateTimeCapsuleEmergencyStatus,
+  addReply,
 } = require('../controllers/coveController');
 
 const router = Router();
@@ -162,6 +163,34 @@ router.put(
       next(err);
     }
   },
+);
+
+/**
+ * POST /api/coves/:coveId/quotes/:quoteId/replies
+ * Add a reply and notify the quote author.
+ */
+router.post(
+  '/:coveId/quotes/:quoteId/replies',
+  writeLimiter,
+  validateParams('coveId', 'quoteId'),
+  validateBody({
+    content: { type: 'string', required: true },
+    authorName: { type: 'string', required: true },
+  }),
+  async (req, res, next) => {
+    try {
+      const result = await addReply(
+        req.user.uid,
+        req.params.coveId,
+        req.params.quoteId,
+        req.body.content,
+        req.body.authorName,
+      );
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
 );
 
 module.exports = router;
