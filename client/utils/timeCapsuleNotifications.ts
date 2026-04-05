@@ -8,16 +8,6 @@ import * as Notifications from "expo-notifications";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Platform } from "react-native";
 
-const INSTALLATION_ID_KEY = "@covelet:notifications:installation-id";
-const SCHEDULE_PREFIX = "@covelet:time-capsule:schedule:";
-const DELIVERED_PREFIX = "@covelet:time-capsule:delivered:";
-const TIME_CAPSULE_CHANNEL_ID = "time-capsule-opened";
-
-interface StoredSchedule {
-  eventKey: string;
-  notificationId: string;
-}
-
 export interface TimeCapsuleNotificationEvent {
   userId: string;
   coveId: string;
@@ -36,48 +26,14 @@ Notifications.setNotificationHandler({
   }),
 });
 
-function scheduleStorageKey(userId: string, coveId: string) {
-  return `${SCHEDULE_PREFIX}${userId}:${coveId}`;
-}
-
-function deliveredStorageKey(userId: string, eventKey: string) {
-  return `${DELIVERED_PREFIX}${userId}:${eventKey}`;
-}
-
-function buildEventKey(
-  event: Omit<TimeCapsuleNotificationEvent, "userId" | "coveName">,
-) {
-  return `${event.coveId}:${event.capsuleId}:${event.unlockAtSeconds}`;
-}
-
-function buildNotificationRoute(coveId: string) {
-  return `/dashboard/cove/${coveId}/time-capsule`;
-}
-
-function buildNotificationContent(event: TimeCapsuleNotificationEvent) {
-  return {
-    title: "Time Capsule Opened",
-    body: `${event.coveName} is ready to open. Tap to read what your Cove left behind.`,
-    sound: "default",
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-    channelId: Platform.OS === "android" ? TIME_CAPSULE_CHANNEL_ID : undefined,
-    data: {
-      type: "time-capsule-opened",
-      route: buildNotificationRoute(event.coveId),
-      coveId: event.coveId,
-      capsuleId: event.capsuleId,
-    },
-  };
-}
-
 async function getInstallationId() {
-  const existing = await AsyncStorage.getItem(INSTALLATION_ID_KEY);
+  const existing = await AsyncStorage.getItem("@covelet:notifications:installation-id");
   if (existing) {
     return existing;
   }
 
   const generated = `install-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  await AsyncStorage.setItem(INSTALLATION_ID_KEY, generated);
+  await AsyncStorage.setItem("@covelet:notifications:installation-id", generated);
   return generated;
 }
 
@@ -86,7 +42,7 @@ async function ensureAndroidChannel() {
     return;
   }
 
-  await Notifications.setNotificationChannelAsync(TIME_CAPSULE_CHANNEL_ID, {
+  await Notifications.setNotificationChannelAsync("time-capsule-opened", {
     name: "Time Capsule Updates",
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
@@ -190,44 +146,6 @@ async function upsertExpoPushToken(userId: string) {
   }
 }
 
-async function readStoredSchedule(
-  userId: string,
-  coveId: string,
-): Promise<StoredSchedule | null> {
-  const raw = await AsyncStorage.getItem(scheduleStorageKey(userId, coveId));
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as StoredSchedule;
-  } catch {
-    await AsyncStorage.removeItem(scheduleStorageKey(userId, coveId));
-    return null;
-  }
-}
-
-async function storeSchedule(
-  userId: string,
-  coveId: string,
-  schedule: StoredSchedule,
-) {
-  await AsyncStorage.setItem(
-    scheduleStorageKey(userId, coveId),
-    JSON.stringify(schedule),
-  );
-}
-
-async function markDelivered(userId: string, eventKey: string) {
-  await AsyncStorage.setItem(deliveredStorageKey(userId, eventKey), "1");
-}
-
-async function hasDelivered(userId: string, eventKey: string) {
-  return (
-    (await AsyncStorage.getItem(deliveredStorageKey(userId, eventKey))) === "1"
-  );
-}
-
 export async function prepareTimeCapsuleNotifications(userId: string) {
   await ensureAndroidChannel();
 
@@ -240,117 +158,13 @@ export async function prepareTimeCapsuleNotifications(userId: string) {
   return true;
 }
 
-export async function clearTimeCapsuleNotificationForCove(
-  userId: string,
-  coveId: string,
-) {
-  const schedule = await readStoredSchedule(userId, coveId);
-  if (schedule?.notificationId) {
-    try {
-      await Notifications.cancelScheduledNotificationAsync(
-        schedule.notificationId,
-      );
-    } catch (error) {
-      logger.warn(
-        "Unable to cancel scheduled time capsule notification.",
-        error,
-      );
-    }
+export async function syncTimeCapsuleNotification() {
+  // We've moved to a backend-driven notification system via cron.
+  // To stop duplicate notifications and spam, we eagerly cancel any legacy
+  // scheduled notifications that the old system placed locally on the device.
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (err) {
+    logger.warn('Failed to clear legacy local time capsule notifications', err);
   }
-
-  await AsyncStorage.removeItem(scheduleStorageKey(userId, coveId));
-}
-
-export async function clearAllTimeCapsuleNotifications(userId: string) {
-  const keys = await AsyncStorage.getAllKeys();
-  const scheduleKeys = keys.filter((key) =>
-    key.startsWith(`${SCHEDULE_PREFIX}${userId}:`),
-  );
-
-  if (scheduleKeys.length === 0) {
-    return;
-  }
-
-  const schedules = await AsyncStorage.multiGet(scheduleKeys);
-  await Promise.all(
-    schedules.map(async ([, value]) => {
-      if (!value) {
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(value) as StoredSchedule;
-        if (parsed.notificationId) {
-          await Notifications.cancelScheduledNotificationAsync(
-            parsed.notificationId,
-          );
-        }
-      } catch (error) {
-        logger.warn(
-          "Unable to clear a stored time capsule notification.",
-          error,
-        );
-      }
-    }),
-  );
-
-  await AsyncStorage.multiRemove(scheduleKeys);
-}
-
-export async function syncTimeCapsuleNotification(
-  event: TimeCapsuleNotificationEvent,
-) {
-  const eventKey = buildEventKey({
-    coveId: event.coveId,
-    capsuleId: event.capsuleId,
-    unlockAtSeconds: event.unlockAtSeconds,
-  });
-  const delivered = await hasDelivered(event.userId, eventKey);
-  const storedSchedule = await readStoredSchedule(event.userId, event.coveId);
-  const unlockAtMs = event.unlockAtSeconds * 1000;
-  const isUnlocked = unlockAtMs <= Date.now();
-
-  if (isUnlocked) {
-    if (storedSchedule?.eventKey === eventKey) {
-      await AsyncStorage.removeItem(
-        scheduleStorageKey(event.userId, event.coveId),
-      );
-      await markDelivered(event.userId, eventKey);
-      return;
-    }
-
-    if (storedSchedule) {
-      await clearTimeCapsuleNotificationForCove(event.userId, event.coveId);
-    }
-
-    if (!delivered) {
-      await Notifications.scheduleNotificationAsync({
-        content: buildNotificationContent(event),
-        trigger: null,
-      });
-      await markDelivered(event.userId, eventKey);
-    }
-    return;
-  }
-
-  if (storedSchedule?.eventKey === eventKey || delivered) {
-    return;
-  }
-
-  if (storedSchedule) {
-    await clearTimeCapsuleNotificationForCove(event.userId, event.coveId);
-  }
-
-  const notificationId = await Notifications.scheduleNotificationAsync({
-    content: buildNotificationContent(event),
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: new Date(unlockAtMs),
-    },
-  });
-
-  await storeSchedule(event.userId, event.coveId, {
-    eventKey,
-    notificationId,
-  });
 }

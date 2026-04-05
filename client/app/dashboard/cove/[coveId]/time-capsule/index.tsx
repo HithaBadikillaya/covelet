@@ -257,13 +257,7 @@ export default function TimeCapsuleScreen() {
         const setupNotifications = async () => {
             try {
                 await prepareTimeCapsuleNotifications(currentUser.uid);
-                await syncTimeCapsuleNotification({
-                    userId: currentUser.uid,
-                    coveId,
-                    coveName,
-                    capsuleId: capsule.id,
-                    unlockAtSeconds: capsule.unlockAt?.seconds ?? 0,
-                });
+                await syncTimeCapsuleNotification();
             } catch (err) {
                 logger.warn('TimeCapsuleScreen: Unable to sync notification.', err);
             }
