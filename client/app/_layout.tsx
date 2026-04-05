@@ -9,11 +9,6 @@ if (typeof global.WeakRef === 'undefined') {
 }
 
 import {
-  Nunito_600SemiBold,
-  Nunito_800ExtraBold,
-  useFonts,
-} from '@expo-google-fonts/nunito';
-import {
   DMSans_400Regular,
   DMSans_500Medium,
   DMSans_700Bold,
@@ -23,20 +18,25 @@ import {
   Inter_500Medium,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import { Stack, useRouter, usePathname, ErrorBoundary } from 'expo-router';
+import {
+  Nunito_600SemiBold,
+  Nunito_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/nunito';
+import { ErrorBoundary, Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/components/auth/authService';
 import { Navbar } from '@/components/Navbar';
 import { TimeCapsuleNotificationBridge } from '@/components/notifications/TimeCapsuleNotificationBridge';
 import { SplashScreen as CustomSplashScreen } from '@/components/SplashScreen/SplashScreen';
-import { useAuth } from '@/components/auth/authService';
 import { useAppUpdateCheck } from '@/hooks/useUpdateCheck';
-import { logger } from '@/utils/logger';
 import { setupNotifications } from '@/services/NotificationService';
+import { logger } from '@/utils/logger';
 
 // Prevent the native splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

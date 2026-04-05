@@ -1,5 +1,5 @@
 import { logger } from '@/utils/logger';
-import { prepareTimeCapsuleNotifications } from '@/utils/timeCapsuleNotifications';
+
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -56,14 +56,7 @@ export function TimeCapsuleNotificationBridge({ user }: Props) {
         };
     }, [router, user?.uid]);
 
-    // Ensure permissions and token registration
-    useEffect(() => {
-        if (!user?.uid) return;
 
-        void prepareTimeCapsuleNotifications(user.uid).catch((err) => {
-            logger.error('NotificationBridge: Failed to prepare notifications:', err);
-        });
-    }, [user?.uid]);
 
     return null;
 }

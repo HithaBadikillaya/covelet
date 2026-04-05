@@ -25,8 +25,8 @@ const CoveCard = ({ cove, isOwner, onPress, index }: CoveCardProps) => {
 
     return (
         <View style={styles.wrapper}>
-            <TouchableOpacity 
-                onPress={onPress} 
+            <TouchableOpacity
+                onPress={onPress}
                 activeOpacity={0.9}
                 style={styles.card}
             >

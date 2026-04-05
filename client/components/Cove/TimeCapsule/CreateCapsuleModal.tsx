@@ -4,7 +4,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -39,21 +39,16 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
     const [amount, setAmount] = useState('1');
     const [unit, setUnit] = useState<TimeUnit>('days');
     const [loading, setLoading] = useState(false);
-    const [unlockDate, setUnlockDate] = useState<Date>(new Date());
     const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
 
-    useEffect(() => {
-        const val = parseInt(amount) || 0;
-        const multiplier = TIME_UNITS.find(u => u.value === unit)?.multiplier || 0;
-        const futureTime = Date.now() + (val * multiplier);
-        setUnlockDate(new Date(futureTime));
-    }, [amount, unit]);
+    const val = Math.max(0, parseInt(amount) || 0);
+    const multiplier = TIME_UNITS.find(u => u.value === unit)?.multiplier || 0;
+    const unlockDate = new Date(Date.now() + (val * multiplier));
 
     const handleCreate = async () => {
         if (!auth?.currentUser) return;
-        const val = parseInt(amount);
         if (!val || val <= 0) {
-            setDialog({ title: 'Invalid Duration', message: 'Please enter a valid number.' });
+            setDialog({ title: 'Set a Timer', message: 'The capsule needs a specific moment to open.' });
             return;
         }
 
@@ -63,16 +58,15 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
                 unlockAt: Timestamp.fromDate(unlockDate),
                 ownerId: auth?.currentUser.uid,
                 status: 'locked',
-                isEmergencyOpened: false,
                 createdAt: serverTimestamp(),
                 durationLabel: `${val} ${unit}`,
-                coveId, // Explicitly store coveId for easier collection group queries
+                coveId,
             });
 
             onClose();
         } catch (error) {
             logger.error('Error creating capsule:', error);
-            setDialog({ title: 'Error', message: 'Could not create time capsule.' });
+            setDialog({ title: 'Creation Interrupted', message: 'We couldn\'t bury the capsule right now. Please try again.' });
         } finally {
             setLoading(false);
         }
@@ -83,38 +77,41 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
             <Modal
                 visible={visible}
                 transparent
-                animationType="slide"
+                animationType="fade"
                 onRequestClose={onClose}
             >
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={styles.overlay}
                 >
                     <Pressable style={styles.backdrop} onPress={onClose} />
 
-                    <View style={[styles.card, { backgroundColor: '#FFFFFF' }]}>
+                    <View style={styles.card}>
                         <View style={styles.tape} />
 
                         <View style={styles.header}>
                             <View>
                                 <Text style={styles.title}>Bury a Capsule</Text>
-                                <Text style={styles.subtitle}>How long should it stay hidden?</Text>
+                                <Text style={styles.subtitle}>Choose how long it stays sealed.</Text>
                             </View>
                             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color={Colors.light.text} />
+                                <Ionicons name="close" size={24} color={Colors.light.textMuted} />
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.inputSection}>
-                            <TextInput
-                                style={styles.amountInput}
-                                value={amount}
-                                onChangeText={setAmount}
-                                keyboardType="numeric"
-                                placeholder="0"
-                                placeholderTextColor="#E8E2D9"
-                                selectionColor={Colors.light.primary}
-                            />
+                        <View style={styles.inputContainer}>
+                            <View style={styles.amountInputBox}>
+                                <TextInput
+                                    style={styles.amountInput}
+                                    value={amount}
+                                    onChangeText={(t) => setAmount(t.replace(/[^0-9]/g, ''))}
+                                    keyboardType="numeric"
+                                    placeholder="0"
+                                    placeholderTextColor="#E8E2D9"
+                                    maxLength={3}
+                                    selectionColor={Colors.light.primary}
+                                />
+                            </View>
 
                             <ScrollView
                                 horizontal
@@ -142,21 +139,33 @@ export const CreateCapsuleModal: React.FC<CreateCapsuleModalProps> = ({ visible,
                         </View>
 
                         <View style={styles.previewBox}>
-                            <Ionicons name="calendar-outline" size={20} color={Colors.light.primary} />
+                            <Ionicons 
+                                name={val > 0 ? "calendar-outline" : "alert-circle-outline"} 
+                                size={18} 
+                                color={val > 0 ? Colors.light.primary : Colors.light.textMuted} 
+                            />
                             <Text style={styles.previewText}>
-                                Will open on <Text style={styles.bold}>{unlockDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+                                {val > 0 ? (
+                                    <>Will open on <Text style={styles.bold}>{unlockDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text></>
+                                ) : (
+                                    <Text style={{ color: Colors.light.textMuted }}>Pick a future duration</Text>
+                                )}
                             </Text>
                         </View>
 
                         <TouchableOpacity
-                            style={[styles.buryButton, { backgroundColor: Colors.light.primary }]}
+                            style={[
+                                styles.buryButton, 
+                                { backgroundColor: Colors.light.primary },
+                                (!val || val <= 0) && { opacity: 0.5 }
+                            ]}
                             onPress={handleCreate}
-                            disabled={loading}
+                            disabled={loading || !val || val <= 0}
                         >
                             {loading ? (
                                 <ActivityIndicator color="#FFFFFF" size="small" />
                             ) : (
-                                <Text style={styles.buryText}>Seal the Capsule</Text>
+                                <Text style={styles.buryText}>Seal the Memories</Text>
                             )}
                         </TouchableOpacity>
                     </View>
@@ -183,14 +192,15 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(47, 46, 44, 0.4)',
     },
     card: {
+        backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
         padding: 32,
         paddingBottom: 48,
         gap: 24,
-        borderWidth: 1,
-        borderColor: '#E8E2D9',
-        shadowColor: '#2F2E2C',
+        borderWidth: 2.5,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: -12 },
         shadowOpacity: 0.1,
         shadowRadius: 24,
@@ -202,8 +212,8 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         width: 80,
         height: 24,
-        backgroundColor: '#4A6741',
-        opacity: 0.3,
+        backgroundColor: Colors.light.primary,
+        opacity: 0.4,
         zIndex: 10,
     },
     header: {
@@ -215,51 +225,55 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.heading,
         fontSize: 24,
         color: Colors.light.text,
+        letterSpacing: 0.5,
     },
     subtitle: {
         fontFamily: Fonts.body,
         fontSize: 14,
         color: Colors.light.textMuted,
-        marginTop: 4,
+        marginTop: 2,
     },
     closeBtn: {
         padding: 4,
     },
-    inputSection: {
-        gap: 20,
+    unitChip: {
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 0,
+        backgroundColor: '#F9F7F2',
+        borderWidth: 2,
+        borderColor: Colors.light.border,
+    },
+    unitChipActive: {
+        backgroundColor: Colors.light.primary,
+        borderColor: Colors.light.text,
+    },
+    unitText: {
+        fontFamily: Fonts.bodyBold,
+        fontSize: 13,
+        color: Colors.light.textMuted,
+        letterSpacing: 0.5,
+    },
+    unitTextActive: {
+        color: '#FFFFFF',
+    },
+    unitScroll: {
+        gap: 10,
+        paddingHorizontal: 4,
+    },
+    inputContainer: {
+        gap: 24,
+    },
+    amountInputBox: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     amountInput: {
         fontFamily: Fonts.heading,
         fontSize: 64,
         textAlign: 'center',
         color: Colors.light.text,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1EFE9',
-        paddingVertical: 8,
-    },
-    unitScroll: {
-        gap: 10,
-        paddingHorizontal: 4,
-    },
-    unitChip: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: Colors.light.border,
-    },
-    unitChipActive: {
-        backgroundColor: Colors.light.primary,
-        borderColor: Colors.light.primary,
-    },
-    unitText: {
-        fontFamily: Fonts.bodyBold,
-        fontSize: 14,
-        color: Colors.light.textMuted,
-    },
-    unitTextActive: {
-        color: '#FFFFFF',
+        minWidth: 120,
     },
     previewBox: {
         flexDirection: 'row',
@@ -268,9 +282,9 @@ const styles = StyleSheet.create({
         gap: 10,
         backgroundColor: '#F9F7F2',
         padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: Colors.light.border,
     },
     previewText: {
         fontFamily: Fonts.body,
@@ -282,19 +296,22 @@ const styles = StyleSheet.create({
         color: Colors.light.primary,
     },
     buryButton: {
-        height: 56,
-        borderRadius: 28,
+        height: 60,
+        borderRadius: 0,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: Colors.light.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
+        borderWidth: 2.5,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 0,
         elevation: 4,
     },
     buryText: {
         fontFamily: Fonts.heading,
         fontSize: 18,
         color: '#FFFFFF',
+        letterSpacing: 1,
     },
 });

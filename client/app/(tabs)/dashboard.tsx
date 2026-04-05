@@ -2,14 +2,13 @@ import { useAuth } from '@/components/auth/authService';
 import CoveCard from '@/components/Dashboard/CoveCard';
 import CreateCoveModal from '@/components/Dashboard/CreateCoveModal';
 import JoinCoveModal from '@/components/Dashboard/JoinCoveModal';
-import { Colors, Fonts } from '@/constants/theme';
-import { backfillSelfMembershipsFromLegacy, migrateLegacyCoveMembers, resolveMemberCount } from '@/utils/coveMembership';
-import { db } from '@/firebaseConfig';
 import { NAVBAR_HEIGHT } from '@/components/Navbar';
+import { Colors, Fonts } from '@/constants/theme';
+import { db } from '@/firebaseConfig';
+import { backfillSelfMembershipsFromLegacy, migrateLegacyCoveMembers, resolveMemberCount } from '@/utils/coveMembership';
 import { logger } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import type { User } from 'firebase/auth';
 import { collectionGroup, doc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
@@ -228,8 +227,8 @@ const DashboardScreen = () => {
     const renderBentoGrid = () => {
         if (loading && !refreshing) {
             return (
-                <View style={[styles.header, { paddingTop: insets.top + 24 }]}> 
-                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
+                    <ActivityIndicator size="large" color={Colors.light.primary} />
                 </View>
             );
         }
@@ -254,7 +253,7 @@ const DashboardScreen = () => {
                         Every story starts with a first page. Create a cove to begin sharing memories.
                     </Text>
                     {!loading && (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={() => onRefresh()}
                             style={[styles.retryButton, { marginTop: 20 }]}
                         >

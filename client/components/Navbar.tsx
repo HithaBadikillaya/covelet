@@ -1,8 +1,8 @@
-import { logger } from '@/utils/logger';
 import { subscribeToAuthChanges } from '@/components/auth/authService';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Colors, Fonts, Layout } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
+import { logger } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { User } from 'firebase/auth';
@@ -74,11 +74,11 @@ export const Navbar = () => {
     const displayEmail = profile?.email || user?.email || '';
 
     return (
-        <View 
+        <View
             pointerEvents="box-none"
             style={[styles.navbar, { paddingTop: insets.top + 12, backgroundColor: Colors.light.background, borderBottomWidth: 2, borderBottomColor: Colors.light.border }]}
-        > 
-            <View style={[styles.container, { height: NAVBAR_HEIGHT }]}> 
+        >
+            <View style={[styles.container, { height: NAVBAR_HEIGHT }]}>
                 <TouchableOpacity onPress={() => handleNav('/')} activeOpacity={0.8} style={styles.logoContainer}>
                     <Text style={styles.logoLabel}>COVELET</Text>
                 </TouchableOpacity>
@@ -107,8 +107,8 @@ export const Navbar = () => {
 
             {user ? (
                 <Modal visible={showDropdown} transparent animationType="none" onRequestClose={() => setShowDropdown(false)}>
-                    <Pressable 
-                        style={[styles.modalOverlay, { paddingTop: NAVBAR_HEIGHT + insets.top + 20 }]} 
+                    <Pressable
+                        style={[styles.modalOverlay, { paddingTop: NAVBAR_HEIGHT + insets.top + 20 }]}
                         onPress={() => setShowDropdown(false)}
                     >
                         <View style={styles.dropdown}>

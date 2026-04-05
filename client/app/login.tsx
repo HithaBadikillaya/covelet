@@ -1,3 +1,4 @@
+import { HomeScreen } from "@/components/HomeScreen/HomeScreen";
 import { Colors, Fonts, Layout } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
@@ -15,7 +16,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HomeScreen } from "@/components/HomeScreen/HomeScreen";
 
 import {
   resetPassword as authResetPassword,
@@ -89,17 +89,17 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-          {view === 'landing' ? (
-            <HomeScreen onLogin={() => setView('login')} onSignup={() => setView('signup')} hideNavbarSpace={true} />
-          ) : (
-            <ScrollView 
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={styles.loginCard}>
-              <TouchableOpacity 
-                style={styles.backBtn} 
+        {view === 'landing' ? (
+          <HomeScreen onLogin={() => setView('login')} onSignup={() => setView('signup')} hideNavbarSpace={true} />
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.loginCard}>
+              <TouchableOpacity
+                style={styles.backBtn}
                 onPress={() => {
                   setView('landing');
                   setError(null);
@@ -228,9 +228,9 @@ export default function LoginScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
-              </View>
-            </ScrollView>
-          )}
+            </View>
+          </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -1,9 +1,11 @@
-import { logger } from '@/utils/logger';
 import { CreateCapsuleModal } from '@/components/Cove/TimeCapsule/CreateCapsuleModal';
+import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import AppDialog, { type AppDialogAction } from '@/components/ui/AppDialog';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
 import { apiGet } from '@/services/api';
+import { logger } from '@/utils/logger';
+import { normalizeMultilineText, SECURITY_LIMITS } from '@/utils/security';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -30,12 +32,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NAVBAR_HEIGHT } from '@/components/Navbar';
-import { normalizeMultilineText, SECURITY_LIMITS } from '@/utils/security';
-import {
-    prepareTimeCapsuleNotifications,
-    syncTimeCapsuleNotification,
-} from '@/utils/timeCapsuleNotifications';
+
 
 interface TimeCapsule {
     id: string;
@@ -71,7 +68,7 @@ export default function TimeCapsuleScreen() {
     const insets = useSafeAreaInsets();
 
     const [capsule, setCapsule] = useState<TimeCapsule | null>(null);
-    const [coveName, setCoveName] = useState<string>('');
+
     const [coveOwnerId, setCoveOwnerId] = useState<string | null>(null);
     const [entries, setEntries] = useState<CapsuleEntry[]>([]);
     const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
@@ -102,7 +99,7 @@ export default function TimeCapsuleScreen() {
 
                 const data = snap.data();
                 setCoveOwnerId(data.createdBy);
-                setCoveName(typeof data.name === 'string' ? data.name : '');
+
             },
             (error) => {
                 if (error?.code === 'permission-denied' || error?.code === 'not-found') {
@@ -119,7 +116,7 @@ export default function TimeCapsuleScreen() {
 
     useEffect(() => {
         if (!coveId || !db) return;
- 
+
         const capsuleQuery = query(
             collection(db, 'coves', coveId, 'timeCapsules'),
             orderBy('createdAt', 'desc'),
@@ -156,7 +153,7 @@ export default function TimeCapsuleScreen() {
             setEntries([]);
             return;
         }
- 
+
         setLoadingEntries(true);
         const entriesQuery = query(
             collection(db, 'coves', coveId, 'timeCapsules', capsule.id, 'entries'),
@@ -251,20 +248,7 @@ export default function TimeCapsuleScreen() {
         setDialog({ title, message, actions });
     }, []);
 
-    useEffect(() => {
-        if (!currentUser || !capsule || !coveId || !coveName) return;
 
-        const setupNotifications = async () => {
-            try {
-                await prepareTimeCapsuleNotifications(currentUser.uid);
-                await syncTimeCapsuleNotification();
-            } catch (err) {
-                logger.warn('TimeCapsuleScreen: Unable to sync notification.', err);
-            }
-        };
-
-        void setupNotifications();
-    }, [currentUser?.uid, capsule?.id, coveId, coveName]);
 
     const handleAddEntry = async () => {
         const safeEntryText = normalizeMultilineText(newEntryText, SECURITY_LIMITS.timeCapsuleEntry);
@@ -306,7 +290,7 @@ export default function TimeCapsuleScreen() {
     if (!capsule) {
         return (
             <View style={[styles.container, styles.centerAll]}>
-                <View style={{ width: 44 }} /> 
+                <View style={{ width: 44 }} />
                 <Ionicons name="hourglass-outline" size={64} color="#ccc" />
                 <Text style={styles.emptyTitle}>No Time Capsule Found</Text>
 
@@ -332,10 +316,10 @@ export default function TimeCapsuleScreen() {
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.container}
         >
-            <View style={[styles.header, { paddingTop: insets.top + NAVBAR_HEIGHT + 35, paddingBottom: 16 }]}>
+            <View style={[styles.header, { paddingTop: insets.top + NAVBAR_HEIGHT + 35, paddingBottom: 16, backgroundColor: Colors.light.background }]}>
                 <View style={{ width: 44 }} />
                 <Text style={styles.title}>Time Capsule</Text>
                 <View style={{ width: 44 }} />
@@ -417,7 +401,6 @@ export default function TimeCapsuleScreen() {
                                     <Ionicons name="heart" size={24} color="#FFFFFF" opacity={0.6} />
                                 </View>
                             </View>
-                            <Text style={styles.lockedHint}>Your shared secrets are safe inside.</Text>
                         </View>
 
                         <View style={styles.pocketContainer}>
@@ -465,44 +448,36 @@ const styles = StyleSheet.create({
     centerAll: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        backgroundColor: Colors.light.background,
-    },
-    backBtnCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.light.border,
+        paddingHorizontal: 20,
     },
     title: {
         fontFamily: Fonts.heading,
-        fontSize: 24,
+        fontSize: 28,
         color: Colors.light.text,
+        letterSpacing: 0.5,
+        textAlign: 'center',
     },
     statusLabel: {
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingVertical: 16,
         marginHorizontal: 20,
-        borderRadius: 8,
-        borderWidth: 1,
-        marginBottom: 12,
+        borderRadius: 4,
+        borderWidth: 2,
+        marginBottom: 16,
+        gap: 4,
     },
     bgLocked: {
-        backgroundColor: '#FEFCE8',
-        borderColor: '#FEF08A',
+        backgroundColor: '#FFFBEB',
+        borderColor: Colors.light.text,
     },
     bgOpen: {
         backgroundColor: '#F0FDF4',
-        borderColor: '#DCFCE7',
+        borderColor: '#4A6741',
     },
     statusLabelContent: {
         flexDirection: 'row',
@@ -510,35 +485,41 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     statusTitle: {
-        fontFamily: Fonts.bodyBold,
-        fontSize: 13,
-        letterSpacing: 0.5,
+        fontFamily: Fonts.heading,
+        fontSize: 14,
+        letterSpacing: 1,
     },
     statusSub: {
-        fontFamily: Fonts.body,
+        fontFamily: Fonts.bodyBold,
         fontSize: 12,
         color: '#D4A373',
     },
     notificationNote: {
-        marginHorizontal: 20,
-        marginBottom: 12,
+        marginHorizontal: 32,
+        marginBottom: 16,
         fontFamily: Fonts.body,
         fontSize: 13,
-        lineHeight: 19,
+        lineHeight: 18,
         color: Colors.light.textMuted,
+        textAlign: 'center',
     },
     countCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-        marginHorizontal: 20,
-        marginBottom: 20,
+        gap: 12,
+        marginHorizontal: 24,
+        marginBottom: 24,
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 14,
         backgroundColor: '#FFFFFF',
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: Colors.light.border,
-        borderRadius: 12,
+        borderRadius: 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 0,
+        elevation: 2,
     },
     countCardText: {
         flex: 1,
@@ -548,17 +529,17 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     content: { flex: 1 },
-    listContent: { paddingHorizontal: 20, paddingBottom: 100, gap: 16 },
+    listContent: { paddingHorizontal: 20, paddingBottom: 100, gap: 20 },
     entryCard: {
         backgroundColor: '#FFFFFF',
         padding: 24,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: '#F1EFE9',
-        shadowColor: '#2F2E2C',
-        shadowOffset: { width: 0, height: 2 },
+        borderRadius: 0,
+        borderWidth: 2,
+        borderColor: Colors.light.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
         shadowOpacity: 0.05,
-        shadowRadius: 6,
+        shadowRadius: 0,
         elevation: 2,
     },
     entryText: {
@@ -578,7 +559,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F9F7F2',
         paddingHorizontal: 8,
         paddingVertical: 2,
-        borderRadius: 4,
+        borderRadius: 2,
     },
     authorText: {
         fontFamily: Fonts.bodyMedium,
@@ -588,10 +569,10 @@ const styles = StyleSheet.create({
     emptyContainer: {
         alignItems: 'center',
         marginTop: 60,
-        opacity: 0.5,
     },
     emptyList: {
         fontFamily: Fonts.body,
+        fontSize: 15,
         color: Colors.light.textMuted,
         marginTop: 12,
     },
@@ -604,26 +585,30 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: 0.8,
     },
     envelopeIcon: {
-        width: 140,
-        height: 100,
+        width: 160,
+        height: 110,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FDFBF7',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#E8E2D9',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
+        borderWidth: 2.5,
+        borderColor: Colors.light.border,
         marginBottom: 20,
         position: 'relative',
+        shadowColor: '#000',
+        shadowOffset: { width: 6, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 0,
+        elevation: 5,
     },
     waxSeal: {
         position: 'absolute',
-        bottom: -15,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        bottom: -20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: '#A0522D',
         justifyContent: 'center',
         alignItems: 'center',
@@ -634,71 +619,88 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.body,
         color: Colors.light.textMuted,
         fontSize: 15,
+        textAlign: 'center',
+        marginTop: 12,
     },
     pocketContainer: {
         backgroundColor: '#FFFFFF',
         padding: 24,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        borderWidth: 1,
-        borderColor: '#E8E2D9',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        borderWidth: 2.5,
+        borderColor: Colors.light.text,
         borderBottomWidth: 0,
-        shadowColor: '#2F2E2C',
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 10,
         elevation: 10,
     },
     pocketTitle: {
-        fontFamily: Fonts.bodyBold,
-        fontSize: 15,
+        fontFamily: Fonts.heading,
+        fontSize: 16,
         color: Colors.light.text,
         marginBottom: 16,
+        textAlign: 'center',
     },
     textInput: {
         backgroundColor: '#F9F7F2',
-        borderRadius: 12,
+        borderRadius: 4,
         padding: 16,
-        minHeight: 100,
+        minHeight: 120,
         textAlignVertical: 'top',
         fontSize: 15,
         fontFamily: Fonts.body,
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
+        borderWidth: 1.5,
+        borderColor: 'rgba(0,0,0,0.1)',
     },
     dropBtn: {
-        height: 52,
-        borderRadius: 26,
+        height: 56,
+        borderRadius: 0,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 2,
+        borderColor: Colors.light.text,
     },
     dropBtnText: {
         fontFamily: Fonts.heading,
         color: '#FFFFFF',
         fontSize: 16,
+        letterSpacing: 1,
     },
     emptyTitle: {
         fontFamily: Fonts.heading,
-        fontSize: 22,
+        fontSize: 24,
         color: Colors.light.text,
         marginBottom: 12,
+        textAlign: 'center',
     },
     emptySub: {
         fontFamily: Fonts.body,
+        fontSize: 16,
         color: Colors.light.textMuted,
         textAlign: 'center',
+        paddingHorizontal: 20,
     },
     btnPrimary: {
-        height: 52,
-        borderRadius: 26,
+        height: 56,
+        borderRadius: 0,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: 32,
+        borderWidth: 2,
+        borderColor: Colors.light.text,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 0,
+        elevation: 4,
     },
     btnText: {
         fontFamily: Fonts.heading,
         color: '#FFFFFF',
         fontSize: 16,
+        letterSpacing: 1,
     },
 });

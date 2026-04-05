@@ -126,7 +126,7 @@ export function useFlashbackMemories(coveId: string | undefined) {
                             .filter((capsuleDoc) => {
                                 const capsule = capsuleDoc.data();
                                 const unlockAtMs = capsule.unlockAt?.seconds ? capsule.unlockAt.seconds * 1000 : 0;
-                                return capsule.isEmergencyOpened === true || unlockAtMs <= Date.now();
+                                return unlockAtMs <= Date.now();
                             })
                             .map(async (capsuleDoc) => {
                                 const entrySnap = await getDocs(

@@ -106,9 +106,8 @@ export function useMemoryRoulette(coveId: string | undefined): UseMemoryRoulette
                 const cap = snapCapsules.docs[0];
                 const capData = cap.data();
                 const unlockAt = capData.unlockAt?.seconds ? capData.unlockAt.seconds * 1000 : 0;
-                const isEmergency = capData.isEmergencyOpened === true;
                 const now = Date.now();
-                if (isEmergency || now >= unlockAt) {
+                if (now >= unlockAt) {
                     const qEntries = query(
                         collection(database, 'coves', coveId, 'timeCapsules', cap.id, 'entries'),
                         orderBy('createdAt', 'desc'),

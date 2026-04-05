@@ -125,12 +125,28 @@ export async function saveFcmTokenToFirestore(uid, fcmToken) {
       Constants.sessionId ||
       'primary_device';
 
+    const userRef = doc(db, 'users', uid);
     const deviceRef = doc(db, 'users', uid, 'devices', deviceId);
 
+    // Atomic update for the user document (satisfies cron/reply logic)
+    await setDoc(
+      userRef,
+      { 
+        fcmToken,
+        fcm_token: fcmToken,
+        expoPushToken: fcmToken, 
+        lastActiveAt: serverTimestamp() 
+      },
+      { merge: true }
+    );
+
+    // Set on device document (satisfies cove notification logic)
     await setDoc(
       deviceRef,
       {
         fcmToken,
+        fcm_token: fcmToken,
+        expoPushToken: fcmToken,
         platform: Platform.OS,       // 'android'
         deviceName: Constants.deviceName || null,
         appVersion: Constants.expoConfig?.version || null,
@@ -191,6 +207,9 @@ export async function setupNotifications(uid) {
     if (fcmToken) {
       await saveFcmTokenToFirestore(uid, fcmToken);
     }
+
+    // 4. Cleanup legacy local notifications (if any)
+    await Notifications.cancelAllScheduledNotificationsAsync().catch(() => null);
 
     await updateLastActive(uid);
   } catch (error) {
