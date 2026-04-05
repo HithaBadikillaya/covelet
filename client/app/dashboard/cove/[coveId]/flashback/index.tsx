@@ -3,7 +3,8 @@ import { Colors, Fonts } from '@/constants/theme';
 import type { FlashbackMemory } from '@/hooks/useFlashbackMemories';
 import { useFlashbackMemories } from '@/hooks/useFlashbackMemories';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+
 import React, { useEffect } from 'react';
 import {
     ActivityIndicator,
@@ -36,10 +37,8 @@ export default function FlashbackScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
-            <View style={[styles.header, { paddingTop: insets.top + 24 }]}> 
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+            <View style={[styles.header, { paddingTop: insets.top + 92, paddingBottom: 20 }]}> 
+                <View style={{ width: 44 }} />
                 <Text style={styles.title}>On this day</Text>
                 <View style={{ width: 44 }} />
             </View>
@@ -118,16 +117,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 20,
     },
-    backBtnCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.light.border,
-    },
+
     title: {
         fontFamily: Fonts.heading,
         fontSize: 24,

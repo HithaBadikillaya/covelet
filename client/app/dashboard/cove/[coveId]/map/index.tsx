@@ -262,13 +262,8 @@ export default function MoodBoardScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtnCircle}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-        </TouchableOpacity>
+        <View style={[styles.header, { paddingTop: insets.top + 92, paddingBottom: 20 }]}>
+        <View style={{ width: 44 }} /> 
         <Text style={styles.title}>Mood Board</Text>
         <TouchableOpacity
           onPress={() => setInfoVisible(true)}

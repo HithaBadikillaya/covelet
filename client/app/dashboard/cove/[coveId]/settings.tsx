@@ -10,17 +10,24 @@ import { getCoveBackgroundUrl } from '@/utils/avatar';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NAVBAR_HEIGHT } from '@/components/Navbar';
+import {
+    requestNotificationPermissions,
+    saveFcmTokenToFirestore,
+    getFcmToken,
+} from '@/services/NotificationService';
 
 interface CoveData {
     name: string;
@@ -30,6 +37,10 @@ interface CoveData {
     members?: string[];
     createdBy: string;
     joinCode?: string;
+}
+
+interface UserPrefs {
+    notificationsEnabled: boolean;
 }
 
 type DialogState = {
@@ -49,12 +60,19 @@ export default function CoveSettingsScreen() {
     const [manageModalVisible, setManageModalVisible] = useState(false);
     const [dialog, setDialog] = useState<DialogState>(null);
 
+    // Notification preference state
+    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const [notifLoading, setNotifLoading] = useState(false);
+
+    const uid = auth?.currentUser?.uid;
+
     const showDialog = (title: string, message: string, actions?: AppDialogAction[]) => {
         setDialog({ title, message, actions });
     };
 
+    // Subscribe to cove data
     useEffect(() => {
-        if (!auth?.currentUser || !coveId) return;
+        if (!uid || !coveId) return;
 
         const coveRef = doc(db!, 'coves', coveId);
         const unsub = onSnapshot(
@@ -66,15 +84,8 @@ export default function CoveSettingsScreen() {
                         ...rawData,
                         memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
                     };
-                    if (data.createdBy === auth?.currentUser?.uid) {
-                        setCoveData(data);
-                        setIsOwner(true);
-                    } else {
-                        setIsOwner(false);
-                        showDialog('Access Denied', 'Only the Cove Owner can access settings.', [
-                            { label: 'OK', onPress: () => router.back() },
-                        ]);
-                    }
+                    setCoveData(data);
+                    setIsOwner(data.createdBy === uid);
                 } else {
                     router.replace('/(tabs)/dashboard');
                 }
@@ -85,14 +96,61 @@ export default function CoveSettingsScreen() {
                     router.replace('/(tabs)/dashboard');
                     return;
                 }
-
                 logger.error('Error subscribing to cove:', err);
                 setLoading(false);
             }
         );
 
         return () => unsub();
-    }, [coveId]);
+    }, [coveId, uid]);
+
+    // Subscribe to user notification prefs
+    useEffect(() => {
+        if (!uid || !db) return;
+
+        const userRef = doc(db, 'users', uid);
+        const unsub = onSnapshot(userRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data() as UserPrefs & Record<string, any>;
+                // Default to true if the field doesn't exist yet
+                setNotificationsEnabled(data.notificationsEnabled !== false);
+            }
+        });
+
+        return () => unsub();
+    }, [uid]);
+
+    const handleToggleNotifications = async (value: boolean) => {
+        if (!uid || !db) return;
+        setNotifLoading(true);
+        try {
+            if (value) {
+                // Turning ON: request permissions and register token
+                const granted = await requestNotificationPermissions();
+                if (!granted) {
+                    showDialog(
+                        'Notifications Blocked',
+                        'Please enable notifications in your device Settings for Covelet to receive alerts.'
+                    );
+                    setNotifLoading(false);
+                    return;
+                }
+                const token = await getFcmToken();
+                if (token) {
+                    await saveFcmTokenToFirestore(uid, token);
+                }
+            }
+
+            const userRef = doc(db, 'users', uid);
+            await updateDoc(userRef, { notificationsEnabled: value });
+            setNotificationsEnabled(value);
+        } catch (err: any) {
+            logger.error('Failed to update notification preference:', err);
+            showDialog('Error', 'Could not update notification setting. Please try again.');
+        } finally {
+            setNotifLoading(false);
+        }
+    };
 
     const coveBackgroundUrl = coveData?.avatarSeed ? getCoveBackgroundUrl(coveData.avatarSeed) : null;
 
@@ -117,17 +175,15 @@ export default function CoveSettingsScreen() {
                         setDeleteStep(0);
                         if (!coveId) return;
 
-                        // Simulate progress steps to give feedback
                         const timer = setInterval(() => {
                             setDeleteStep(prev => (prev < 2 ? prev + 1 : prev));
                         }, 800);
 
                         await deleteCoveWithJoinCode(coveId, coveData?.joinCode);
-                        
+
                         clearInterval(timer);
-                        setDeleteStep(3); // Done
-                        
-                        // Small delay to let user see "Finished" state
+                        setDeleteStep(3);
+
                         setTimeout(() => {
                             router.replace('/(tabs)/dashboard');
                         }, 500);
@@ -159,11 +215,11 @@ export default function CoveSettingsScreen() {
                     <ActivityIndicator size="large" color={Colors.light.error} style={{ marginBottom: 24 }} />
                     <Text style={styles.deletionTitle}>{currentStep.label}...</Text>
                     <Text style={styles.deletionHint}>{currentStep.hint}</Text>
-                    
+
                     <View style={styles.progressBarBg}>
                         <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
                     </View>
-                    
+
                     <Text style={styles.deletionSubtext}>
                         Closing the sanctuary and wiping records. Please stay on this screen.
                     </Text>
@@ -172,51 +228,89 @@ export default function CoveSettingsScreen() {
         );
     }
 
-    if (!coveId) return null;
+    if (!coveId || !coveData) return null;
 
     return (
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}>
-            {isOwner && coveData ? (
-                <>
-                    <View style={[styles.header, { paddingTop: Math.max(insets.top + 12, 24) }]}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.closeBtnSquare}>
-                            <Ionicons name="close" size={24} color={Colors.light.text} />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>COVE SETTINGS</Text>
-                        <View style={{ width: 44 }} />
-                    </View>
+            {/* ── HEADER ── */}
+            <View style={[styles.header, { paddingTop: insets.top + NAVBAR_HEIGHT + 40, paddingBottom: 16 }]}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.closeBtnSquare}>
+                    <Ionicons name="close" size={24} color={Colors.light.text} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>COVE SETTINGS</Text>
+                <View style={{ width: 44 }} />
+            </View>
 
-                    <ScrollView contentContainerStyle={[styles.content, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-                        <View style={styles.previewCard}>
-                            {coveBackgroundUrl ? (
-                                <Image
-                                    source={{ uri: coveBackgroundUrl }}
-                                    style={styles.previewBg}
-                                    contentFit="cover"
-                                />
-                            ) : null}
-                            <View style={styles.previewOverlay}>
-                                <Text style={styles.previewEyebrow}>CURRENT COVE DETAILS</Text>
-                                <Text style={styles.previewTitle}>{coveData.name}</Text>
-                                <Text style={styles.previewDescription}>
-                                    {coveData.description?.trim() || 'No description added yet.'}
-                                </Text>
+            <ScrollView
+                contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* ── PREVIEW CARD ── */}
+                <View style={styles.previewCard}>
+                    {coveBackgroundUrl ? (
+                        <Image
+                            source={{ uri: coveBackgroundUrl }}
+                            style={styles.previewBg}
+                            contentFit="cover"
+                        />
+                    ) : null}
+                    <View style={styles.previewOverlay}>
+                        <Text style={styles.previewEyebrow}>CURRENT COVE DETAILS</Text>
+                        <Text style={styles.previewTitle}>{coveData.name}</Text>
+                        <Text style={styles.previewDescription}>
+                            {coveData.description?.trim() || 'No description added yet.'}
+                        </Text>
 
-                                <View style={styles.previewStatsRow}>
-                                    <View style={styles.previewStatChip}>
-                                        <Ionicons name="people-outline" size={14} color={Colors.light.text} />
-                                        <Text style={styles.previewStatText}>{resolveMemberCount(coveData.memberCount, coveData.members)} members</Text>
-                                    </View>
-                                    {coveData.joinCode ? (
-                                        <View style={styles.previewStatChip}>
-                                            <Ionicons name="key-outline" size={14} color={Colors.light.text} />
-                                            <Text style={styles.previewStatText}>{coveData.joinCode}</Text>
-                                        </View>
-                                    ) : null}
+                        <View style={styles.previewStatsRow}>
+                            <View style={styles.previewStatChip}>
+                                <Ionicons name="people-outline" size={14} color={Colors.light.text} />
+                                <Text style={styles.previewStatText}>{resolveMemberCount(coveData.memberCount, coveData.members)} members</Text>
+                            </View>
+                            {coveData.joinCode ? (
+                                <View style={styles.previewStatChip}>
+                                    <Ionicons name="key-outline" size={14} color={Colors.light.text} />
+                                    <Text style={styles.previewStatText}>{coveData.joinCode}</Text>
                                 </View>
+                            ) : null}
+                        </View>
+                    </View>
+                </View>
+
+                {/* ── NOTIFICATIONS (available to all members) ── */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+                </View>
+                <View style={styles.section}>
+                    <View style={[styles.row, styles.lastRow]}>
+                        <View style={styles.rowLeft}>
+                            <View style={[styles.iconBox, { backgroundColor: '#F0F4EF' }]}>
+                                <Ionicons name="notifications-outline" size={20} color={Colors.light.primary} />
+                            </View>
+                            <View style={styles.rowTextWrap}>
+                                <Text style={styles.rowLabel}>Push Notifications</Text>
+                                <Text style={styles.rowHint}>
+                                    {notificationsEnabled
+                                        ? 'You will receive alerts for capsules and updates.'
+                                        : 'You will not receive any push notifications.'}
+                                </Text>
                             </View>
                         </View>
+                        {notifLoading ? (
+                            <ActivityIndicator size="small" color={Colors.light.primary} />
+                        ) : (
+                            <Switch
+                                value={notificationsEnabled}
+                                onValueChange={handleToggleNotifications}
+                                thumbColor={notificationsEnabled ? Colors.light.primary : '#ccc'}
+                                trackColor={{ false: '#E8E2D9', true: Colors.light.primary + '60' }}
+                            />
+                        )}
+                    </View>
+                </View>
 
+                {/* ── OWNER-ONLY: GENERAL ── */}
+                {isOwner && (
+                    <>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>GENERAL</Text>
                         </View>
@@ -248,6 +342,7 @@ export default function CoveSettingsScreen() {
                             </TouchableOpacity>
                         </View>
 
+                        {/* ── OWNER-ONLY: DANGER ZONE ── */}
                         <View style={styles.sectionHeader}>
                             <Text style={[styles.sectionTitle, { color: Colors.light.error }]}>DANGER ZONE</Text>
                         </View>
@@ -265,14 +360,20 @@ export default function CoveSettingsScreen() {
                                 <Ionicons name="chevron-forward" size={18} color={Colors.light.error} />
                             </TouchableOpacity>
                         </View>
+                    </>
+                )}
 
-                        <View style={styles.footer}>
-                            <Text style={styles.footerText}>
-                                You are the owner of this sanctuary. Changes here affect everyone in the cove.
-                            </Text>
-                        </View>
-                    </ScrollView>
+                <View style={styles.footer}>
+                    <Text style={styles.footerText}>
+                        {isOwner
+                            ? 'You are the owner of this sanctuary. Changes here affect everyone in the cove.'
+                            : 'Notification settings are personal and only affect your device.'}
+                    </Text>
+                </View>
+            </ScrollView>
 
+            {isOwner && (
+                <>
                     <EditCoveModal
                         visible={editModalVisible}
                         onClose={() => setEditModalVisible(false)}
@@ -281,14 +382,13 @@ export default function CoveSettingsScreen() {
                         initialDescription={coveData.description || ''}
                         initialAvatarSeed={coveData.avatarSeed || ''}
                     />
-
                     <ManageMembersModal
                         visible={manageModalVisible}
                         onClose={() => setManageModalVisible(false)}
                         coveId={coveId}
                     />
                 </>
-            ) : null}
+            )}
 
             <AppDialog
                 visible={!!dialog}
@@ -314,7 +414,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
-        paddingBottom: 20,
+        paddingBottom: 16,
+        backgroundColor: Colors.light.background,
+        borderBottomWidth: 1.5,
+        borderBottomColor: Colors.light.border,
     },
     closeBtnSquare: {
         width: 44,
@@ -338,12 +441,12 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 20,
-        paddingBottom: 100,
     },
     previewCard: {
-        minHeight: 220,
+        minHeight: 200,
         borderRadius: Layout.radiusLarge,
         marginBottom: 28,
+        marginTop: 8,
         borderWidth: 2,
         borderColor: Colors.light.text,
         overflow: 'hidden',
@@ -371,9 +474,9 @@ const styles = StyleSheet.create({
     },
     previewTitle: {
         fontFamily: Fonts.heading,
-        fontSize: 28,
+        fontSize: 26,
         color: Colors.light.text,
-        marginBottom: 10,
+        marginBottom: 8,
     },
     previewDescription: {
         fontFamily: Fonts.body,
@@ -404,7 +507,7 @@ const styles = StyleSheet.create({
         color: Colors.light.text,
     },
     sectionHeader: {
-        marginBottom: 12,
+        marginBottom: 10,
         paddingHorizontal: 4,
     },
     sectionTitle: {
@@ -416,7 +519,7 @@ const styles = StyleSheet.create({
     section: {
         backgroundColor: '#FFFFFF',
         borderRadius: Layout.radiusLarge,
-        marginBottom: 32,
+        marginBottom: 28,
         borderWidth: 2,
         borderColor: Colors.light.text,
         shadowColor: '#000',
@@ -429,7 +532,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 20,
+        padding: 18,
         borderBottomWidth: 1.5,
         borderBottomColor: '#F0F0F0',
     },
@@ -439,7 +542,7 @@ const styles = StyleSheet.create({
     rowLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
+        gap: 14,
         flex: 1,
         paddingRight: 12,
     },
@@ -469,7 +572,8 @@ const styles = StyleSheet.create({
     },
     footer: {
         marginTop: 4,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
+        paddingBottom: 8,
     },
     footerText: {
         fontFamily: Fonts.body,

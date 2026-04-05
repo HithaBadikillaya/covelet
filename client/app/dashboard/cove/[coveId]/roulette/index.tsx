@@ -2,7 +2,7 @@ import { FEATURE_DESCRIPTIONS } from '@/constants/features';
 import { Colors, Fonts } from '@/constants/theme';
 import { useMemoryRoulette } from '@/hooks/useMemoryRoulette';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import {
     ActivityIndicator,
@@ -27,11 +27,9 @@ export default function RouletteScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
-            <View style={[styles.header, { paddingTop: insets.top + 24 }]}> 
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
-                <Text style={styles.title}>Memory Roulette</Text>
+            <View style={[styles.header, { paddingTop: insets.top + 92, paddingBottom: 20 }]}> 
+                <View style={{ width: 44 }} /> 
+                <Text style={styles.title}>Cove Roulette</Text>
                 <View style={{ width: 44 }} />
             </View>
 
@@ -39,7 +37,7 @@ export default function RouletteScreen() {
                 <Text style={styles.description}>{FEATURE_DESCRIPTIONS.roulette}</Text>
             </View>
 
-            <View style={styles.content}>
+            <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
                 {error && !memory ? (
                     <View style={styles.errorBox}>
                         <Ionicons name="alert-circle-outline" size={20} color={Colors.light.error} />
@@ -107,16 +105,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 20,
     },
-    backBtnCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.light.border,
-    },
+
     title: {
         fontFamily: Fonts.heading,
         fontSize: 24,

@@ -31,6 +31,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { normalizeMultilineText, SECURITY_LIMITS } from '@/utils/security';
 import {
     prepareTimeCapsuleNotifications,
@@ -362,13 +363,18 @@ export default function TimeCapsuleScreen() {
         );
     };
 
-    if (!loadingCapsule && !capsule) {
+    if (loadingCapsule) {
         return (
             <View style={[styles.container, styles.centerAll]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backAbsolute}>
-                    <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                </TouchableOpacity>
+                <ActivityIndicator color={themeColors.primary} />
+            </View>
+        );
+    }
 
+    if (!capsule) {
+        return (
+            <View style={[styles.container, styles.centerAll]}>
+                <View style={{ width: 44 }} /> 
                 <Ionicons name="hourglass-outline" size={64} color="#ccc" />
                 <Text style={styles.emptyTitle}>No Time Capsule Found</Text>
 
@@ -392,23 +398,13 @@ export default function TimeCapsuleScreen() {
         );
     }
 
-    if (loadingCapsule) {
-        return (
-            <View style={[styles.container, styles.centerAll]}>
-                <ActivityIndicator color={themeColors.primary} />
-            </View>
-        );
-    }
-
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+            <View style={[styles.header, { paddingTop: insets.top + NAVBAR_HEIGHT + 35, paddingBottom: 16 }]}>
+                <View style={{ width: 44 }} />
                 <Text style={styles.title}>Time Capsule</Text>
                 {isOwner ? (
                     <TouchableOpacity onPress={confirmEmergencyToggle} style={styles.lockBtnCircle}>
@@ -550,7 +546,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingBottom: 20,
         backgroundColor: Colors.light.background,
     },
     backBtnCircle: {
@@ -641,7 +636,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     content: { flex: 1 },
-    listContent: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },
+    listContent: { paddingHorizontal: 20, paddingBottom: 100, gap: 16 },
     entryCard: {
         backgroundColor: '#FFFFFF',
         padding: 24,
@@ -793,18 +788,5 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.heading,
         color: '#FFFFFF',
         fontSize: 16,
-    },
-    backAbsolute: {
-        position: 'absolute',
-        top: 60,
-        left: 20,
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.light.border,
     },
 });

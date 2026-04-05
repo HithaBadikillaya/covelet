@@ -184,12 +184,8 @@ export default function CoveScreen() {
         logger.log("[TRACE] CoveScreen: Rendering TIMEOUT_UI");
         return (
             <View style={[styles.loading, { paddingTop: insets.top + 20 }]}>
-                <TouchableOpacity
-                    onPress={() => router.replace('/(tabs)/dashboard')}
-                    style={[styles.backButton, { position: 'absolute', top: insets.top + 20, left: 20 }]}
-                >
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+                {/* Content */}
+
 
                 <Ionicons name="cloud-offline-outline" size={48} color={Colors.light.textMuted} />
                 <Text style={styles.errorText}>
@@ -214,12 +210,8 @@ export default function CoveScreen() {
         logger.log("[TRACE] CoveScreen: Rendering SPINNER_UI", { loading, hasCove: !!cove, timedOut });
         return (
             <View style={[styles.loading, { paddingTop: insets.top + 20 }]}>
-                 <TouchableOpacity
-                    onPress={() => router.replace('/(tabs)/dashboard')}
-                    style={[styles.backButton, { position: 'absolute', top: insets.top + 20, left: 20 }]}
-                >
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+                 {/* Content */}
+
 
                 <ActivityIndicator size="large" color={Colors.light.primary} />
                 <Text style={[styles.errorText, { fontSize: 14, opacity: 0.5, marginTop: 12 }]}>{loadingStage}</Text>
@@ -232,12 +224,8 @@ export default function CoveScreen() {
         logger.log("[TRACE] CoveScreen: Rendering BACKUP_ERROR_UI", { hasCove: !!cove, hasUser: !!user });
         return (
             <View style={[styles.loading, { paddingTop: insets.top + 20 }]}>
-                <TouchableOpacity
-                    onPress={() => router.replace('/(tabs)/dashboard')}
-                    style={[styles.backButton, { position: 'absolute', top: insets.top + 20, left: 20 }]}
-                >
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+                {/* Content */}
+
 
                 <Ionicons name="alert-circle-outline" size={48} color={Colors.light.error} />
                 <Text style={styles.errorText}>Oops! We couldn't find this sanctuary.</Text>
@@ -275,17 +263,12 @@ export default function CoveScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
                     styles.scrollContent,
-                    { paddingTop: insets.top + NAVBAR_HEIGHT + 20 }
+                    { paddingTop: insets.top + NAVBAR_HEIGHT + 35 }
                 ]}
             >
                 {/* BACK BUTTON */}
-                <TouchableOpacity
-                    onPress={() => router.replace('/(tabs)/dashboard')}
-                    style={styles.backButton}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+                {/* Content */}
+
 
                 {/* HEADER CARD */}
                 <View style={styles.headerCard}>
@@ -383,15 +366,13 @@ export default function CoveScreen() {
                         size="wide"
                     />
 
-                    {isOwner && (
-                        <FeatureCard
-                            title="SETTINGS"
-                            icon="settings-outline"
-                            color={Colors.light.error}
-                            onPress={() => router.push(`/dashboard/cove/${coveId}/settings` as any)}
-                            size="wide"
-                        />
-                    )}
+                    <FeatureCard
+                        title="SETTINGS"
+                        icon="settings-outline"
+                        color={Colors.light.error}
+                        onPress={() => router.push(`/dashboard/cove/${coveId}/settings` as any)}
+                        size="wide"
+                    />
                 </View>
             </ScrollView>
         </View>
@@ -463,8 +444,9 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.light.background,
     },
     scrollContent: {
-        paddingHorizontal: 24,
-        paddingBottom: 60,
+        flexGrow: 1,
+        paddingHorizontal: 20,
+        paddingBottom: 100,
     },
     backButton: {
         width: 44,

@@ -13,6 +13,8 @@ import {
     Text,
     TouchableOpacity,
     View,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,11 +60,12 @@ export default function WallScreen() {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
-            <View style={[styles.header, { paddingTop: insets.top + 24 }]}> 
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtnSquare}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                </TouchableOpacity>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={[styles.container, { backgroundColor: Colors.light.background }]}
+        >
+            <View style={[styles.header, { paddingTop: insets.top + 92 }]}>
+                <View style={{ width: 44 }} />
                 <Text style={styles.title}>THE WALL</Text>
                 <View style={{ width: 44 }} />
             </View>
@@ -115,12 +118,16 @@ export default function WallScreen() {
                 />
             )}
 
-            <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)} activeOpacity={0.9}>
+            <TouchableOpacity
+                style={[styles.fab, { bottom: insets.bottom + 24 }]}
+                onPress={() => setModalVisible(true)}
+                activeOpacity={0.9}
+            >
                 <Ionicons name="pencil" size={24} color="#FFFFFF" />
             </TouchableOpacity>
 
             <CreateQuoteModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleCreate} />
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -200,7 +207,7 @@ const styles = StyleSheet.create({
     sortTextActive: { color: '#FFFFFF' },
     list: {
         paddingHorizontal: 20,
-        paddingBottom: 120,
+        paddingBottom: 140,
     },
     empty: {
         flex: 1,
@@ -235,7 +242,6 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        bottom: 30,
         right: 24,
         width: 60,
         height: 60,

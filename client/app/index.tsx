@@ -8,5 +8,7 @@ export default function Index() {
     return null;
   }
 
-  return <Redirect href={user ? '/(tabs)' : '/login'} />;
+  // Logged-in → go directly to Dashboard
+  // Not logged in → show Login/Landing page
+  return <Redirect href={user ? '/(tabs)/dashboard' : '/login'} />;
 }

@@ -1,6 +1,7 @@
-import { HomeScreen as CustomHomeScreen } from '@/components/HomeScreen/HomeScreen';
-import React from 'react';
+import { Redirect } from 'expo-router';
 
-export default function HomeScreen() {
-  return <CustomHomeScreen />;
+// The (tabs) root index just redirects straight to the dashboard.
+// HomeScreen has been removed from the main navigation flow.
+export default function TabIndex() {
+  return <Redirect href="/(tabs)/dashboard" />;
 }

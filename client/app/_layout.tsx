@@ -36,6 +36,7 @@ import { SplashScreen as CustomSplashScreen } from '@/components/SplashScreen/Sp
 import { useAuth } from '@/components/auth/authService';
 import { useAppUpdateCheck } from '@/hooks/useUpdateCheck';
 import { logger } from '@/utils/logger';
+import { setupNotifications } from '@/services/NotificationService';
 
 // Prevent the native splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -43,7 +44,8 @@ SplashScreen.preventAutoHideAsync();
 export { ErrorBoundary };
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  // Use login as the anchor so back navigation goes to the auth flow
+  anchor: 'login',
 };
 
 /**
@@ -60,21 +62,21 @@ function AuthGate() {
     // Wait for auth to initialize
     if (loading) return;
 
-    const isLoginPage = pathname === '/login';
+    const isAuthPage = pathname === '/login' || pathname === '/';
 
-    // 1. Not logged in -> Go to Login
-    if (!user && !isLoginPage) {
+    // 1. Not logged in and NOT on auth page → Go to Login
+    if (!user && !isAuthPage) {
       if (isRedirecting.current) return;
       isRedirecting.current = true;
       logger.log('AuthGate: Redirecting to /login');
       router.replace('/login');
     }
-    // 2. Logged in and on Login page -> Go to Dashboard
-    else if (user && isLoginPage) {
+    // 2. Logged in and on Login or root page → Go to Dashboard
+    else if (user && isAuthPage) {
       if (isRedirecting.current) return;
       isRedirecting.current = true;
       logger.log('AuthGate: Redirecting to dashboard');
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/dashboard');
     }
     // 3. Otherwise, we are stable
     else {
@@ -104,6 +106,15 @@ export default function RootLayout() {
 
   const { user } = useAuth(); // Keep for UI components like Navbar/TimeCapsule
 
+  // Register FCM token on login for backend push notifications
+  useEffect(() => {
+    if (user?.uid) {
+      setupNotifications(user.uid).catch((err: any) =>
+        logger.warn('setupNotifications failed:', err)
+      );
+    }
+  }, [user?.uid]);
+
   useEffect(() => {
     if (loaded || error) {
       SplashScreen.hideAsync().catch(err => logger.warn('SplashScreen.hideAsync error:', err));
@@ -114,16 +125,18 @@ export default function RootLayout() {
     return null;
   }
 
-  const isLoginPage = pathname === '/login';
+  const isLoginPage = pathname === '/login' || pathname === '/';
 
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: '#FDFBF7' }}>
         <AuthGate />
 
-        <Stack screenOptions={{ headerShown: false }} initialRouteName="(tabs)">
+        <Stack screenOptions={{ headerShown: false }} initialRouteName="login">
+          <Stack.Screen name="index" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="login" />
+          <Stack.Screen name="about" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
 

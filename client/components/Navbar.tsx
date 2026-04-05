@@ -58,7 +58,7 @@ export const Navbar = () => {
         } catch (e) {
             logger.error('Logout failed:', e);
         }
-        router.replace('/');
+        router.replace('/login');
     };
 
     const getInitials = (name: string | null | undefined) => {
@@ -74,7 +74,10 @@ export const Navbar = () => {
     const displayEmail = profile?.email || user?.email || '';
 
     return (
-        <View style={[styles.navbar, { paddingTop: insets.top + 12, backgroundColor: Colors.light.background, borderBottomWidth: 2, borderBottomColor: Colors.light.border }]}> 
+        <View 
+            pointerEvents="box-none"
+            style={[styles.navbar, { paddingTop: insets.top + 12, backgroundColor: Colors.light.background, borderBottomWidth: 2, borderBottomColor: Colors.light.border }]}
+        > 
             <View style={[styles.container, { height: NAVBAR_HEIGHT }]}> 
                 <TouchableOpacity onPress={() => handleNav('/')} activeOpacity={0.8} style={styles.logoContainer}>
                     <Text style={styles.logoLabel}>COVELET</Text>

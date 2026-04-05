@@ -11,6 +11,8 @@ import {
     TouchableOpacity,
     View,
     Dimensions,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import {
     Gesture,
@@ -21,7 +23,6 @@ import Animated, {
     useAnimatedStyle,
     useSharedValue,
     withDecay,
-    withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -126,15 +127,13 @@ export default function ConstellationScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtnCircle}
-          >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Constellation</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+      >
+        <View style={[styles.header, { paddingTop: insets.top + 92, paddingBottom: 20 }]}>
+          <View style={{ width: 44 }} />
+          <Text style={styles.title}>CONSTELLATION</Text>
           <TouchableOpacity
             onPress={() => setInfoVisible(true)}
             style={styles.backBtnCircle}
@@ -260,7 +259,7 @@ export default function ConstellationScreen() {
           ]}
           iconName="sparkles"
         />
-      </View>
+      </KeyboardAvoidingView>
     </GestureHandlerRootView>
   );
 }
@@ -279,7 +278,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingBottom: 20,
     backgroundColor: "rgba(5,7,10,0.8)",
     zIndex: 10,
   },

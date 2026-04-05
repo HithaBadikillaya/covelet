@@ -1,19 +1,19 @@
 import { EditMemberCardModal } from '@/components/Cove/Humans/EditMemberCardModal';
 import { MemberCard } from '@/components/Cove/Humans/MemberCard';
-import { Colors, Fonts, Layout } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { auth } from '@/firebaseConfig';
 import { useCoveMembers } from '@/hooks/useCoveMembers';
 import { getCoveBackgroundUrl } from '@/utils/avatar';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,9 +41,6 @@ export default function HumansScreen() {
             <View style={[styles.container, styles.centerAll, { backgroundColor: Colors.light.background }]}> 
                 <Ionicons name="alert-circle-outline" size={64} color={Colors.light.error} />
                 <Text style={[styles.errorText, { color: Colors.light.error }]}>{error}</Text>
-                <TouchableOpacity style={[styles.retryButton, { backgroundColor: Colors.light.primary }]} onPress={() => router.back()}>
-                    <Text style={styles.retryText}>Go Back</Text>
-                </TouchableOpacity>
             </View>
         );
     }
@@ -54,10 +51,8 @@ export default function HumansScreen() {
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
             <View style={styles.headerWrapper}>
                 <Image source={{ uri: coveBgUrl }} style={styles.headerBg} contentFit="cover" />
-                <View style={[styles.header, { paddingTop: insets.top + 24, paddingBottom: 20 }]}> 
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
-                        <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-                    </TouchableOpacity>
+                <View style={[styles.header, { paddingTop: insets.top + 92, paddingBottom: 20 }]}> 
+                    <View style={{ width: 44 }} />
                     <View style={styles.titleContainer}>
                         <Text style={styles.title}>HUMANS OF COVE</Text>
                     </View>
@@ -115,23 +110,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     titleContainer: { flex: 1, alignItems: 'center' },
-    backBtnCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: Layout.radiusLarge,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: Colors.light.text,
-    },
     title: {
         fontFamily: Fonts.heading,
         fontSize: 20,
         color: Colors.light.text,
         letterSpacing: 1,
     },
-    listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    listContent: { paddingHorizontal: 20, paddingBottom: 100 },
     introBox: {
         paddingVertical: 24,
         paddingHorizontal: 8,
@@ -154,18 +139,5 @@ const styles = StyleSheet.create({
         color: Colors.light.error,
         marginTop: 16,
         textAlign: 'center',
-    },
-    retryButton: {
-        marginTop: 24,
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 0,
-        borderWidth: 2,
-        borderColor: Colors.light.text,
-    },
-    retryText: {
-        fontFamily: Fonts.heading,
-        fontSize: 16,
-        color: '#FFFFFF',
     },
 });
