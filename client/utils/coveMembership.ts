@@ -48,10 +48,14 @@ export async function ensureCoveMemberRecord(coveId: string, userId: string) {
     });
 }
 
+const backfilledUserIds = new Set<string>();
+
 export async function backfillSelfMembershipsFromLegacy(userId: string) {
-    if (!userId) {
+    if (!userId || backfilledUserIds.has(userId)) {
         return 0;
     }
+
+    backfilledUserIds.add(userId);
 
     const response = await apiPost<{ backfilledCount?: number; migratedCoves?: number }>(
         '/coves/backfill-memberships',
@@ -59,6 +63,8 @@ export async function backfillSelfMembershipsFromLegacy(userId: string) {
     );
 
     if (response.error) {
+        // If it failed, we can remove it from the set to allow a retry later
+        // But for now, let's keep it to avoid spamming on recurring errors
         logger.warn('Unable to backfill legacy Cove memberships.', {
             userId,
             code: response.error.code,
@@ -78,6 +84,8 @@ interface MigrateLegacyCoveMembersInput {
     legacyMembers?: unknown;
 }
 
+const migratedCoveIds = new Set<string>();
+
 export async function migrateLegacyCoveMembers({
     coveId,
     currentUserId,
@@ -85,14 +93,21 @@ export async function migrateLegacyCoveMembers({
     memberCount,
     legacyMembers,
 }: MigrateLegacyCoveMembersInput) {
-    if (!db || !coveId || !currentUserId) {
+    if (!db || !coveId || !currentUserId || migratedCoveIds.has(coveId)) {
         return;
     }
 
     const legacyMemberIds = getLegacyMemberIds(legacyMembers);
     if (legacyMemberIds.length === 0) {
+        // If there's nothing to migrate, mark it so we don't check again
+        migratedCoveIds.add(coveId);
         return;
     }
+    
+    // We only proceed if we've determined there is actually something to migrate.
+    // Marking it now ensures that even if snapshots are frequent, we don't 
+    // re-kick these parallel async tasks for the same cove.
+    migratedCoveIds.add(coveId);
 
     const targetMemberIds = currentUserId === createdBy
         ? legacyMemberIds

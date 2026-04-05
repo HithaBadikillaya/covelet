@@ -1,4 +1,4 @@
-import { subscribeToAuthChanges } from '@/components/auth/authService';
+import { useAuth } from '@/components/auth/authService';
 import CoveCard from '@/components/Dashboard/CoveCard';
 import CreateCoveModal from '@/components/Dashboard/CreateCoveModal';
 import JoinCoveModal from '@/components/Dashboard/JoinCoveModal';
@@ -9,7 +9,7 @@ import { NAVBAR_HEIGHT } from '@/components/Navbar';
 import { logger } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { User } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import { collectionGroup, doc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
@@ -38,7 +38,7 @@ interface Cove {
 
 const DashboardScreen = () => {
     const insets = useSafeAreaInsets();
-    const [cuser, setCUser] = useState<User | null>(null);
+    const { user: cuser, loading: authLoading } = useAuth();
     const [firstName, setFirstName] = useState<string>('');
     const [coves, setCoves] = useState<Cove[]>([]);
     const [loading, setLoading] = useState(true);
@@ -47,13 +47,17 @@ const DashboardScreen = () => {
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // One-time AppState listener
     useEffect(() => {
-        return subscribeToAuthChanges((user: User | null) => {
-            setCUser(user);
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            logger.log("Dashboard: App state changed to:", nextState);
         });
+        return () => subscription.remove();
     }, []);
 
     useEffect(() => {
+        if (authLoading) return;
+
         if (!cuser) {
             setLoading(false);
             setCoves([]);
@@ -69,7 +73,6 @@ const DashboardScreen = () => {
         }
 
         const database = db;
-
         let active = true;
         const coveListeners = new Map<string, () => void>();
         const coveMap = new Map<string, Cove>();
@@ -77,9 +80,7 @@ const DashboardScreen = () => {
         let unsubscribeProfile: (() => void) | null = null;
 
         const syncCoves = () => {
-            if (!active) {
-                return;
-            }
+            if (!active) return;
 
             const sortedCoves = Array.from(coveMap.values()).sort((a, b) => {
                 const dateA = a.createdAt?.seconds || 0;
@@ -94,25 +95,21 @@ const DashboardScreen = () => {
 
         const start = async () => {
             try {
-                setLoading(true);
-
+                // Fetch profile
                 unsubscribeProfile = onSnapshot(
                     doc(database, 'users', cuser.uid),
                     (snap) => {
                         if (!snap.exists()) {
                             setFirstName('');
-                            return;
+                        } else {
+                            const data = snap.data() as { name?: string };
+                            setFirstName((data.name || '').split(' ')[0] || '');
                         }
-
-                        const data = snap.data() as { name?: string };
-                        const name = data.name || '';
-                        setFirstName(name.split(' ')[0] || '');
                     },
-                    (err) => {
-                        logger.error('Dashboard: Profile listener error:', err);
-                    },
+                    (err) => logger.error('Dashboard: Profile listener error:', err)
                 );
 
+                // Fetch memberships
                 unsubscribeMemberships = onSnapshot(
                     query(collectionGroup(database, 'members'), where('userId', '==', cuser.uid)),
                     (snapshot) => {
@@ -120,15 +117,10 @@ const DashboardScreen = () => {
 
                         snapshot.docs.forEach((membershipDoc) => {
                             const coveId = membershipDoc.ref.parent.parent?.id;
-                            if (!coveId) {
-                                return;
-                            }
+                            if (!coveId) return;
 
                             nextCoveIds.add(coveId);
-
-                            if (coveListeners.has(coveId)) {
-                                return;
-                            }
+                            if (coveListeners.has(coveId)) return;
 
                             const unsubscribeCove = onSnapshot(
                                 doc(database, 'coves', coveId),
@@ -137,78 +129,73 @@ const DashboardScreen = () => {
                                         coveMap.delete(coveId);
                                         coveListeners.get(coveId)?.();
                                         coveListeners.delete(coveId);
-                                        syncCoves();
-                                        return;
+                                    } else {
+                                        const rawData = coveSnap.data() as Omit<Cove, 'id'>;
+                                        const nextCove: Cove = {
+                                            id: coveSnap.id,
+                                            ...rawData,
+                                            memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
+                                        };
+                                        coveMap.set(coveId, nextCove);
+
+                                        // Background migration
+                                        void migrateLegacyCoveMembers({
+                                            coveId,
+                                            currentUserId: cuser.uid,
+                                            createdBy: nextCove.createdBy,
+                                            memberCount: nextCove.memberCount,
+                                            legacyMembers: nextCove.members,
+                                        });
                                     }
-
-                                    const rawData = coveSnap.data() as Omit<Cove, 'id'>;
-                                    const nextCove: Cove = {
-                                        id: coveSnap.id,
-                                        ...rawData,
-                                        memberCount: resolveMemberCount(rawData.memberCount, rawData.members),
-                                    };
-
-                                    coveMap.set(coveId, nextCove);
                                     syncCoves();
-
-                                    void migrateLegacyCoveMembers({
-                                        coveId,
-                                        currentUserId: cuser.uid,
-                                        createdBy: nextCove.createdBy,
-                                        memberCount: nextCove.memberCount,
-                                        legacyMembers: nextCove.members,
-                                    });
                                 },
                                 (err) => {
                                     if (err?.code === 'permission-denied' || err?.code === 'not-found') {
                                         coveMap.delete(coveId);
                                         coveListeners.get(coveId)?.();
                                         coveListeners.delete(coveId);
-                                        syncCoves();
-                                        return;
+                                    } else {
+                                        logger.error('Dashboard: Cove listener error:', err);
+                                        coveMap.delete(coveId);
                                     }
-
-                                    logger.error('Dashboard: Cove listener error:', err);
-                                    coveMap.delete(coveId);
                                     syncCoves();
-                                },
+                                }
                             );
 
                             coveListeners.set(coveId, unsubscribeCove);
                         });
 
-                        Array.from(coveListeners.entries()).forEach(([coveId, unsubscribeCove]) => {
-                            if (!nextCoveIds.has(coveId)) {
-                                unsubscribeCove();
-                                coveListeners.delete(coveId);
-                                coveMap.delete(coveId);
+                        // Clean up listeners for removed coves
+                        coveListeners.forEach((unsubscribe, id) => {
+                            if (!nextCoveIds.has(id)) {
+                                unsubscribe();
+                                coveListeners.delete(id);
+                                coveMap.delete(id);
                             }
                         });
 
-                        syncCoves();
+                        if (snapshot.empty) {
+                            setLoading(false);
+                            setCoves([]);
+                        } else {
+                            syncCoves();
+                        }
                     },
                     (err) => {
                         logger.error('Dashboard: Membership listener error:', err);
-                        if (!active) {
-                            return;
+                        if (active) {
+                            setError('Failed to sync memberships.');
+                            setLoading(false);
                         }
-
-                        setError('Failed to sync your scrapbook. Please check your connection.');
-                        setLoading(false);
-                    },
+                    }
                 );
 
-                void backfillSelfMembershipsFromLegacy(cuser.uid).catch((backfillError) => {
-                    logger.warn('Dashboard: Legacy membership backfill failed in the background.', backfillError);
+                void backfillSelfMembershipsFromLegacy(cuser.uid).catch((err) => {
+                    logger.warn('Dashboard: Legacy backfill warning:', err);
                 });
             } catch (error) {
-                logger.error('Dashboard: Failed to initialize dashboard listeners.', error);
-                if (!active) {
-                    return;
-                }
-
-                setError('Failed to open your Cove memberships.');
-                setLoading(false);
+                logger.error('Dashboard: Init failed:', error);
+                if (active) setLoading(false);
             }
         };
 
@@ -218,22 +205,10 @@ const DashboardScreen = () => {
             active = false;
             unsubscribeMemberships?.();
             unsubscribeProfile?.();
-            coveListeners.forEach((unsubscribeCove) => unsubscribeCove());
+            coveListeners.forEach((unsub) => unsub());
             coveListeners.clear();
-            coveMap.clear();
         };
-    }, [cuser]);
-
-    // AppState listener for rehydration
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextState) => {
-            logger.log("Dashboard: App state changed to:", nextState);
-            if (nextState === 'active') {
-                logger.log("Dashboard: App resumed.");
-            }
-        });
-        return () => subscription.remove();
-    }, [cuser, coves, loading]);
+    }, [cuser?.uid, authLoading]);
 
     const onRefresh = () => {
         setRefreshing(true);

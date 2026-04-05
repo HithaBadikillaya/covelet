@@ -1,17 +1,9 @@
 import { logger } from '@/utils/logger';
-import { backfillSelfMembershipsFromLegacy } from '@/utils/coveMembership';
-import {
-    clearAllTimeCapsuleNotifications,
-    clearTimeCapsuleNotificationForCove,
-    prepareTimeCapsuleNotifications,
-    syncTimeCapsuleNotification,
-} from '@/utils/timeCapsuleNotifications';
-import { db } from '@/firebaseConfig';
-import type { User } from 'firebase/auth';
-import { collection, collectionGroup, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { prepareTimeCapsuleNotifications } from '@/utils/timeCapsuleNotifications';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
+import type { User } from 'firebase/auth';
 
 interface Props {
     user: User | null;
@@ -22,243 +14,55 @@ function extractRouteFromResponse(response: Notifications.NotificationResponse |
     return typeof route === 'string' ? route : null;
 }
 
+/**
+ * TimeCapsuleNotificationBridge handles incoming notification responses (taps)
+ * and ensures the device is registered for push notifications.
+ * 
+ * Previous legacy logic for local scheduled notifications has been removed
+ * in favor of server-side (backend) push notifications.
+ */
 export function TimeCapsuleNotificationBridge({ user }: Props) {
     const router = useRouter();
     const lastHandledResponseId = useRef<string | null>(null);
 
+    // Handle notification responses (taps)
     useEffect(() => {
         const handleResponse = (response: Notifications.NotificationResponse | null) => {
-            if (!user) {
-                return;
-            }
+            if (!user) return;
 
             const route = extractRouteFromResponse(response);
             const responseId = response?.notification.request.identifier ?? null;
+            
             if (!route || !responseId || lastHandledResponseId.current === responseId) {
                 return;
             }
 
             lastHandledResponseId.current = responseId;
+            logger.log(`NotificationBridge: Navigating to ${route}`);
             router.push(route as any);
         };
 
         const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
-        void Notifications.getLastNotificationResponseAsync().then(handleResponse).catch((error) => {
-            logger.warn('Unable to inspect the last notification response.', error);
-        });
+        
+        // Check if the app was opened via a notification
+        void Notifications.getLastNotificationResponseAsync()
+            .then(handleResponse)
+            .catch((error) => {
+                logger.warn('NotificationBridge: Unable to inspect the last notification response.', error);
+            });
 
         return () => {
             subscription.remove();
         };
-    }, [router, user]);
+    }, [router, user?.uid]);
 
+    // Ensure permissions and token registration
     useEffect(() => {
-        if (!user?.uid) {
-            return;
-        }
+        if (!user?.uid) return;
 
-        let disposed = false;
-        let unsubscribeMemberships: (() => void) | null = null;
-        let unsubscribeUserPrefs: (() => void) | null = null;
-        const coveUnsubscribers = new Map<string, () => void>();
-        const capsuleUnsubscribers = new Map<string, () => void>();
-        const coveNames = new Map<string, string>();
-
-        const teardownCapsules = () => {
-            capsuleUnsubscribers.forEach((unsubscribe) => unsubscribe());
-            capsuleUnsubscribers.clear();
-            coveNames.clear();
-        };
-
-        const teardownCoves = () => {
-            coveUnsubscribers.forEach((unsubscribe) => unsubscribe());
-            coveUnsubscribers.clear();
-        };
-
-        const start = async () => {
-            if (!db || !user?.uid) {
-                logger.warn('⚠️ Skipping notification sync: Database or User not available.');
-                return;
-            }
-
-            const database = db;
-
-            try {
-                // Respect the user's notification preference stored in Firestore
-                // Subscribe to user prefs so the bridge reacts live to toggle changes
-                const userRef = doc(database, 'users', user.uid);
-                let notificationsEnabled = true;
-
-                await new Promise<void>((resolve) => {
-                    unsubscribeUserPrefs = onSnapshot(userRef, async (snap) => {
-                        const prev = notificationsEnabled;
-                        notificationsEnabled = snap.exists()
-                            ? snap.data()?.notificationsEnabled !== false
-                            : true;
-
-                        // First call: resolve the promise so we can continue setup
-                        resolve();
-
-                        // If user just re-enabled notifications after disabling, restart
-                        if (!prev && notificationsEnabled && !disposed) {
-                            await start();
-                        }
-
-                        // If user just disabled, tear down listeners and clear local notifs
-                        if (prev && !notificationsEnabled && !disposed) {
-                            teardownCoves();
-                            teardownCapsules();
-                            unsubscribeMemberships?.();
-                            unsubscribeMemberships = null;
-                            void clearAllTimeCapsuleNotifications(user.uid!);
-                        }
-                    });
-                });
-
-                if (!notificationsEnabled || disposed) {
-                    return;
-                }
-
-                const enabled = await prepareTimeCapsuleNotifications(user.uid);
-                if (!enabled || disposed) {
-                    return;
-                }
-
-                await backfillSelfMembershipsFromLegacy(user.uid);
-
-                const membershipsQuery = query(
-                    collectionGroup(database, 'members'),
-                    where('userId', '==', user.uid),
-                );
-
-                unsubscribeMemberships = onSnapshot(
-                    membershipsQuery,
-                    (snapshot) => {
-                        const nextCoveIds = new Set<string>();
-
-                        snapshot.docs.forEach((membershipDoc) => {
-                            const coveId = membershipDoc.ref.parent.parent?.id;
-                            if (!coveId) {
-                                return;
-                            }
-
-                            nextCoveIds.add(coveId);
-
-                            if (coveUnsubscribers.has(coveId)) {
-                                return;
-                            }
-
-                            const unsubscribeCove = onSnapshot(
-                                doc(database, 'coves', coveId),
-                                (coveDoc) => {
-                                    if (!coveDoc.exists()) {
-                                        coveUnsubscribers.get(coveId)?.();
-                                        coveUnsubscribers.delete(coveId);
-                                        capsuleUnsubscribers.get(coveId)?.();
-                                        capsuleUnsubscribers.delete(coveId);
-                                        coveNames.delete(coveId);
-                                        void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
-                                        return;
-                                    }
-
-                                    const coveData = coveDoc.data();
-                                    coveNames.set(coveId, coveData.name || 'Your Cove');
-
-                                    if (capsuleUnsubscribers.has(coveId)) {
-                                        return;
-                                    }
-
-                                    const capsuleQuery = query(
-                                        collection(database, 'coves', coveId, 'timeCapsules'),
-                                        orderBy('createdAt', 'desc'),
-                                        limit(1)
-                                    );
-
-                                    const unsubscribeCapsule = onSnapshot(
-                                        capsuleQuery,
-                                        (capsuleSnapshot) => {
-                                            if (capsuleSnapshot.empty) {
-                                                void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
-                                                return;
-                                            }
-
-                                            const capsuleDoc = capsuleSnapshot.docs[0];
-                                            const capsuleData = capsuleDoc.data();
-                                            const unlockAtSeconds = capsuleData.unlockAt?.seconds;
-
-                                            if (typeof unlockAtSeconds !== 'number') {
-                                                return;
-                                            }
-
-                                            void syncTimeCapsuleNotification({
-                                                userId: user.uid!,
-                                                coveId,
-                                                coveName: coveNames.get(coveId) || 'Your Cove',
-                                                capsuleId: capsuleDoc.id,
-                                                unlockAtSeconds,
-                                                isEmergencyOpened: !!capsuleData.isEmergencyOpened,
-                                            });
-                                        },
-                                        (error) => {
-                                            if (error?.code === 'permission-denied' || error?.code === 'not-found') {
-                                                void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
-                                                return;
-                                            }
-
-                                            logger.error('Time capsule notification listener failed.', error);
-                                        }
-                                    );
-
-                                    capsuleUnsubscribers.set(coveId, unsubscribeCapsule);
-                                },
-                                (error) => {
-                                    if (error?.code === 'permission-denied' || error?.code === 'not-found') {
-                                        coveUnsubscribers.get(coveId)?.();
-                                        coveUnsubscribers.delete(coveId);
-                                        capsuleUnsubscribers.get(coveId)?.();
-                                        capsuleUnsubscribers.delete(coveId);
-                                        coveNames.delete(coveId);
-                                        void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
-                                        return;
-                                    }
-
-                                    logger.error('Cove notification listener failed.', error);
-                                }
-                            );
-
-                            coveUnsubscribers.set(coveId, unsubscribeCove);
-                        });
-
-                        Array.from(coveUnsubscribers.entries()).forEach(([coveId, unsubscribe]) => {
-                            if (!nextCoveIds.has(coveId)) {
-                                unsubscribe();
-                                coveUnsubscribers.delete(coveId);
-                                capsuleUnsubscribers.get(coveId)?.();
-                                capsuleUnsubscribers.delete(coveId);
-                                coveNames.delete(coveId);
-                                void clearTimeCapsuleNotificationForCove(user.uid!, coveId);
-                            }
-                        });
-                    },
-                    (error) => {
-                        logger.error('Membership notification listener failed.', error);
-                    }
-                );
-            } catch (error) {
-                logger.error('Failed to initialize notification bridge:', error);
-            }
-        };
-
-        void start();
-
-        return () => {
-            disposed = true;
-            unsubscribeMemberships?.();
-            unsubscribeUserPrefs?.();
-            teardownCoves();
-            teardownCapsules();
-            void clearAllTimeCapsuleNotifications(user.uid);
-        };
+        void prepareTimeCapsuleNotifications(user.uid).catch((err) => {
+            logger.error('NotificationBridge: Failed to prepare notifications:', err);
+        });
     }, [user?.uid]);
 
     return null;
