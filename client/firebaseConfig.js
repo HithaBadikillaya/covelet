@@ -17,7 +17,7 @@ const firebaseConfig = {
 };
 
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    throw new Error('Firebase configuration missing. Ensure environment variables are set and expo-constants extra is populated.');
+    console.warn('❌ Firebase configuration missing. Ensure environment variables are set and expo-constants extra is populated. This may cause downstream failures.');
 }
 
 // Initialize Firebase App

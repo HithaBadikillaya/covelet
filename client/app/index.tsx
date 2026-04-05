@@ -1,5 +1,11 @@
+import { useAuth } from "@/components/auth/authService";
+import { Redirect } from "expo-router";
+
 export default function Index() {
-  // Let AuthGate in _layout.tsx handle all redirects to maintain 
-  // a single source of truth for navigation state.
-  return null;
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+
+  // Manual redirect fallback for index route if AuthGate is slow
+  return <Redirect href={user ? "/(tabs)/dashboard" : "/login"} />;
 }
