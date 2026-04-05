@@ -13,7 +13,6 @@ const {
   removeMember,
   getCoveStats,
   getTimeCapsuleStats,
-  updateTimeCapsuleEmergencyStatus,
   addReply,
 } = require('../controllers/coveController');
 
@@ -138,32 +137,6 @@ router.get(
   },
 );
 
-router.put(
-  '/:coveId/time-capsules/:capsuleId/emergency-status',
-  validateParams('coveId', 'capsuleId'),
-  async (req, res, next) => {
-    if (typeof req.body?.isEmergencyOpened !== 'boolean') {
-      return res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'isEmergencyOpened must be a boolean.',
-        },
-      });
-    }
-
-    try {
-      const result = await updateTimeCapsuleEmergencyStatus(
-        req.user.uid,
-        req.params.coveId,
-        req.params.capsuleId,
-        req.body.isEmergencyOpened,
-      );
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
 
 /**
  * POST /api/coves/:coveId/quotes/:quoteId/replies

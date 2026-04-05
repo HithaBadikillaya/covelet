@@ -139,32 +139,6 @@ async function collectExpoPushTokens(db, memberIds) {
   return Array.from(tokens);
 }
 
-async function notifyCoveMembersCapsuleOpened(db, coveRef, coveData, coveId, capsuleId) {
-  const memberIds = await getCoveMemberIds(coveRef, coveData);
-  const tokens = await collectExpoPushTokens(db, memberIds);
-
-  if (tokens.length === 0) {
-    return { notifiedDevices: 0 };
-  }
-
-  await sendExpoPushNotifications(
-    tokens.map((token) => ({
-      to: token,
-      title: 'Time Capsule Opened',
-      body: `${coveData.name || 'Your Cove'} is ready to open. Tap to read what your Cove left behind.`,
-      sound: 'default',
-      priority: 'high',
-      data: {
-        type: 'time-capsule-opened',
-        route: `/dashboard/cove/${coveId}/time-capsule`,
-        coveId,
-        capsuleId,
-      },
-    })),
-  );
-
-  return { notifiedDevices: tokens.length };
-}
 
 async function joinCove(uid, joinCode) {
   const normalizedJoinCode = typeof joinCode === 'string' ? joinCode.trim().toUpperCase() : '';
@@ -489,57 +463,6 @@ async function getTimeCapsuleStats(uid, coveId, capsuleId) {
   };
 }
 
-async function updateTimeCapsuleEmergencyStatus(uid, coveId, capsuleId, isEmergencyOpened) {
-  const { db, coveRef, coveData } = await getCoveForOwner(uid, coveId);
-  const { capsuleRef, capsuleData } = await getCapsuleRefForCove(coveRef, capsuleId);
-  const nextEmergencyStatus = !!isEmergencyOpened;
-
-  if (!!capsuleData.isEmergencyOpened === nextEmergencyStatus) {
-    return {
-      capsuleId,
-      isEmergencyOpened: nextEmergencyStatus,
-      notifiedDevices: 0,
-    };
-  }
-
-  await capsuleRef.update({ isEmergencyOpened: nextEmergencyStatus });
-
-  if (!nextEmergencyStatus) {
-    return {
-      capsuleId,
-      isEmergencyOpened: false,
-      notifiedDevices: 0,
-    };
-  }
-
-  try {
-    const { notifiedDevices } = await notifyCoveMembersCapsuleOpened(
-      db,
-      coveRef,
-      coveData,
-      coveId,
-      capsuleId,
-    );
-
-    return {
-      capsuleId,
-      isEmergencyOpened: true,
-      notifiedDevices,
-    };
-  } catch (error) {
-    logger.error('Failed to fan out time capsule push notifications.', {
-      coveId,
-      capsuleId,
-      error,
-    });
-
-    return {
-      capsuleId,
-      isEmergencyOpened: true,
-      notifiedDevices: 0,
-    };
-  }
-}
 
 /**
  * Add a reply to a quote and notify the author.
@@ -590,6 +513,5 @@ module.exports = {
   removeMember,
   getCoveStats,
   getTimeCapsuleStats,
-  updateTimeCapsuleEmergencyStatus,
   addReply,
 };

@@ -24,7 +24,6 @@ export interface TimeCapsuleNotificationEvent {
   coveName: string;
   capsuleId: string;
   unlockAtSeconds: number;
-  isEmergencyOpened: boolean;
 }
 
 Notifications.setNotificationHandler({
@@ -48,8 +47,7 @@ function deliveredStorageKey(userId: string, eventKey: string) {
 function buildEventKey(
   event: Omit<TimeCapsuleNotificationEvent, "userId" | "coveName">,
 ) {
-  const mode = event.isEmergencyOpened ? "emergency" : "scheduled";
-  return `${event.coveId}:${event.capsuleId}:${event.unlockAtSeconds}:${mode}`;
+  return `${event.coveId}:${event.capsuleId}:${event.unlockAtSeconds}`;
 }
 
 function buildNotificationRoute(coveId: string) {
@@ -306,12 +304,11 @@ export async function syncTimeCapsuleNotification(
     coveId: event.coveId,
     capsuleId: event.capsuleId,
     unlockAtSeconds: event.unlockAtSeconds,
-    isEmergencyOpened: event.isEmergencyOpened,
   });
   const delivered = await hasDelivered(event.userId, eventKey);
   const storedSchedule = await readStoredSchedule(event.userId, event.coveId);
   const unlockAtMs = event.unlockAtSeconds * 1000;
-  const isUnlocked = event.isEmergencyOpened || unlockAtMs <= Date.now();
+  const isUnlocked = unlockAtMs <= Date.now();
 
   if (isUnlocked) {
     if (storedSchedule?.eventKey === eventKey) {

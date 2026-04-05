@@ -41,7 +41,7 @@ async function cleanupToken(userId) {
 // Path: GET /api/notifications/process-all-triggers
 router.get('/process-all-triggers', async (req, res) => {
     console.log('⏰ [Cron] Starting 15-minute notification scan...');
-    
+
     // Security: Check req.headers['x-cron-key'] against process.env.CRON_SECRET
     const cronSecret = process.env.CRON_SECRET;
     const incomingKey = req.headers['x-cron-key'];
@@ -66,7 +66,7 @@ router.get('/process-all-triggers', async (req, res) => {
         for (const docSnap of capsulesSnap.docs) {
             const capsule = docSnap.data();
             const coveId = capsule.coveId;
-            
+
             if (!coveId) {
                 console.warn(`⚠️ [Unlock] Capsule ${docSnap.id} missing coveId. Skipping.`);
                 continue;
@@ -151,8 +151,8 @@ router.get('/process-all-triggers', async (req, res) => {
                         android: { priority: 'high' }
                     });
 
-                    await userDoc.ref.update({ 
-                        lastInactivityNotificationAt: admin.firestore.FieldValue.serverTimestamp() 
+                    await userDoc.ref.update({
+                        lastInactivityNotificationAt: admin.firestore.FieldValue.serverTimestamp()
                     });
                     usersReengaged++;
                 } catch (err) {

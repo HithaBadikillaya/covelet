@@ -3,7 +3,7 @@ import { CreateCapsuleModal } from '@/components/Cove/TimeCapsule/CreateCapsuleM
 import AppDialog, { type AppDialogAction } from '@/components/ui/AppDialog';
 import { Colors, Fonts } from '@/constants/theme';
 import { auth, db } from '@/firebaseConfig';
-import { apiGet, apiPut } from '@/services/api';
+import { apiGet } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -16,9 +16,8 @@ import {
     orderBy,
     query,
     serverTimestamp,
-    updateDoc,
 } from 'firebase/firestore';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -42,7 +41,6 @@ interface TimeCapsule {
     id: string;
     unlockAt?: { seconds: number } | null;
     ownerId: string;
-    isEmergencyOpened: boolean;
     createdAt?: { seconds: number };
 }
 
@@ -59,11 +57,6 @@ interface CapsuleStatsResponse {
     entryCount: number;
 }
 
-interface CapsuleEmergencyStatusResponse {
-    capsuleId: string;
-    isEmergencyOpened: boolean;
-    notifiedDevices: number;
-}
 
 type DialogState = {
     title: string;
@@ -90,14 +83,11 @@ export default function TimeCapsuleScreen() {
     const [newEntryText, setNewEntryText] = useState('');
     const [addingEntry, setAddingEntry] = useState(false);
     const [dialog, setDialog] = useState<DialogState>(null);
-    const notificationsPreparedRef = useRef(false);
 
     const isOwner = coveOwnerId === currentUser?.uid;
     const unlockSeconds = capsule?.unlockAt?.seconds ?? 0;
     const unlockDate = unlockSeconds ? new Date(unlockSeconds * 1000) : new Date();
-    const isTimeUnlocked = unlockSeconds > 0 && Date.now() >= unlockDate.getTime();
-    const isEmergencyOpen = capsule?.isEmergencyOpened || false;
-    const isUnlocked = isTimeUnlocked || isEmergencyOpen;
+    const isUnlocked = unlockSeconds > 0 && Date.now() >= unlockDate.getTime();
 
     useEffect(() => {
         if (!coveId || !db) return;
@@ -184,7 +174,6 @@ export default function TimeCapsuleScreen() {
                 setEntryCount(data.length);
                 setLoadingEntries(false);
 
-                // Fetch author names for any authors we don't have yet
                 if (db) {
                     const unknownAuthorIds = data
                         .map((e) => e.authorId)
@@ -262,24 +251,18 @@ export default function TimeCapsuleScreen() {
         setDialog({ title, message, actions });
     }, []);
 
-    // Set up push notification permissions and schedule/sync the capsule notification
     useEffect(() => {
         if (!currentUser || !capsule || !coveId || !coveName) return;
 
         const setupNotifications = async () => {
             try {
-                if (!notificationsPreparedRef.current) {
-                    notificationsPreparedRef.current = true;
-                    await prepareTimeCapsuleNotifications(currentUser.uid);
-                }
-
+                await prepareTimeCapsuleNotifications(currentUser.uid);
                 await syncTimeCapsuleNotification({
                     userId: currentUser.uid,
                     coveId,
                     coveName,
                     capsuleId: capsule.id,
                     unlockAtSeconds: capsule.unlockAt?.seconds ?? 0,
-                    isEmergencyOpened: capsule.isEmergencyOpened,
                 });
             } catch (err) {
                 logger.warn('TimeCapsuleScreen: Unable to sync notification.', err);
@@ -287,7 +270,7 @@ export default function TimeCapsuleScreen() {
         };
 
         void setupNotifications();
-    }, [currentUser?.uid, capsule?.id, capsule?.isEmergencyOpened, coveId, coveName]);
+    }, [currentUser?.uid, capsule?.id, coveId, coveName]);
 
     const handleAddEntry = async () => {
         const safeEntryText = normalizeMultilineText(newEntryText, SECURITY_LIMITS.timeCapsuleEntry);
@@ -316,51 +299,6 @@ export default function TimeCapsuleScreen() {
         } finally {
             setAddingEntry(false);
         }
-    };
-
-    const confirmEmergencyToggle = () => {
-        if (!capsule || !isOwner) {
-            return;
-        }
-
-        const newStatus = !capsule.isEmergencyOpened;
-        const action = newStatus ? 'OPEN' : 'CLOSE';
-
-        showDialog(
-            `Emergency ${action}`,
-            newStatus
-                ? 'Are you sure? Everyone in the Cove with notifications enabled will be alerted and the memories will unlock immediately.'
-                : 'This will re-lock the capsule and stop showing the unlocked state in the app.',
-            [
-                { label: 'Cancel', variant: 'secondary' },
-                {
-                    label: 'Confirm',
-                    variant: 'danger',
-                    onPress: async () => {
-                        try {
-                            const response = await apiPut<CapsuleEmergencyStatusResponse>(
-                                `/coves/${coveId!}/time-capsules/${capsule.id}/emergency-status`,
-                                { isEmergencyOpened: newStatus },
-                            );
-
-                            if (response.error) {
-                                if (response.error.code === 'NETWORK_ERROR' && db) {
-                                    await updateDoc(
-                                        doc(db, 'coves', coveId!, 'timeCapsules', capsule.id),
-                                        { isEmergencyOpened: newStatus },
-                                    );
-                                } else {
-                                    showDialog('Error', response.error.message || 'Failed to toggle emergency mode.');
-                                }
-                            }
-                        } catch (error) {
-                            logger.error(error);
-                            showDialog('Error', 'Failed to toggle emergency mode.');
-                        }
-                    },
-                },
-            ]
-        );
     };
 
     if (loadingCapsule) {
@@ -406,17 +344,7 @@ export default function TimeCapsuleScreen() {
             <View style={[styles.header, { paddingTop: insets.top + NAVBAR_HEIGHT + 35, paddingBottom: 16 }]}>
                 <View style={{ width: 44 }} />
                 <Text style={styles.title}>Time Capsule</Text>
-                {isOwner ? (
-                    <TouchableOpacity onPress={confirmEmergencyToggle} style={styles.lockBtnCircle}>
-                        <Ionicons
-                            name={isUnlocked ? 'lock-open' : 'lock-closed'}
-                            size={20}
-                            color={isUnlocked ? Colors.light.error : Colors.light.primary}
-                        />
-                    </TouchableOpacity>
-                ) : (
-                    <View style={{ width: 44 }} />
-                )}
+                <View style={{ width: 44 }} />
             </View>
 
             <View style={[styles.statusLabel, isUnlocked ? styles.bgOpen : styles.bgLocked]}>
@@ -549,16 +477,6 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.light.background,
     },
     backBtnCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: Colors.light.border,
-    },
-    lockBtnCircle: {
         width: 44,
         height: 44,
         borderRadius: 22,
