@@ -10,6 +10,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Dimensions,
 } from "react-native";
 import {
     Gesture,
@@ -19,10 +20,13 @@ import {
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
+    withDecay,
+    withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BOARD_SIZE = 1500;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const BOARD_SIZE = 2000; // Increased board size for more exploration space
 
 const getSeededRandom = (seed: string) => {
   let hash = 0;
@@ -57,36 +61,45 @@ export default function ConstellationScreen() {
 
     return timeSorted.map((q) => {
       const rand = getSeededRandom(q.id);
-      const x = 50 + rand() * (BOARD_SIZE - 100);
-      const y = 50 + rand() * (BOARD_SIZE - 100);
-      const size = 3 + rand() * 4;
+      const x = 100 + rand() * (BOARD_SIZE - 200);
+      const y = 100 + rand() * (BOARD_SIZE - 200);
+      const size = 4 + rand() * 5; // Slightly larger stars
       return { ...q, x, y, size, rand };
     });
   }, [quotes]);
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
+  const translateX = useSharedValue(-BOARD_SIZE / 4); // Start somewhat centered
+  const translateY = useSharedValue(-BOARD_SIZE / 4);
+  const context = useSharedValue({ x: 0, y: 0 });
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
-      scale.value = Math.max(0.3, Math.min(savedScale.value * e.scale, 3));
+      scale.value = Math.max(0.4, Math.min(savedScale.value * e.scale, 2.5));
     })
     .onEnd(() => {
       savedScale.value = scale.value;
     });
 
   const panGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
+    .onStart(() => {
+      context.value = { x: translateX.value, y: translateY.value };
     })
-    .onEnd(() => {
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
+    .onUpdate((e) => {
+      translateX.value = context.value.x + e.translationX;
+      translateY.value = context.value.y + e.translationY;
+    })
+    .onEnd((e) => {
+      // Add momentum / Deceleration
+      translateX.value = withDecay({
+        velocity: e.velocityX,
+        clamp: [-(BOARD_SIZE * scale.value) + SCREEN_WIDTH, 0],
+      });
+      translateY.value = withDecay({
+        velocity: e.velocityY,
+        clamp: [-(BOARD_SIZE * scale.value) + SCREEN_HEIGHT, 0],
+      });
     });
 
   const combinedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
@@ -300,8 +313,8 @@ const styles = StyleSheet.create({
   },
   constellationLine: {
     position: "absolute",
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    height: 1.5,
+    backgroundColor: "rgba(255, 255, 255, 0.4)", // Brighter lines
   },
   starHitbox: {
     position: "absolute",
@@ -315,14 +328,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOpacity: 1, // Full opacity for shadow
+    shadowRadius: 10, // More glow
+    elevation: 8,
   },
   activeStar: {
-    backgroundColor: "#FFD700",
-    shadowColor: "#FFD700",
-    transform: [{ scale: 2 }],
+    backgroundColor: "#FFEB3B",
+    shadowColor: "#FFEB3B",
+    transform: [{ scale: 2.2 }],
+    shadowRadius: 15,
   },
   tooltip: {
     position: "absolute",
