@@ -1,6 +1,6 @@
 import { Colors, Fonts, Layout } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -14,6 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { HomeScreen } from "@/components/HomeScreen/HomeScreen";
 
 import {
   resetPassword as authResetPassword,
@@ -21,8 +23,11 @@ import {
   signUp,
 } from "@/components/auth/authService";
 
+
+type AuthView = 'landing' | 'login' | 'signup';
+
 export default function LoginScreen() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState<AuthView>('landing');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,9 +37,9 @@ export default function LoginScreen() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const handleAuth = async () => {
-    if (!email || !password || (!isLogin && !name.trim())) {
+    if (!email || !password || (view === 'signup' && !name.trim())) {
       setError(
-        isLogin
+        view === 'login'
           ? "Please enter both email and password."
           : "Please enter your name, email, and password.",
       );
@@ -43,12 +48,12 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
-      if (isLogin) {
+      if (view === 'login') {
         await signIn(email, password);
       } else {
         await signUp(name, email, password);
       }
-      router.replace("/");
+      // Success is handled by AuthGate automatically
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -75,145 +80,166 @@ export default function LoginScreen() {
     }
   };
 
+
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.loginCard}>
-            <View style={styles.tapeStrip} />
+          {view === 'landing' ? (
+            <HomeScreen onLogin={() => setView('login')} onSignup={() => setView('signup')} hideNavbarSpace={true} />
+          ) : (
+            <ScrollView 
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.loginCard}>
+              <TouchableOpacity 
+                style={styles.backBtn} 
+                onPress={() => {
+                  setView('landing');
+                  setError(null);
+                  setSuccess(null);
+                }}
+              >
+                <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              </TouchableOpacity>
 
-            <Text style={styles.title}>
-              {isLogin ? "WELCOME BACK" : "START YOUR STORY"}
-            </Text>
-            <Text style={styles.subtitle}>
-              {isLogin
-                ? "Sign in to access your shared memories and coves."
-                : "Create an account to begin your journey with the people you love."}
-            </Text>
+              <View style={styles.tapeStrip} />
 
-            {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+              <Text style={styles.title}>
+                {view === 'login' ? "WELCOME BACK" : "START YOUR STORY"}
+              </Text>
+              <Text style={styles.subtitle}>
+                {view === 'login'
+                  ? "Sign in to access your shared memories and coves."
+                  : "Create an account to begin your journey with the people you love."}
+              </Text>
 
-            {success ? (
-              <View style={styles.successBox}>
-                <Text style={styles.successText}>{success}</Text>
-              </View>
-            ) : null}
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
 
-            {!isLogin ? (
+              {success ? (
+                <View style={styles.successBox}>
+                  <Text style={styles.successText}>{success}</Text>
+                </View>
+              ) : null}
+
+              {view === 'signup' ? (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>YOUR NAME</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="How should everyone know you?"
+                    placeholderTextColor={Colors.light.textMuted}
+                    value={name}
+                    onChangeText={setName}
+                  />
+                </View>
+              ) : null}
+
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>YOUR NAME</Text>
+                <Text style={styles.label}>EMAIL ADDRESS</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="How should everyone know you?"
+                  placeholder="name@example.com"
                   placeholderTextColor={Colors.light.textMuted}
-                  value={name}
-                  onChangeText={setName}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
                 />
               </View>
-            ) : null}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>EMAIL ADDRESS</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="name@example.com"
-                placeholderTextColor={Colors.light.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>PASSWORD</Text>
-              <View style={styles.passwordInputContainer}>
-                <TextInput
-                  style={[styles.input, styles.passwordInput]}
-                  placeholder="********"
-                  placeholderTextColor={Colors.light.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <Pressable
-                  accessibilityLabel={
-                    showPassword ? "Hide password" : "Show password"
-                  }
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => setShowPassword((current) => !current)}
-                  style={styles.passwordToggle}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color={Colors.light.textMuted}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>PASSWORD</Text>
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder="********"
+                    placeholderTextColor={Colors.light.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
                   />
-                </Pressable>
+                  <Pressable
+                    accessibilityLabel={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setShowPassword((current) => !current)}
+                    style={styles.passwordToggle}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={Colors.light.textMuted}
+                    />
+                  </Pressable>
+                </View>
               </View>
-            </View>
 
-            {isLogin ? (
-              <TouchableOpacity onPress={handleForgotPassword}>
-                <Text style={styles.forgotPassword}>Forgot your password?</Text>
+              {view === 'login' ? (
+                <TouchableOpacity onPress={handleForgotPassword}>
+                  <Text style={styles.forgotPassword}>Forgot your password?</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  loading && { opacity: 0.7 },
+                ]}
+                onPress={handleAuth}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {view === 'login' ? "OPEN COVELET" : "CREATE ACCOUNT"}
+                  </Text>
+                )}
               </TouchableOpacity>
-            ) : null}
 
-            <TouchableOpacity
-              style={[
-                styles.button,
-                loading && { opacity: 0.7 },
-              ]}
-              onPress={handleAuth}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>
-                  {isLogin ? "OPEN COVELET" : "CREATE ACCOUNT"}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setIsLogin(!isLogin);
-                setError(null);
-                setSuccess(null);
-              }}
-              style={styles.switchAuth}
-            >
-              <View style={styles.switchAuthBox}>
-                <Text style={styles.switchAuthText}>
-                  {isLogin ? "New here? " : "Already have an account? "}
-                </Text>
-                <Text style={styles.switchAuthLink}>
-                  {isLogin ? "Sign up" : "Sign in"}
-                </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setView(view === 'login' ? 'signup' : 'login');
+                  setError(null);
+                  setSuccess(null);
+                }}
+                style={styles.switchAuth}
+              >
+                <View style={styles.switchAuthBox}>
+                  <Text style={styles.switchAuthText}>
+                    {view === 'login' ? "New here? " : "Already have an account? "}
+                  </Text>
+                  <Text style={styles.switchAuthLink}>
+                    {view === 'login' ? "Sign up" : "Sign in"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            </ScrollView>
+          )}
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#FDFBF7',
   },
   keyboardView: {
     flex: 1,
@@ -221,15 +247,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 40, // Extra space at bottom for better visibility
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
+
+  // Form Styles
   loginCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: Layout.radiusLarge,
     padding: 32,
-    paddingTop: 48,
+    paddingTop: 64,
     borderWidth: 2,
     borderColor: Colors.light.text,
     shadowColor: "#000",
@@ -237,6 +264,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 0,
     elevation: 10,
+    position: 'relative',
+  },
+  backBtn: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tapeStrip: {
     position: "absolute",
@@ -320,10 +357,6 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 4,
   },
-  buttonPressed: {
-    transform: [{ translateX: 2 }, { translateY: 2 }],
-    shadowOffset: { width: 2, height: 2 },
-  },
   buttonText: {
     fontFamily: Fonts.heading,
     fontSize: 15,
@@ -375,3 +408,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+

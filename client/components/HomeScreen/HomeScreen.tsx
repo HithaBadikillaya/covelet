@@ -7,13 +7,21 @@ import { ActionSection } from './ActionSection';
 import { FeaturePreviewSection } from './FeaturePreviewSection';
 import { HeroSection } from './HeroSection';
 
-export const HomeScreen: React.FC = () => {
+interface HomeScreenProps {
+    onLogin: () => void;
+    onSignup: () => void;
+    hideNavbarSpace?: boolean;
+}
+
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogin, onSignup, hideNavbarSpace = false }) => {
     const insets = useSafeAreaInsets();
     const scrollRef = useRef<ScrollView>(null);
 
     const handleExplorePress = () => {
         scrollRef.current?.scrollTo({ y: 760, animated: true });
     };
+
+    const topGap = hideNavbarSpace ? 24 : NAVBAR_HEIGHT + 18;
 
     return (
         <View style={[styles.container, { backgroundColor: Colors.light.background }]}> 
@@ -27,11 +35,15 @@ export const HomeScreen: React.FC = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
                     styles.scrollContent,
-                    { paddingTop: insets.top + NAVBAR_HEIGHT + 18 },
+                    { paddingTop: insets.top + topGap },
                 ]}
             >
                 <HeroSection />
-                <ActionSection onExplorePress={handleExplorePress} />
+                <ActionSection 
+                    onExplorePress={handleExplorePress} 
+                    onLogin={onLogin}
+                    onSignup={onSignup}
+                />
                 <FeaturePreviewSection />
             </ScrollView>
         </View>

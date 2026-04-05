@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Image, Alert, ActivityIndicator } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { Colors, Fonts } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NAVBAR_HEIGHT } from '@/components/Navbar';
 
 const DEVELOPER_NAME = 'Hitha Badikillaya S U';
 const GITHUB_URL = 'https://github.com/HithaBadikillaya/covelet';
-const VERSION = Constants.expoConfig?.version || '1.0.0';
+const VERSION = Constants.expoConfig?.version || '1.1.0';
 
 export default function AboutScreen() {
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [checking, setChecking] = useState(false);
 
   const handleOpenGithub = () => {
@@ -40,7 +42,7 @@ export default function AboutScreen() {
           ]
         );
       } else {
-        Alert.alert('Up to Date', 'You are using the latest version of Covelet.');
+        Alert.alert('Covelet is Up-to-Date', 'You are already using the latest version.');
       }
     } catch (error) {
       console.error('Update check failed:', error);
@@ -54,18 +56,16 @@ export default function AboutScreen() {
     <View style={styles.container}>
       <Stack.Screen 
         options={{ 
-          headerShown: true, 
-          title: 'About Covelet',
-          headerTitleStyle: { fontFamily: Fonts.heading, color: Colors.light.primary },
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 16 }}>
-              <Ionicons name="arrow-back" size={24} color={Colors.light.primary} />
-            </TouchableOpacity>
-          )
+          headerShown: false, // Removing the stack header as we have the custom top Navbar
         }} 
       />
       
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.content, 
+          { paddingTop: insets.top + NAVBAR_HEIGHT + 32 } // Added proper padding between navbar and text
+        ]}
+      >
         <View style={styles.header}>
           <Image 
             source={require('@/assets/images/logo.png')} 
@@ -114,11 +114,6 @@ export default function AboutScreen() {
             </>
           )}
         </TouchableOpacity>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2026 Covelet Team</Text>
-          <Text style={styles.footerText}>Built with ❤️ for digital heritage.</Text>
-        </View>
       </ScrollView>
     </View>
   );
@@ -132,11 +127,11 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
     alignItems: 'center',
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
     marginBottom: 40,
-    marginTop: 20,
   },
   logo: {
     width: 100,
@@ -202,15 +197,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Fonts.heading,
     fontSize: 16,
-  },
-  footer: {
-    marginTop: 40,
-    alignItems: 'center',
-    gap: 4,
-  },
-  footerText: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.light.textMuted,
   },
 });

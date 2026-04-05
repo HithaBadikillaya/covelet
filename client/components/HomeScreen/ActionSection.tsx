@@ -1,14 +1,17 @@
 import { Colors, Fonts } from "@/constants/theme";
-import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface ActionSectionProps {
   onExplorePress: () => void;
+  onLogin: () => void;
+  onSignup: () => void;
 }
 
 export const ActionSection: React.FC<ActionSectionProps> = ({
   onExplorePress,
+  onLogin,
+  onSignup,
 }) => {
   return (
     <View style={styles.container}>
@@ -19,19 +22,31 @@ export const ActionSection: React.FC<ActionSectionProps> = ({
         </Text>
       </View>
 
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => router.push("/(tabs)/dashboard")}
-        style={styles.primaryButton}
-      >
-        <Text style={styles.primaryButtonText}>Open dashboard</Text>
-      </TouchableOpacity>
+      <View style={styles.authRow}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onLogin}
+          style={[styles.primaryButton, { flex: 1 }]}
+        >
+          <Text style={styles.primaryButtonText}>LOG IN</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onSignup}
+          style={[styles.secondaryButton, { flex: 1 }]}
+        >
+          <Text style={styles.secondaryButtonText}>SIGN UP</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         activeOpacity={0.75}
         onPress={onExplorePress}
         style={styles.linkButton}
-      ></TouchableOpacity>
+      >
+        <Text style={styles.linkButtonText}>Explore Features ↓</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -41,6 +56,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 28,
     gap: 14,
+  },
+  authRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   noteCard: {
     backgroundColor: "#FFFDF8",
@@ -62,14 +81,8 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 8,
   },
-  noteBody: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: Colors.light.textMuted,
-  },
   primaryButton: {
-    height: 60,
+    height: 54,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.light.primary,
@@ -81,10 +94,30 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 4,
   },
+  secondaryButton: {
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: Colors.light.text,
+    shadowColor: "#000",
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 0,
+    elevation: 4,
+  },
   primaryButtonText: {
     fontFamily: Fonts.heading,
-    fontSize: 16,
+    fontSize: 14,
     color: "#FFFFFF",
+    letterSpacing: 1,
+  },
+  secondaryButtonText: {
+    fontFamily: Fonts.heading,
+    fontSize: 14,
+    color: Colors.light.text,
+    letterSpacing: 1,
   },
   linkButton: {
     alignItems: "center",
@@ -93,7 +126,8 @@ const styles = StyleSheet.create({
   },
   linkButtonText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.light.primary,
+    textDecorationLine: 'underline',
   },
 });
