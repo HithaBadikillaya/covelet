@@ -36,6 +36,7 @@ import Animated, {
     useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BOARD_SIZE = 1500;
 const PIN_WIDTH = 180;
@@ -153,7 +154,14 @@ export default function MoodBoardScreen() {
   const isOwner = coveOwnerId === currentUser?.uid;
 
   useEffect(() => {
-    setInfoVisible(true);
+    const checkInfo = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenBoardInfo');
+      if (!hasSeen) {
+        setInfoVisible(true);
+        await AsyncStorage.setItem('hasSeenBoardInfo', 'true');
+      }
+    };
+    checkInfo();
   }, []);
 
   useEffect(() => {

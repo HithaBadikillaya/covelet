@@ -25,6 +25,7 @@ import Animated, {
     withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BOARD_SIZE = 2500; 
@@ -50,7 +51,14 @@ export default function ConstellationScreen() {
   const [infoVisible, setInfoVisible] = useState(false);
 
   useEffect(() => {
-    setInfoVisible(true);
+    const checkInfo = async () => {
+      const hasSeen = await AsyncStorage.getItem('hasSeenConstellationInfo');
+      if (!hasSeen) {
+        setInfoVisible(true);
+        await AsyncStorage.setItem('hasSeenConstellationInfo', 'true');
+      }
+    };
+    checkInfo();
   }, []);
 
   const starMap = React.useMemo(() => {
@@ -268,7 +276,7 @@ export default function ConstellationScreen() {
             {/* Controls */}
             <View style={styles.controls}>
                 <TouchableOpacity onPress={centerSky} style={styles.controlBtn}>
-                    <Ionicons name="scan" size={22} color="#FFFFFF" />
+                    <Ionicons name="locate-outline" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
             </View>
           </View>
