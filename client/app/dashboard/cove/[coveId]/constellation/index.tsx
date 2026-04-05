@@ -22,12 +22,12 @@ import {
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
-    withDecay,
+    withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const BOARD_SIZE = 2000; // Increased board size for more exploration space
+const BOARD_SIZE = 2500; 
 
 const getSeededRandom = (seed: string) => {
   let hash = 0;
@@ -62,48 +62,48 @@ export default function ConstellationScreen() {
 
     return timeSorted.map((q) => {
       const rand = getSeededRandom(q.id);
-      const x = 100 + rand() * (BOARD_SIZE - 200);
-      const y = 100 + rand() * (BOARD_SIZE - 200);
-      const size = 4 + rand() * 5; // Slightly larger stars
-      return { ...q, x, y, size, rand };
+      const x = 200 + rand() * (BOARD_SIZE - 400);
+      const y = 200 + rand() * (BOARD_SIZE - 400);
+      const size = 3 + rand() * 4; 
+      return { ...q, x, y, size, randValue: rand() };
     });
   }, [quotes]);
 
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
-  const translateX = useSharedValue(-BOARD_SIZE / 4); // Start somewhat centered
-  const translateY = useSharedValue(-BOARD_SIZE / 4);
-  const context = useSharedValue({ x: 0, y: 0 });
+  // Gesture shared values
+  const scale = useSharedValue(0.8);
+  const initialScale = useSharedValue(0.8);
+  const translateX = useSharedValue(-BOARD_SIZE / 2 + SCREEN_WIDTH / 2);
+  const translateY = useSharedValue(-BOARD_SIZE / 2 + SCREEN_HEIGHT / 2);
+  const initialX = useSharedValue(0);
+  const initialY = useSharedValue(0);
 
-  const pinchGesture = Gesture.Pinch()
-    .onUpdate((e) => {
-      scale.value = Math.max(0.4, Math.min(savedScale.value * e.scale, 2.5));
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-    });
+  const centerSky = () => {
+    translateX.value = withSpring(-BOARD_SIZE / 2 + SCREEN_WIDTH / 2);
+    translateY.value = withSpring(-BOARD_SIZE / 2 + SCREEN_HEIGHT / 2);
+    scale.value = withSpring(0.8);
+  };
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
-      context.value = { x: translateX.value, y: translateY.value };
+      initialX.value = translateX.value;
+      initialY.value = translateY.value;
     })
     .onUpdate((e) => {
-      translateX.value = context.value.x + e.translationX;
-      translateY.value = context.value.y + e.translationY;
-    })
-    .onEnd((e) => {
-      // Add momentum / Deceleration
-      translateX.value = withDecay({
-        velocity: e.velocityX,
-        clamp: [-(BOARD_SIZE * scale.value) + SCREEN_WIDTH, 0],
-      });
-      translateY.value = withDecay({
-        velocity: e.velocityY,
-        clamp: [-(BOARD_SIZE * scale.value) + SCREEN_HEIGHT, 0],
-      });
+      // Allow panning but keep it somewhat centered
+      translateX.value = initialX.value + e.translationX;
+      translateY.value = initialY.value + e.translationY;
     });
 
-  const combinedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+  const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      initialScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      const newScale = initialScale.value * e.scale;
+      scale.value = Math.max(0.3, Math.min(newScale, 3));
+    });
+
+  const combinedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -131,20 +131,24 @@ export default function ConstellationScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <View style={[styles.header, { paddingTop: insets.top + 92, paddingBottom: 20 }]}>
-          <View style={{ width: 44 }} />
-          <Text style={styles.title}>CONSTELLATION</Text>
-          <TouchableOpacity
-            onPress={() => setInfoVisible(true)}
-            style={styles.backBtnCircle}
-          >
-            <Ionicons name="information" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+        <View style={styles.overlayHeader}>
+          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCircle}>
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.title}>CONSTELLATION</Text>
+            <TouchableOpacity
+                onPress={() => setInfoVisible(true)}
+                style={styles.backBtnCircle}
+            >
+                <Ionicons name="information" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading && quotes.length === 0 ? (
           <View style={[styles.center, { flex: 1 }]}>
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color="#FFFFFF" size="large" />
           </View>
         ) : quotes.length === 0 ? (
           <View style={[styles.center, { flex: 1 }]}>
@@ -170,7 +174,7 @@ export default function ConstellationScreen() {
                   const dy = nextStar.y - star.y;
                   const dist = Math.sqrt(dx * dx + dy * dy);
 
-                  if (dist > 800) return null;
+                  if (dist > 700) return null; // Only connect relatively close stars
 
                   const centerX = (star.x + nextStar.x) / 2;
                   const centerY = (star.y + nextStar.y) / 2;
@@ -194,6 +198,8 @@ export default function ConstellationScreen() {
 
                 {starMap.map((star) => {
                   const isActive = activeQuoteId === star.id;
+                  const glowSize = star.size * 5;
+                  
                   return (
                     <React.Fragment key={star.id}>
                       <TouchableOpacity
@@ -203,9 +209,23 @@ export default function ConstellationScreen() {
                         }
                         style={[
                           styles.starHitbox,
-                          { left: star.x - 20, top: star.y - 20 },
+                          { left: star.x - 25, top: star.y - 25 },
                         ]}
                       >
+                         {/* Outer Glow */}
+                         <View
+                          style={[
+                            styles.starGlow,
+                            {
+                              width: glowSize,
+                              height: glowSize,
+                              borderRadius: glowSize / 2,
+                              backgroundColor: isActive ? 'rgba(255, 235, 59, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                              opacity: 0.5 + star.randValue * 0.5,
+                            },
+                          ]}
+                        />
+                        {/* Inner Core */}
                         <View
                           style={[
                             styles.star,
@@ -213,7 +233,7 @@ export default function ConstellationScreen() {
                               width: star.size,
                               height: star.size,
                               borderRadius: star.size / 2,
-                              opacity: isActive ? 1 : 0.6 + star.rand() * 0.4,
+                              backgroundColor: isActive ? '#FFEB3B' : '#FFFFFF',
                             },
                             isActive && styles.activeStar,
                           ]}
@@ -225,8 +245,8 @@ export default function ConstellationScreen() {
                           style={[
                             styles.tooltip,
                             {
-                              left: Math.min(star.x + 10, BOARD_SIZE - 200),
-                              top: star.y + 10,
+                              left: star.x + 15,
+                              top: star.y + 15,
                             },
                           ]}
                         >
@@ -235,7 +255,7 @@ export default function ConstellationScreen() {
                           </Text>
                           <Text
                             style={styles.tooltipText}
-                            numberOfLines={3}
+                            numberOfLines={4}
                           >{`"${star.content}"`}</Text>
                         </View>
                       )}
@@ -244,6 +264,13 @@ export default function ConstellationScreen() {
                 })}
               </Animated.View>
             </GestureDetector>
+            
+            {/* Controls */}
+            <View style={styles.controls}>
+                <TouchableOpacity onPress={centerSky} style={styles.controlBtn}>
+                    <Ionicons name="scan" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -254,8 +281,9 @@ export default function ConstellationScreen() {
           description="A night-sky view of your Cove's memories. Each wall post becomes a star, and the stars link together over time so you can see your shared story take shape."
           howToUse={[
             "Pinch to zoom in or out and explore different parts of the sky.",
-            "Tap a star to open the memory attached to it, then tap again to close it.",
-            "Follow the connecting lines to trace how your Cove has grown over time.",
+            "Drag your finger to pan across the starfield.",
+            "Tap a star to open the memory attached to it.",
+            "Use the 'center' button to find your way back if you get lost.",
           ]}
           iconName="sparkles"
         />
@@ -267,19 +295,26 @@ export default function ConstellationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#05070A",
+    backgroundColor: "#020408",
   },
-  center: {
-    justifyContent: "center",
-    alignItems: "center",
+  overlayHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    backgroundColor: "rgba(5,7,10,0.8)",
-    zIndex: 10,
+    paddingBottom: 20,
+    backgroundColor: "rgba(2,4,8,0.7)",
+  },
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   backBtnCircle: {
     width: 44,
@@ -289,80 +324,101 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.15)",
   },
   title: {
     fontFamily: Fonts.heading,
-    fontSize: 24,
+    fontSize: 20,
     color: "#FFFFFF",
-    letterSpacing: 2,
+    letterSpacing: 4,
+    textAlign: 'center',
   },
   skyWrapper: {
     flex: 1,
     overflow: "hidden",
   },
-  scrollView: {
-    flex: 1,
-  },
   sky: {
     width: BOARD_SIZE,
     height: BOARD_SIZE,
-    backgroundColor: "#05070A",
+    backgroundColor: "#020408",
   },
   constellationLine: {
     position: "absolute",
-    height: 1.5,
-    backgroundColor: "rgba(255, 255, 255, 0.4)", // Brighter lines
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.15)", 
   },
   starHitbox: {
     position: "absolute",
-    width: 40,
-    height: 40,
+    width: 50,
+    height: 50,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 5,
   },
-  star: {
-    backgroundColor: "#FFFFFF",
+  starGlow: {
+    position: "absolute",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1, // Full opacity for shadow
-    shadowRadius: 10, // More glow
-    elevation: 8,
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  star: {
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   activeStar: {
-    backgroundColor: "#FFEB3B",
+    transform: [{ scale: 1.8 }],
     shadowColor: "#FFEB3B",
-    transform: [{ scale: 2.2 }],
-    shadowRadius: 15,
+    shadowRadius: 8,
   },
   tooltip: {
     position: "absolute",
-    width: 180,
-    backgroundColor: "rgba(25, 30, 40, 0.95)",
-    padding: 12,
-    borderRadius: 8,
+    width: 200,
+    backgroundColor: "rgba(10, 15, 25, 0.98)",
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    zIndex: 20,
+    borderColor: "rgba(255,255,255,0.15)",
+    zIndex: 50,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
   },
   tooltipAuthor: {
     fontFamily: Fonts.heading,
     fontSize: 10,
-    color: "#A0AEC0",
-    letterSpacing: 1,
-    marginBottom: 4,
+    color: "#8899AA",
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   tooltipText: {
     fontFamily: Fonts.body,
-    fontSize: 13,
-    color: "#FFFFFF",
-    lineHeight: 18,
+    fontSize: 14,
+    color: "#E2E8F0",
+    lineHeight: 20,
     fontStyle: "italic",
+  },
+  controls: {
+      position: 'absolute',
+      bottom: 40,
+      right: 20,
+      flexDirection: 'column',
+      gap: 12,
+  },
+  controlBtn: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: "rgba(255,255,255,0.1)",
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.2)",
+      backdropFilter: 'blur(10px)',
   },
   emptyText: {
     fontFamily: Fonts.heading,
